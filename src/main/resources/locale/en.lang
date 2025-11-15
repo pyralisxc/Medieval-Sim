@@ -1,0 +1,206 @@
+[tile]
+# No custom tiles yet
+
+[object]
+# No custom objects yet (barrier is internal)
+
+[item]
+# No custom items yet
+
+[itemtooltip]
+# No custom item tooltips yet
+
+[mob]
+# No custom mobs yet
+
+[buff]
+pvpimmunity=PvP Immunity
+pvpimmunitydesc=You are temporarily immune to PvP damage
+
+[itemmessage]
+protectedzone=This area is protected by a zone
+pvpzone=You are entering a PvP zone!
+nopermission=You don't have permission to do that
+
+[ui]
+# Admin Tools
+admintools=Admin Tools
+admintoolstitle=Admin Tools
+admintoolsmenu=Main Menu
+commandcenter=Command Center
+
+# Build Mode
+buildtools=Build Tools
+buildmode=Build Mode
+buildmodeon=Build Mode: ON
+buildmodeoff=Build Mode: OFF
+buildmodeblockcost={shape}: {count} blocks required
+
+# Shapes
+shape=Shape
+sizes=Sizes
+linetypes=Line Types
+shapes=Shapes
+shapenormal=Normal
+shapeline=Line
+shapecross=Cross
+shapel=L
+shapet=T
+shapesquare=Square
+shapecircle=Circle
+shapediamond=Diamond
+shapehalfcircle=Half Circle
+shapetriangle=Triangle
+hollow=Hollow
+
+# Directions
+direction=Direction
+directionup=Up
+directiondown=Down
+directionleft=Left
+directionright=Right
+rotationinfo=(Rotation follows player direction)
+
+# Size Controls
+linelength=Line Length
+squaresize=Square Size
+circleradius=Circle Radius
+spacing=Spacing
+linelengthfull=Line Length (Line, Cross, L, T)
+squaresizefull=Square Size (Square, Diamond)
+circleradiusfull=Circle Radius (Circle, Half Circle, Triangle)
+spacingfull=Spacing (All Shapes)
+
+# Zone Tools
+zonetools=Zone Tools
+protectedzones=Protected Zones
+pvpzones=PVP Zones
+createprotectedzone=Create Protected Zone
+createpvpzone=Create PVP Zone
+
+# Zone Properties
+zonename=Zone Name
+zonetype=Zone Type
+zoneprotected=Protected
+zonepvp=PVP
+zonecolor=Zone Color
+creator=Creator
+teams=Teams
+noteams=No teams
+allowedteams=Allowed Teams
+worldowner=World Owner
+you=You
+
+# Zone Actions
+editzone=Edit Zone
+deletezone=Delete Zone
+renamezoneto=Rename zone to:
+deletezoneconfirm=Delete this zone?
+expandzone=Expand Zone
+shrinkzone=Shrink Zone
+expandzonetooltip=Left click to expand zone
+shrinkzonetooltip=Right click to shrink zone
+createzone=Create Zone
+addteam=Add Team
+removeteam=Remove Team
+selectteam=Select Team
+configurebutton=Configure
+renamebutton=Rename
+savebutton=Save
+
+# Protected Zone Configuration
+ownerlabel=Owner:
+ownertooltip=The player who owns this zone
+allowownsteam=Allow Owner's Team
+allowownsteamtooltip=If enabled, players on the owner's team can access this zone
+teampermissions=Team Permissions:
+canbreak=Can Break
+canbreaktooltip=Team members can break tiles and objects
+canplace=Can Place
+canplacetooltip=Team members can place tiles and objects
+
+# Enhancement #5: Granular interaction permissions
+interactions=Interactions:
+caninteractdoors=Can Open Doors
+caninteractdoorstooltip=Team members can open and close doors
+caninteractcontainers=Can Open Chests
+caninteractcontainerstooltip=Team members can access chests and storage containers
+caninteractstations=Can Use Stations
+caninteractstationstooltip=Team members can use crafting stations and workbenches
+caninteractsigns=Can Edit Signs
+caninteractsignstooltip=Team members can edit sign text
+caninteractswitches=Can Use Switches
+caninteractswitchestooltip=Team members can use levers, switches, and pressure plates
+caninteractfurniture=Can Use Furniture
+caninteractfurnituretooltip=Team members can interact with beds, chairs, and furniture
+
+# Permission error messages
+nopermissionbreak=You don't have permission to break in this protected zone
+nopermissionplace=You don't have permission to place in this protected zone
+nopermissiondoors=You don't have permission to use doors in this zone
+nopermissioncontainers=You don't have permission to open containers in this zone
+nopermissionstations=You don't have permission to use crafting stations in this zone
+nopermissionsigns=You don't have permission to edit signs in this zone
+nopermissionswitches=You don't have permission to use switches in this zone
+nopermissionfurniture=You don't have permission to use furniture in this zone
+nopermissioninteract=You don't have permission to interact in this protected zone
+
+ownernotfound=Player '{name}' not found. They must be online to set as owner.
+ownerset=Zone owner set to: {name}
+noneowner=None
+
+# Zone UI
+zonelist=Zone List
+nozonescreated=No zones created yet
+zonelabel=Zone:
+backtomenu=Back to Menu
+
+# Zone Descriptions
+protectedzonedesc=Players can only build/destroy if they are the creator, on an allowed team, or the world owner
+pvpzonedesc=PVP is automatically enabled for all players inside this zone
+
+# Zone Creation/Editing
+selectareatitle=Select Zone Area
+selectareainfo=Click and drag to select the zone area
+clickdragtocreate=Click and drag to create zone
+clickdragtoexpand=Click and drag to expand zone
+clickdragtoshrink=Click and drag to shrink zone
+
+# Zone Feedback Messages  
+zonecreated=Zone created: {name}
+zonedeleted=Zone deleted
+zonerenamed=Zone renamed to: {name}
+zoneexpanded=Zone expanded
+zoneshrunk=Zone shrunk
+teamadded=Team added to zone
+teamremoved=Team removed from zone
+
+# PvP Zone Dialogs
+spawnedinpvpzone=Spawned in PVP Zone
+enterpvpzone=Enter PVP Zone?
+exitpvpzone=Exit PVP Zone?
+enterzone=Enter Zone
+exitzone=Exit Zone
+stayinzone=Stay in Zone
+stayoutside=Stay Outside
+stayinside=Stay Inside
+stay=Stay
+teleporttospawn=Teleport to Spawn
+
+# General UI
+cancel=Cancel
+back=Back
+damagelabel=Damage:
+combatlocklabel=Combat Lock:
+spawnedinpvpzonemsg=You have spawned inside a PVP zone!
+stayorteleportmsg=Would you like to stay or teleport to world spawn?
+pvpenabledmsg=PVP will be enabled when you enter
+pvpdisabledmsg=PVP will be disabled when you exit
+immunitymsg=5 seconds of immunity on entry
+combatlockremaining=Combat Lock: <seconds>s remaining
+cannotexitcombat=You cannot exit while in combat!
+
+[misc]
+protectedzone=This area is protected by zone: <zone>
+combatlockmessage=Cannot exit - in combat for <seconds>s
+reentrycooldownmessage=Cannot enter - cooldown for <seconds>s

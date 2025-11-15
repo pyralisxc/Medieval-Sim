@@ -1,0 +1,354 @@
+========================================================================
+                     MEDIEVAL SIM MOD - FEATURE OVERVIEW
+========================================================================
+
+WHAT IS MEDIEVAL SIM?
+---------------------
+Medieval Sim is a comprehensive admin toolkit mod for Necesse that enhances 
+server management and provides powerful tools for administrators and server 
+owners. The mod focuses on creating a user-friendly experience for complex 
+server administration tasks.
+
+MOD PURPOSE: Transform complex console commands and admin tasks into intuitive 
+visual interfaces that anyone can use without technical knowledge.
+
+========================================================================
+                           MAIN FEATURE AREAS
+========================================================================
+
+1. ADMIN TOOLS SYSTEM
+======================
+
+WHAT IT DOES:
+- Provides a central access point for all administrative functions
+- Adds an "Admin Tools" button to the game interface (only visible to admins)
+- Creates a permission-based system that hides admin features from regular players
+- Serves as the main hub that connects all other mod features
+
+WHO CAN USE IT:
+- Server administrators with ADMIN permission level
+- Server owners
+
+USER EXPERIENCE:
+- Click the Admin Tools button in the inventory screen
+- Opens a menu showing all available admin functions
+- Clean, organized interface that groups related tools together
+- No need to remember complex console commands
+
+------------------------------------------------------------------------
+
+2. BUILD MODE SYSTEM (Advanced Construction Tools)
+==================================================
+
+WHAT IT DOES:
+- Provides enhanced building tools for administrators to quickly construct large structures
+- Offers multiple placement patterns and shapes for efficient building
+- Includes preview functionality so you can see what will be built before committing
+
+CORE FEATURES:
+
+Shape-Based Placement:
+- Normal (single tile placement)
+- Line (straight lines of any length)
+- Cross (+ shaped patterns) 
+- L-shaped patterns
+- T-shaped patterns
+- Square/Rectangle (filled or hollow)
+- Circle (filled or hollow)
+- Diamond patterns
+- Half-circle patterns
+- Triangle patterns
+
+Configuration Options:
+- Adjustable sizes (line length, square size, circle radius)
+- Spacing between placed items
+- Direction control (up, down, left, right)
+- Hollow vs. filled shapes
+
+PRACTICAL USES:
+- Rapidly build walls, floors, and foundations
+- Create geometric patterns for decorative purposes
+- Build roads, paths, and infrastructure quickly
+- Construct large buildings without tedious tile-by-tile placement
+
+USER EXPERIENCE:
+- Select your building tool and material
+- Choose your desired shape and size from a visual menu
+- See a preview of what will be placed
+- Click to place the entire pattern at once
+
+------------------------------------------------------------------------
+
+3. ZONE MANAGEMENT SYSTEM
+=========================
+
+WHAT IT DOES:
+- Creates designated areas with special rules and protections
+- Allows administrators to define and manage different types of zones across the world
+- Provides visual boundaries so players can see zone areas while in zones
+- Enables fine-grained control over player interactions in different areas
+
+ZONE TYPES:
+
+Protected Zones:
+- Areas where tiles and objects cannot be destroyed
+- Prevents griefing in important areas like spawn points or community buildings
+- Can be assigned to specific teams or players
+- Perfect for protecting public infrastructure
+
+PvP Zones:
+- Combat Zones: Areas where PvP is specifically enabled
+- Allows server owners to create mixed PvP/PvE experiences
+- Allows admins to fine tune pvp damage multipliers, combat lock timers, and DoT multipliers
+- Players get notifications when entering/leaving PvP zones
+
+ZONE MANAGEMENT FEATURES:
+- Create zones by selecting an area on the map
+- Name zones for easy identification
+- Edit zone boundaries after creation
+- Delete zones when no longer needed
+- View a list of all zones on the server
+- Assign zones to specific teams or players
+
+VISUAL FEATURES:
+- Zone boundaries are visible to admins in zone management UI
+- Different colors for different zone types
+- Zone names displayed when near boundaries
+- Particle effects to mark zone edges
+
+PRACTICAL USES:
+- Protect spawn areas from griefing
+- Create safe trading posts
+- Designate PvP arenas for organized combat
+- Protect community projects and important structures
+- Create roleplay areas with specific rules
+
+------------------------------------------------------------------------
+
+4. COMMAND CENTER SYSTEM
+=========================
+
+WHAT IT DOES:
+- Takes Necesse's complex console commands and wraps them in user-friendly interfaces
+- Eliminates the need to memorize command syntax, parameters, and options
+- Provides visual forms with dropdowns, checkboxes, and input fields instead of text commands
+- Makes advanced server management accessible to non-technical administrators
+
+THE PROBLEM IT SOLVES:
+- Necesse has many powerful console commands, but they're hard to use
+- Commands require exact syntax and parameter knowledge
+- Easy to make mistakes that could affect the server
+- New administrators struggle to learn all the available commands
+
+THE SOLUTION:
+- Scans all available Necesse commands automatically
+- Creates visual interfaces for each command
+- Shows all available options in dropdowns and menus
+- Validates input before sending commands
+- Provides helpful descriptions for each option
+
+COMMAND CATEGORIES:
+
+World Management:
+- Set time of day
+- Change weather
+- Teleport players
+- Manage world settings
+
+Player Management:
+- Give items to players
+- Set player permissions
+- Manage player inventories
+- Handle player statistics
+
+Server Control:
+- Server restart commands
+- Configuration changes
+- Performance monitoring
+- Backup management
+
+Item and Object Commands:
+- Spawn items and objects
+- Modify item properties
+- Bulk item operations
+- Inventory management
+
+USER EXPERIENCE:
+- Browse commands by category instead of searching through documentation
+- Fill out forms instead of typing complex command syntax
+- See all available options for each parameter
+- Preview commands before executing them
+- Get immediate feedback on results
+
+TECHNICAL BENEFITS:
+- Uses reflection to automatically discover new commands as Necesse updates
+- Adapts to new command parameters without mod updates
+- Reduces human error in command execution
+- Provides consistent interface across all commands
+
+------------------------------------------------------------------------
+
+5. SETTLEMENT SPACING SYSTEM
+============================
+
+WHAT IT DOES:
+- Increases the minimum distance required between player settlements
+- Prevents settlements from being built too close together
+- Helps reduce conflicts over territory and resources
+- Encourages proper town planning and expansion
+
+CURRENT BEHAVIOR:
+- Adds 50 additional tiles of required spacing between settlements
+- Prevents both new settlement creation and expansion if too close to existing settlements
+- Maintains existing settlements (doesn't affect already-built settlements)
+- Provides clear error messages when placement fails
+
+BENEFITS:
+- Reduces territorial disputes between players
+- Encourages players to plan settlements more carefully
+- Creates natural buffer zones between communities
+- Prevents accidental blocking of settlement expansion
+- Makes the world feel less crowded and more realistic
+
+USER EXPERIENCE:
+- When trying to place a settlement flag, get clear feedback if location is too close
+- See helpful error messages explaining why placement failed
+- Existing settlements continue to function normally
+- No impact on gameplay for settlements that were already established
+
+------------------------------------------------------------------------
+
+6. PLOT FLAG SYSTEM (FUTURE FEATURE)
+====================================
+
+WHAT IT WILL DO:
+- Allow administrators to create purchasable settlement plots
+- Enable controlled settlement expansion through an economy system
+- Provide customizable pricing for different plot locations
+
+HOW IT WILL WORK:
+
+Plot Creation:
+- Administrators purchase special "Plot Flag" items
+- Set custom prices for each plot flag
+- Place plot flags in desired locations around the world
+
+Player Experience:
+- Players find plot flags placed by administrators
+- See the price to purchase each plot
+- Spend in-game currency to buy the plot
+- Automatically receive a settlement flag upon purchase
+- Gain ownership of that location for settlement building
+
+Administrative Control:
+- Set different prices for different locations (prime locations cost more)
+- Remove or repriced plots as needed
+- Track which plots have been sold
+- Manage settlement expansion in a controlled way
+
+BENEFITS:
+- Creates an economic aspect to settlement creation
+- Allows administrators to control where settlements can be built
+- Generates currency sinks for the server economy
+- Enables strategic placement of settlements in desirable locations
+
+========================================================================
+                        INTEGRATION & USER FLOW
+========================================================================
+
+HOW EVERYTHING WORKS TOGETHER:
+------------------------------
+
+1. Administrator logs in and sees the Admin Tools button
+2. Clicks Admin Tools to open the main menu
+3. Chooses from available options:
+   - Build Mode: For construction projects
+   - Zone Management: To protect areas or set up PvP zones
+   - Command Center: To use advanced Necesse commands easily
+   - Settlement Tools: To manage settlement spacing and plots
+
+4. Each tool opens its own specialized interface
+5. All tools work together - for example:
+   - Use Build Mode to construct a building
+   - Use Zone Management to protect it from griefing
+   - Use Command Center to add special items or effects
+   - Use Settlement tools to control nearby settlement creation
+
+PERMISSION SYSTEM:
+- All features respect Necesse's permission levels
+- Only administrators and server owners can access admin tools
+- Regular players see normal game interface
+- Different permission levels can be set for different features
+
+VISUAL CONSISTENCY:
+- All interfaces follow the same design language
+- Consistent button layouts and menu structures  
+- Clear visual feedback for all actions
+- Helpful tooltips and descriptions throughout
+
+========================================================================
+                          TARGET USERS & USE CASES
+========================================================================
+
+SERVER ADMINISTRATORS:
+- Busy server owners who need efficient tools for common tasks
+- New administrators learning server management
+- Experienced admins who want to reduce repetitive manual work
+
+COMMUNITY MANAGERS:
+- People running roleplay servers with specific area rules
+- Event organizers who need to quickly set up areas for activities
+- Community builders who need to protect important structures
+
+SERVER OPERATORS:
+- Technical users who want GUI alternatives to console commands
+- Multi-server operators who need consistent admin interfaces
+- Users who want to reduce command-line errors and increase efficiency
+
+USE CASE EXAMPLES:
+
+Setting up a New Server Area:
+1. Use Build Mode to quickly construct basic infrastructure
+2. Use Zone Management to create protected spawn areas
+3. Use Command Center to configure world settings
+4. Use Settlement tools to control expansion
+
+Managing a Community Event:
+1. Use Build Mode to construct event arena or structures  
+2. Use Zone Management to create PvP zones for competitions
+3. Use Command Center to give participants special items
+4. Use Zone Management to protect the event area from griefing
+
+Daily Server Maintenance:
+1. Use Command Center for routine administrative tasks
+2. Use Zone Management to adjust protection as needed
+3. Use Settlement tools to manage growth and expansion
+4. Use Build Mode for quick repairs or improvements
+
+========================================================================
+                             FUTURE VISION
+========================================================================
+
+EXPANSION POSSIBILITIES:
+- create a grand exchange where users can trade items and currency
+- create a bank where users can store their items and currency 
+- Integration with other popular Necesse mods
+
+DEVELOPMENT PHILOSOPHY:
+- User-friendly interfaces over complex commands
+- Visual feedback and previews for all actions
+- Comprehensive permission system respecting server hierarchy
+- Extensible architecture for future enhancements
+- Focus on reducing administrative workload
+- Emphasis on preventing common server management mistakes
+
+========================================================================
+
+This mod transforms Necesse server administration from a technical 
+challenge requiring deep knowledge into an accessible, visual experience 
+that any server owner can master quickly.
+
+The goal is to let administrators focus on building great communities 
+rather than struggling with complex console commands and manual processes.
+
+========================================================================

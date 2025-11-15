@@ -1,0 +1,21 @@
+plugins {
+    id 'java'
+}
+
+group = 'tools'
+version = '1.0'
+
+sourceCompatibility = '17'
+targetCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // No external dependencies; expects Necesse.jar on runtime classpath when executed
+}
+
+jar {
+    archiveBaseName = 'list-packets'
+}

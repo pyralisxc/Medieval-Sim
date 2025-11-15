@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Gradle: classes",
+            "type": "shell",
+            "command": "./gradlew.bat classes",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$javac"]
+        },
+        {
+            "label": "Gradle: buildModJar",
+            "type": "shell",
+            "command": "./gradlew.bat buildModJar",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Gradle: runDevClient",
+            "type": "shell",
+            "command": "./gradlew.bat runDevClient",
+            "group": "none",
+            "isBackground": true,
+            "problemMatcher": []
+        }
+    ]
+}
