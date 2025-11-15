@@ -15,18 +15,22 @@ public class StringWidgetStrategy implements WidgetCreationStrategy {
     
     @Override
     public ParameterWidget createWidget(ParameterMetadata parameter, int x, int y, Client client, String commandId) {
-        // Extract default value
-        String defaultValue = extractDefaultValue(parameter);
-        
-        // Use dropdown if presets are available
+        ParameterHandlerType type = parameter.getHandlerType();
+
+        // REST_STRING is genuine free text (chat messages, etc.)
+        if (type == ParameterHandlerType.REST_STRING) {
+            int width = getWidthForStringType(type);
+            return new TextInputWidget(parameter, x, y, width, null);
+        }
+
+        // If the handler exposes preset values, use a simple dropdown
         if (parameter.hasPresets()) {
             return new DropdownWidget(parameter, x, y, parameter.getPresets());
         }
-        
-        // Determine width based on parameter type
-        int width = getWidthForStringType(parameter.getHandlerType());
-        
-        return new TextInputWidget(parameter, x, y, width, defaultValue);
+
+        // Fallback: plain text for identifiers with no preset or autocomplete set
+        int width = getWidthForStringType(type);
+        return new TextInputWidget(parameter, x, y, width, null);
     }
     
     @Override
@@ -44,15 +48,8 @@ public class StringWidgetStrategy implements WidgetCreationStrategy {
     /**
      * Extract default value from parameter handler.
      */
-    private String extractDefaultValue(ParameterMetadata parameter) {
-        try {
-            // Try to extract default using reflection (following current pattern)
-            // This could be enhanced with caching in the future
-            return null; // Simplified for now
-        } catch (Exception e) {
-            return null;
-        }
-    }
+    // Default extraction intentionally omitted for now; Necesse will
+    // resolve defaults when executing the underlying chat command.
     
     /**
      * Get appropriate width for different string parameter types.

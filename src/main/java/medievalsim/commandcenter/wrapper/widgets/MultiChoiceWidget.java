@@ -30,7 +30,12 @@ public class MultiChoiceWidget extends ParameterWidget {
     private int selectedIndex;
     private int previousSelectedIndex;
     private necesse.gfx.forms.components.FormContentBox parentForm; // Reference to parent form for dynamic updates
-    private FormComponent currentSubComponent; // Currently visible sub-component
+    private FormComponent currentSubComponent; // Primary visible sub-component (for simple widgets)
+
+    // When a sub-widget has multiple components (like PlayerDropdownWidget), we
+    // track them separately so we can add/remove them correctly from the parent
+    // form without hardcoding any command-specific behavior.
+    private FormComponent[] currentSubComponents;
     
     private static final int DROPDOWN_WIDTH = 180;
     private static final int SUB_WIDGET_Y_OFFSET = 30; // Space below dropdown for sub-widget
@@ -50,6 +55,7 @@ public class MultiChoiceWidget extends ParameterWidget {
         this.previousSelectedIndex = 0;
         this.parentForm = null; // Will be set later via setParentForm()
         this.currentSubComponent = null;
+        this.currentSubComponents = null;
         
         // Extract handlers from MultiParameterHandler using reflection
         this.handlers = extractHandlers(parameter);
@@ -196,10 +202,21 @@ public class MultiChoiceWidget extends ParameterWidget {
             return;
         }
         
-        // Remove old sub-widget component
-        if (currentSubComponent != null && oldIndex >= 0 && oldIndex < subWidgets.length) {
+        // Remove old sub-widget component(s)
+        if (oldIndex >= 0 && oldIndex < subWidgets.length) {
             try {
-                parentForm.removeComponent(currentSubComponent);
+                // If we previously added multiple components for this widget
+                // (for example, PlayerDropdownWidget's text input + dropdown),
+                // remove them all. Otherwise, remove the single component.
+                if (currentSubComponents != null) {
+                    for (FormComponent comp : currentSubComponents) {
+                        if (comp != null) {
+                            parentForm.removeComponent(comp);
+                        }
+                    }
+                } else if (currentSubComponent != null) {
+                    parentForm.removeComponent(currentSubComponent);
+                }
             } catch (Exception e) {
                 System.err.println("[MultiChoiceWidget] Failed to remove old sub-component: " + e.getMessage());
             }
@@ -210,13 +227,31 @@ public class MultiChoiceWidget extends ParameterWidget {
             subWidgets[oldIndex].reset();
         }
         
-        // Add new sub-widget component
+        // Add new sub-widget component(s)
+        currentSubComponents = null;
         if (newIndex >= 0 && newIndex < subWidgets.length) {
             ParameterWidget newWidget = subWidgets[newIndex];
-            currentSubComponent = newWidget.getComponent();
-            
+
             try {
-                parentForm.addComponent(currentSubComponent);
+                if (newWidget instanceof PlayerDropdownWidget) {
+                    // PlayerDropdownWidget has a text input + dropdown stacked vertically
+                    PlayerDropdownWidget playerWidget = (PlayerDropdownWidget) newWidget;
+                    FormComponent textInput = playerWidget.getTextInput();
+                    FormComponent dropdown = playerWidget.getDropdown();
+                    parentForm.addComponent(textInput);
+                    parentForm.addComponent(dropdown);
+                    currentSubComponents = new FormComponent[] { textInput, dropdown };
+                    currentSubComponent = textInput;
+                } else if (newWidget instanceof RelativeIntInputWidget) {
+                    // RelativeIntInputWidget manages multiple internal components as well,
+                    // but exposes them through its primary component. For now we treat it
+                    // as a single component here.
+                    currentSubComponent = newWidget.getComponent();
+                    parentForm.addComponent(currentSubComponent);
+                } else {
+                    currentSubComponent = newWidget.getComponent();
+                    parentForm.addComponent(currentSubComponent);
+                }
             } catch (Exception e) {
                 System.err.println("[MultiChoiceWidget] Failed to add new sub-component: " + e.getMessage());
             }
@@ -238,11 +273,21 @@ public class MultiChoiceWidget extends ParameterWidget {
         Integer selected = choiceDropdown.getSelected();
         if (selected != null && selected >= 0 && selected < subWidgets.length) {
             selectedIndex = selected;
-            return subWidgets[selectedIndex].getComponent();
+            ParameterWidget widget = subWidgets[selectedIndex];
+            if (widget instanceof PlayerDropdownWidget) {
+                // Return the primary text input as the representative component; the
+                // dropdown will be added separately via swapSubWidget/initial wiring.
+                return ((PlayerDropdownWidget) widget).getTextInput();
+            }
+            return widget.getComponent();
         }
         // Default to first widget
         if (subWidgets.length > 0) {
-            return subWidgets[0].getComponent();
+            ParameterWidget widget = subWidgets[0];
+            if (widget instanceof PlayerDropdownWidget) {
+                return ((PlayerDropdownWidget) widget).getTextInput();
+            }
+            return widget.getComponent();
         }
         return null;
     }
