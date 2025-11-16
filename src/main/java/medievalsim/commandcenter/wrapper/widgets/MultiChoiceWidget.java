@@ -89,7 +89,10 @@ public class MultiChoiceWidget extends ParameterWidget {
             subWidgets[i] = ParameterWidgetFactory.createWidget(subParam, x, y + SUB_WIDGET_Y_OFFSET, client);
         }
         
-        // Store initial sub-component (first option selected by default)
+        // Store initial sub-component (first option selected by default). Actual
+        // FormComponents will be added by CommandCenterPanel after this widget is
+        // constructed, using getSelectedSubComponent and, on later changes,
+        // swapSubWidget.
         if (subWidgets.length > 0) {
             currentSubComponent = subWidgets[0].getComponent();
         }
@@ -274,9 +277,13 @@ public class MultiChoiceWidget extends ParameterWidget {
         if (selected != null && selected >= 0 && selected < subWidgets.length) {
             selectedIndex = selected;
             ParameterWidget widget = subWidgets[selectedIndex];
+            // For initial render, mirror the behavior used in swapSubWidget: if the
+            // selected widget is a PlayerDropdownWidget, return its primary text
+            // input component. CommandCenterPanel already has special logic to add
+            // both the text input and dropdown when it detects a PlayerDropdownWidget
+            // at the top level, and swapSubWidget handles multi-component cases
+            // when selection changes.
             if (widget instanceof PlayerDropdownWidget) {
-                // Return the primary text input as the representative component; the
-                // dropdown will be added separately via swapSubWidget/initial wiring.
                 return ((PlayerDropdownWidget) widget).getTextInput();
             }
             return widget.getComponent();
