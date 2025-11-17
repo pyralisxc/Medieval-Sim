@@ -585,7 +585,9 @@ public class CommandCenterPanel {
             return;
         }
 
-        // Create scrollable content area (leave room for bottom Back button)
+        // Create scrollable content area (leave room for bottom Back button
+        // and its top divider line so the visual frame stops just above the
+        // button row instead of running all the way to the bottom).
         int actionBarHeight = Constants.CommandCenter.ACTION_BAR_HEIGHT;
         int scrollAreaHeight = height - (currentY - startY) - (actionBarHeight + MARGIN);
         FormContentBox scrollArea = new FormContentBox(
@@ -628,8 +630,12 @@ public class CommandCenterPanel {
             scrollY += 15; // Spacing between mods
         }
 
-        // Set content box to enable scrolling
-        scrollArea.setContentBox(new Rectangle(0, 0, contentWidth - 20, scrollY + 20));
+        // Set content box to enable scrolling. We clamp the visual content
+        // to stop a bit above the action bar so the bottom divider line does
+        // not visually collide with the Back button row.
+        int maxContentHeight = scrollAreaHeight - 10;
+        int effectiveContentHeight = Math.min(scrollY + 20, maxContentHeight);
+        scrollArea.setContentBox(new Rectangle(0, 0, contentWidth - 20, effectiveContentHeight));
 
         // Back button at bottom to return to Admin Tools main menu
         int backButtonY = height - MARGIN - Constants.CommandCenter.ACTION_BAR_HEIGHT;
@@ -971,7 +977,10 @@ public class CommandCenterPanel {
                     widgetX, yPos, widgetWidth
                 );
                 parameterScrollArea.addComponent(hintLabel);
-                yPos += 18;
+                // Explicitly separate description from inputs so the player
+                // can visually distinguish where the explanation ends and the
+                // interactive controls begin.
+                yPos += 28;
 
                 // Determine if this widget needs parent-form coordinates (SearchableDropdown widgets)
                 // SearchableDropdown widgets must be positioned relative to parent form, not scroll area
@@ -1035,7 +1044,10 @@ public class CommandCenterPanel {
 
                 // Add widget component to scroll area
                 if (widget instanceof MultiChoiceWidget) {
-                    // MultiChoiceWidget has dropdown + selected sub-widget
+                    // MultiChoiceWidget has dropdown + selected sub-widget. Some
+                    // sub-widgets (like PlayerDropdownWidget) expose multiple
+                    // components, so we treat the selected widget specially to
+                    // ensure all of its visible parts are added on first render.
                     MultiChoiceWidget multiWidget = (MultiChoiceWidget) widget;
 
                     // Set parent form reference for dynamic sub-widget swapping
@@ -1044,10 +1056,18 @@ public class CommandCenterPanel {
                     // Add dropdown to scroll area
                     parameterScrollArea.addComponent(multiWidget.getComponent());
 
-                    // Add currently selected sub-widget's component
-                    FormComponent subComponent = multiWidget.getSelectedSubComponent();
-                    if (subComponent != null) {
-                        parameterScrollArea.addComponent(subComponent);
+                    ParameterWidget selected = multiWidget.getSelectedWidget();
+                    if (selected instanceof PlayerDropdownWidget) {
+                        PlayerDropdownWidget playerWidget = (PlayerDropdownWidget) selected;
+                        parameterScrollArea.addComponent(playerWidget.getTextInput());
+                        parameterScrollArea.addComponent(playerWidget.getDropdown());
+                        yPos += 25; // extra space for stacked components
+                    } else {
+                        // Add currently selected sub-widget's primary component
+                        FormComponent subComponent = multiWidget.getSelectedSubComponent();
+                        if (subComponent != null) {
+                            parameterScrollArea.addComponent(subComponent);
+                        }
                     }
 
                     // Note: Widget will auto-swap sub-components when dropdown selection changes (handled in tick())
@@ -1638,6 +1658,9 @@ public class CommandCenterPanel {
         int currentY = y;
 
         SettingsManager settings = SettingsManager.getInstance();
+        // Default to collapsed when no explicit preference has been stored
+        // yet. This keeps the initial Mod Settings view tidy while still
+        // honoring any previously saved expansion state.
         boolean isExpanded = settings.isModExpanded(mod.id);
 
         // Mod header (clickable to expand/collapse) - use ASCII icons for compatibility
@@ -1689,6 +1712,9 @@ public class CommandCenterPanel {
         int currentY = y;
 
         SettingsManager settings = SettingsManager.getInstance();
+        // Sections follow the same rule as mods: they start collapsed until
+        // the player explicitly expands them, so large configs do not
+        // overwhelm the initial view.
         boolean isExpanded = settings.isSectionExpanded(mod.id, section.getName());
 
         // Section header (clickable to expand/collapse) - use ASCII icons for compatibility

@@ -89,12 +89,22 @@ public class MultiChoiceWidget extends ParameterWidget {
             subWidgets[i] = ParameterWidgetFactory.createWidget(subParam, x, y + SUB_WIDGET_Y_OFFSET, client);
         }
         
-        // Store initial sub-component (first option selected by default). Actual
-        // FormComponents will be added by CommandCenterPanel after this widget is
-        // constructed, using getSelectedSubComponent and, on later changes,
-        // swapSubWidget.
+        // Store initial sub-component (first option selected by default).
+        // For multi-component widgets like PlayerDropdownWidget we mirror the
+        // logic used in getSelectedSubComponent so that the initial render has
+        // all expected child components wired up before the first tick.
         if (subWidgets.length > 0) {
-            currentSubComponent = subWidgets[0].getComponent();
+            ParameterWidget widget = subWidgets[0];
+            if (widget instanceof PlayerDropdownWidget) {
+                PlayerDropdownWidget playerWidget = (PlayerDropdownWidget) widget;
+                currentSubComponents = new FormComponent[] {
+                    playerWidget.getTextInput(),
+                    playerWidget.getDropdown()
+                };
+                currentSubComponent = playerWidget.getTextInput();
+            } else {
+                currentSubComponent = widget.getComponent();
+            }
         }
     }
     
@@ -128,15 +138,24 @@ public class MultiChoiceWidget extends ParameterWidget {
      */
     private String getHandlerDisplayName(ParameterHandler<?> handler) {
         String className = handler.getClass().getSimpleName();
-        
+
+        // Custom friendly labels for common multi-parameter combinations
+        // so the UI shows domain language instead of raw handler names.
+        if ("ServerClientParameterHandler".equals(className)) {
+            return "Server Options";
+        }
+        if ("StringParameterHandler".equals(className)) {
+            return "Text Input";
+        }
+
         // Remove "ParameterHandler" suffix if present
         if (className.endsWith("ParameterHandler")) {
             className = className.substring(0, className.length() - "ParameterHandler".length());
         }
-        
-        // Add spaces before capital letters (camelCase → Camel Case)
+
+        // Add spaces before capital letters (camelCase 9 Camel Case)
         String spaced = className.replaceAll("([A-Z])", " $1").trim();
-        
+
         return spaced;
     }
     
