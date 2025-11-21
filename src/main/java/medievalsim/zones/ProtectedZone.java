@@ -60,23 +60,30 @@ extends AdminZone {
         if (client == null) {
             return false;
         }
-        return this.isWorldOwner(client, level) || this.isOwner(client) || this.isCreator(client);
+
+        // World owner and explicit zone owner/creator always have full access
+        if (this.isWorldOwner(client, level) || this.isOwner(client) || this.isCreator(client)) {
+            return true;
+        }
+
+        // When enabled, members of the owner's team are treated as fully trusted.
+        // They should not be constrained by per-flag checkboxes.
+        return allowOwnerTeam && isOnOwnerTeam(client, level);
     }
 
     /**
-     * Helper: Check if client has team-based permission
+     * Helper: Check if client has team-based permission (non-owner teams).
+     *
+     * Owner team is handled as "elevated" in hasElevatedAccess so that
+     * they behave like the owner and are not constrained by the granular
+     * permission flags. This method is now only for additional teams the
+     * admin has explicitly allowed in the UI.
      */
     private boolean hasTeamPermission(ServerClient client, Level level) {
         if (client == null) {
             return false;
         }
 
-        // Owner's team (if enabled)
-        if (allowOwnerTeam && isOnOwnerTeam(client, level)) {
-            return true;
-        }
-
-        // Explicitly allowed teams (future multi-team support)
         int clientTeamID = client.getTeamID();
         return clientTeamID != -1 && this.allowedTeamIDs.contains(clientTeamID);
     }
@@ -201,7 +208,7 @@ extends AdminZone {
         return clientTeamID != -1 && clientTeamID == ownerTeamID;
     }
     
-    private boolean isOwner(ServerClient client) {
+    public boolean isOwner(ServerClient client) {
         if (ownerAuth == -1L) {
             return false;
         }

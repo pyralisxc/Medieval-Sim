@@ -16,6 +16,8 @@
 [buff]
 pvpimmunity=PvP Immunity
 pvpimmunitydesc=You are temporarily immune to PvP damage
+protectedzone=Protected Zone
+protectedzonedesc=Your build and interaction permissions are governed by zone rules
 
 [itemmessage]
 protectedzone=This area is protected by a zone

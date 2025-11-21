@@ -277,6 +277,24 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
                 }
             }
         }
+        
+        // Update protected zone buffs for all players
+        if (this.level != null && this.level.isServer() && this.level.getServer() != null) {
+            // Diagnostic: log zone count once per second (60 ticks)
+            if (this.level.getWorldEntity().getTime() % 60 == 0) {
+                ModLogger.debug("Total protected zones loaded: " + this.protectedZones.size());
+            }
+            
+            for (ServerClient client : this.level.getServer().getClients()) {
+                if (client != null && client.playerMob != null && client.playerMob.getLevel() == this.level) {
+                    int tileX = GameMath.getTileCoordinate((int) client.playerMob.x);
+                    int tileY = GameMath.getTileCoordinate((int) client.playerMob.y);
+                    ProtectedZone zone = this.getProtectedZoneAt(tileX, tileY);
+                    ProtectedZoneTracker.updatePlayerZone(client, zone);
+                }
+            }
+        }
+        
     // Process queued barrier placements per tick (bounded per level)
     BarrierPlacementWorker.processTick(this.level, ModConfig.Zones.barrierMaxTilesPerTick);
     // Apply PvP zone DoT modifications (mod-only handler)
