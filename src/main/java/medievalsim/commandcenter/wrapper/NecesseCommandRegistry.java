@@ -49,12 +49,12 @@ public class NecesseCommandRegistry {
             }
             
             initialized = true;
-            ModLogger.info("Loaded %d cached commands (skipped reflection scan)", cachedCommands.size());
+            ModLogger.debug("Loaded %d cached commands (skipped reflection scan)", cachedCommands.size());
             return;
         }
         
         // Cache miss - perform full reflection scan
-        ModLogger.info("Cache miss - scanning Necesse commands via reflection...");
+        ModLogger.debug("Cache miss - scanning Necesse commands via reflection...");
         
         try {
             // Get all commands from CommandsManager via reflection
@@ -99,12 +99,11 @@ public class NecesseCommandRegistry {
             cache.cacheCommands(newCommands);
             
             initialized = true;
-            ModLogger.info("Registered %d/%d Necesse commands for UI wrapper across %d categories",
+            ModLogger.debug("Registered %d/%d Necesse commands for UI wrapper across %d categories",
                     parsed, scanned, commandsByCategory.size());
             
         } catch (Exception e) {
-            ModLogger.error("Failed to initialize NecesseCommandRegistry: %s", e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Failed to initialize NecesseCommandRegistry", e);
         }
     }
     

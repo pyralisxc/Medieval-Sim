@@ -96,7 +96,7 @@ public class EnumDropdownWidget extends ParameterWidget {
     private Enum<?>[] extractEnumValues(ParameterMetadata parameter) {
         try {
             if (!(parameter.getHandler() instanceof EnumParameterHandler)) {
-                System.err.println("[EnumDropdownWidget] Handler is not EnumParameterHandler: " + parameter.getHandler().getClass().getName());
+                medievalsim.util.ModLogger.error("EnumDropdownWidget: Handler is not EnumParameterHandler: %s", parameter.getHandler().getClass().getName());
                 return null;
             }
             

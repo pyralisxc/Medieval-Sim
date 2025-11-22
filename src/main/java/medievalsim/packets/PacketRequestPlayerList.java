@@ -116,8 +116,7 @@ public class PacketRequestPlayerList extends Packet {
                     }
                 }
             } catch (Exception e) {
-                ModLogger.error("Error loading offline world players for dropdown: " + e.getMessage());
-                e.printStackTrace();
+                ModLogger.error("Error loading offline world players for dropdown", e);
             }
             
             // Sort the list (online first, then alphabetical)
@@ -141,8 +140,7 @@ public class PacketRequestPlayerList extends Packet {
                           onlineAuths.size() + " online, " + (playerList.size() - onlineAuths.size()) + " offline)");
             
         } catch (Exception e) {
-            ModLogger.error("Error processing player list request: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Error processing player list request", e);
         }
     }
     

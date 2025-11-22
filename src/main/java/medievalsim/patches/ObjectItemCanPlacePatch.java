@@ -1,24 +1,6 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.gameNetworkData.GNDItemMap
- *  necesse.entity.mobs.PlayerMob
- *  necesse.inventory.InventoryItem
- *  necesse.inventory.item.placeableItem.objectItem.ObjectItem
- *  necesse.level.gameObject.ObjectPlaceOption
- *  necesse.level.maps.Level
- *  net.bytebuddy.asm.Advice$Argument
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$Return
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
 import java.awt.geom.Line2D;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.ProtectedZone;
+import medievalsim.util.ZoneProtectionValidator;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.gameNetworkData.GNDItemMap;
 import necesse.entity.mobs.PlayerMob;
@@ -34,9 +16,6 @@ public class ObjectItemCanPlacePatch {
     public static class CanPlace {
         @Advice.OnMethodExit
         static void onExit(@Advice.This ObjectItem objectItem, @Advice.Argument(value=0) Level level, @Advice.Argument(value=1) ObjectPlaceOption po, @Advice.Argument(value=2) PlayerMob player, @Advice.Argument(value=5) GNDItemMap mapContent, @Advice.Return(readOnly=false) String result) {
-            ProtectedZone zone;
-            AdminZonesLevelData zoneData;
-
             if (po == null) {
                 return;
             }
@@ -49,11 +28,13 @@ public class ObjectItemCanPlacePatch {
                 return;
             }
 
-            // Server-side protection check (authoritative)
+            // Server-side protection check (authoritative) using centralized validator
             // Note: Client-side optimistic placement is allowed, but server will reject unauthorized attempts
-            if (level.isServer() && player != null && player.isServerClient() && (zoneData = AdminZonesLevelData.getZoneData(level, false)) != null && (zone = zoneData.getProtectedZoneAt(po.tileX, po.tileY)) != null) {
-                if (!zone.canClientPlace(player.getServerClient(), level)) {
-                    result = "protectedzone";
+            if (level.isServer() && player != null && player.isServerClient()) {
+                ZoneProtectionValidator.ValidationResult validation = 
+                    ZoneProtectionValidator.validatePlacement(level, po.tileX, po.tileY, player.getServerClient());
+                if (!validation.isAllowed()) {
+                    result = validation.getReason();
                 }
             }
         }

@@ -48,7 +48,7 @@ public class PvPZoneBarrierManager {
             }
         }
         PointHashSet barrierPositions = edgeTiles;
-        ModLogger.info("Creating %d barriers on edge tiles of zone '%s'", barrierPositions.size(), zone.name);
+        ModLogger.debug("Creating %d barriers on edge tiles of zone '%s'", barrierPositions.size(), zone.name);
         if (barrierPositions.size() > ModConfig.Zones.maxBarrierTiles) {
             ModLogger.warn("Zone '%s' requires %d barriers! This is too large. Skipping barrier creation.", zone.name, barrierPositions.size());
             return;
@@ -60,12 +60,18 @@ public class PvPZoneBarrierManager {
         }
         int placedCount = 0;
         int replacedCount = 0;
+        int skippedUnloaded = 0;
         try {
             int batchPlaced = 0;
             int batchReplaced = 0;
             int processedInBatch = 0;
             int batchSize = ModConfig.Zones.barrierAddBatchSize;
             for (Point barrierPos : barrierPositions) {
+                // Optimization: Skip barriers in unloaded regions to prevent unnecessary region loading
+                if (!level.regionManager.isTileLoaded(barrierPos.x, barrierPos.y)) {
+                    ++skippedUnloaded;
+                    continue;
+                }
                 try {
                     int existingObjectID = level.getObjectID(0, barrierPos.x, barrierPos.y);
                     if (existingObjectID == barrierID) {
@@ -88,7 +94,7 @@ public class PvPZoneBarrierManager {
                 }
                 processedInBatch++;
                 if (processedInBatch >= batchSize) {
-                    ModLogger.info("Placed batch: %d barriers (replaced: %d) for zone '%s'", batchPlaced, batchReplaced, zone.name);
+                    ModLogger.debug("Placed batch: %d barriers (replaced: %d) for zone '%s'", batchPlaced, batchReplaced, zone.name);
                     // yield briefly to avoid long continuous blocking
                     try {
                         Thread.sleep(1L);
@@ -102,15 +108,20 @@ public class PvPZoneBarrierManager {
                 }
             }
             if (processedInBatch > 0) {
-                ModLogger.info("Placed final batch: %d barriers (replaced: %d) for zone '%s'", batchPlaced, batchReplaced, zone.name);
+                ModLogger.debug("Placed final batch: %d barriers (replaced: %d) for zone '%s'", batchPlaced, batchReplaced, zone.name);
+            }
+            if (skippedUnloaded > 0) {
+                ModLogger.debug("Skipped %d barriers in unloaded regions for zone '%s' (optimization)", skippedUnloaded, zone.name);
             }
             if (replacedCount > 0) {
-                ModLogger.info("Created %d barriers for PVP zone '%s' (replaced %d existing objects)", placedCount, zone.name, replacedCount);
+                ModLogger.debug("Created %d barriers for PVP zone '%s' (replaced %d existing objects)", placedCount, zone.name, replacedCount);
             } else {
-                ModLogger.info("Created %d barriers for PVP zone '%s'", placedCount, zone.name);
+                ModLogger.debug("Created %d barriers for PVP zone '%s'", placedCount, zone.name);
             }
         }
         catch (Exception e) {
+            // Broad catch is intentional: barrier placement must never crash game loop
+            // Can fail from: region loading, level access, object placement, concurrent modification
             ModLogger.error("Error creating barriers for zone '" + zone.name + "'", e);
         }
     }
@@ -140,9 +151,15 @@ public class PvPZoneBarrierManager {
                 return;
             }
         }
-        ModLogger.info("Removing barriers from %d edge tiles of zone '%s'", edgeTiles.size(), zone.name);
+        ModLogger.debug("Removing barriers from %d edge tiles of zone '%s'", edgeTiles.size(), zone.name);
         int removedCount = 0;
+        int skippedUnloaded = 0;
         for (Point pos : edgeTiles) {
+            // Optimization: Skip barriers in unloaded regions
+            if (!level.regionManager.isTileLoaded(pos.x, pos.y)) {
+                ++skippedUnloaded;
+                continue;
+            }
             try {
                 int existingObjectID = level.getObjectID(0, pos.x, pos.y);
                 if (existingObjectID != barrierID) continue;
@@ -154,7 +171,10 @@ public class PvPZoneBarrierManager {
                 ModLogger.error("Failed to remove barrier at (%d, %d): %s", pos.x, pos.y, e.getMessage());
             }
         }
-        ModLogger.info("Removed %d barriers for zone '%s'", removedCount, zone.name);
+        if (skippedUnloaded > 0) {
+            ModLogger.debug("Skipped %d barriers in unloaded regions for zone '%s' (optimization)", skippedUnloaded, zone.name);
+        }
+        ModLogger.debug("Removed %d barriers for zone '%s'", removedCount, zone.name);
     }
 
     public static void updateBarrier(Level level, PvPZone zone) {
@@ -369,7 +389,7 @@ public class PvPZoneBarrierManager {
                         playerClient.pvpEnabled = false;
                         server.network.sendToAllClients((Packet)new necesse.engine.network.packet.PacketPlayerPvP(playerClient.slot, false));
                     }
-                    playerClient.sendChatMessage("\u00a7cYou have been moved out of a PVP zone due to zone changes");
+                    playerClient.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.removed"));
                     // Try to place player on nearest outside tile
                     java.awt.Point outsideTile = PvPZoneTracker.findClosestTileOutsideZone(zone, playerClient.playerMob.x, playerClient.playerMob.y);
                     if (outsideTile != null) {
@@ -391,10 +411,10 @@ public class PvPZoneBarrierManager {
                         if (playerClient.playerMob != null) {
                             playerClient.playerMob.addBuff(new necesse.entity.mobs.buffs.ActiveBuff("pvpimmunity", (necesse.entity.mobs.Mob)playerClient.playerMob, 5.0f, null), true);
                         }
-                        playerClient.sendChatMessage("\u00a7aYou are now inside a PVP zone due to zone changes");
+                        playerClient.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.entered"));
                     } else {
                         // cannot re-enter yet; optionally teleport to nearest in-zone tile later or prompt
-                        playerClient.sendChatMessage("\u00a77You cannot re-enter the PVP zone yet due to re-entry cooldown");
+                        playerClient.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.cooldown"));
                     }
                 }
             }

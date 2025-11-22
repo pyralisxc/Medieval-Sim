@@ -102,9 +102,8 @@ public class CommandCenterPanel {
     private List<ParameterWidget> currentParameterWidgets;
     private List<FormComponent> allComponents; // Track all components for cleanup
 
-    // Panel + tab dimensions (for rebuilding)
+    // Panel dimensions (for rebuilding)
     private int panelStartX, panelStartY, panelWidth, panelHeight;
-    private int tabStartX, tabStartY, tabWidth, tabHeight;
 
     /**
      * Constructor
@@ -263,51 +262,7 @@ public class CommandCenterPanel {
         }
     }
 
-    /**
-     * Clear all tab-specific content (not the tab bar itself)
-     */
-    private void clearTabContent(Form parentForm) {
-        // Remove Console Commands tab components
-        if (categoryFilter != null) {
-            parentForm.removeComponent(categoryFilter);
-            categoryFilter = null;
-        }
-        if (commandDropdown != null) {
-            commandDropdown.removeFromForm(parentForm);
-            commandDropdown = null;
-        }
-        if (favoriteButtonsBox != null) {
-            parentForm.removeComponent(favoriteButtonsBox);
-            favoriteButtonsBox = null;
-        }
-        if (commandInfoLabel != null) {
-            parentForm.removeComponent(commandInfoLabel);
-            commandInfoLabel = null;
-        }
-        if (favoriteToggleButton != null) {
-            parentForm.removeComponent(favoriteToggleButton);
-            favoriteToggleButton = null;
-        }
-        if (parameterScrollArea != null) {
-            parentForm.removeComponent(parameterScrollArea);
-            parameterScrollArea = null;
-        }
-        if (clearButton != null) {
-            parentForm.removeComponent(clearButton);
-            clearButton = null;
-        }
-        if (executeButton != null) {
-            parentForm.removeComponent(executeButton);
-            executeButton = null;
-        }
-        if (backButton != null) {
-            parentForm.removeComponent(backButton);
-            backButton = null;
-        }
-
-        // Clear parameter widgets
-        clearParameters();
-    }
+    // clearTabContent() method removed - was never called locally, tab clearing handled by removeComponents()
 
     /**
      * Build Console Commands tab (existing functionality)
@@ -536,11 +491,7 @@ public class CommandCenterPanel {
      * Build Mod Settings tab (universal mod config editor)
      */
     private void buildModSettingsTab(Form parentForm, int startX, int startY, int width, int height) {
-        // Store dimensions for rebuilding
-        this.tabStartX = startX;
-        this.tabStartY = startY;
-        this.tabWidth = width;
-        this.tabHeight = height;
+        // Note: Tab dimensions were removed as unused fields
 
         int currentY = startY;
         int contentWidth = width - MARGIN * 2;
@@ -1588,7 +1539,7 @@ public class CommandCenterPanel {
             // Add (enforce max limit)
             int maxFavorites = ModConfig.CommandCenter.maxFavorites;
             if (SettingsManager.getInstance().getFavoriteCommands().size() >= maxFavorites) {
-                System.out.println("[CommandCenterPanel] Max favorites reached (" + maxFavorites + ")");
+                ModLogger.debug("Max favorites reached (%d)", maxFavorites);
                 return;
             }
             SettingsManager.getInstance().getFavoriteCommands().add(cmdId);

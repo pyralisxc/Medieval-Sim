@@ -1,0 +1,236 @@
+[tile]
+# Todavía no hay bloques personalizados
+
+[object]
+# Todavía no hay objetos personalizados (la barrera es interna)
+
+[item]
+# Todavía no hay objetos personalizados
+
+[itemtooltip]
+# Todavía no hay descripciones de objetos personalizadas
+
+[mob]
+# Todavía no hay criaturas personalizadas
+
+[buff]
+pvpimmunity=Inmunidad PvP
+pvpimmunitydesc=Eres temporalmente inmune al daño PvP
+protectedzone=Zona Protegida
+protectedzonedesc=Tus permisos de construcción e interacción están regidos por las reglas de la zona
+
+[itemmessage]
+protectedzone=Esta área está protegida por una zona
+pvpzone=¡Estás entrando en una zona PvP!
+nopermission=No tienes permiso para hacer eso
+
+[ui]
+# Herramientas de Administrador
+admintools=Herramientas de Admin
+admintoolstitle=Herramientas de Admin
+admintoolsmenu=Menú Principal
+commandcenter=Centro de Comandos
+
+# Modo de Construcción
+buildtools=Herramientas de Construcción
+buildmode=Modo de Construcción
+buildmodeon=Modo de Construcción: ACTIVADO
+buildmodeoff=Modo de Construcción: DESACTIVADO
+buildmodeblockcost={shape}: se requieren {count} bloques
+
+# Formas
+shape=Forma
+sizes=Tamaños
+linetypes=Tipos de Línea
+shapes=Formas
+shapenormal=Normal
+shapeline=Línea
+shapecross=Cruz
+shapel=L
+shapet=T
+shapesquare=Cuadrado
+shapecircle=Círculo
+shapediamond=Diamante
+shapehalfcircle=Medio Círculo
+shapetriangle=Triángulo
+hollow=Hueco
+
+# Direcciones
+direction=Dirección
+directionup=Arriba
+directiondown=Abajo
+directionleft=Izquierda
+directionright=Derecha
+rotationinfo=(La rotación sigue la dirección del jugador)
+
+# Controles de Tamaño
+linelength=Longitud de Línea
+squaresize=Tamaño de Cuadrado
+circleradius=Radio de Círculo
+spacing=Espaciado
+linelengthfull=Longitud de Línea (Línea, Cruz, L, T)
+squaresizefull=Tamaño de Cuadrado (Cuadrado, Diamante)
+circleradiusfull=Radio de Círculo (Círculo, Medio Círculo, Triángulo)
+spacingfull=Espaciado (Todas las Formas)
+
+# Herramientas de Zona
+zonetools=Herramientas de Zona
+protectedzones=Zonas Protegidas
+pvpzones=Zonas PVP
+createprotectedzone=Crear Zona Protegida
+createpvpzone=Crear Zona PVP
+
+# Propiedades de Zona
+zonename=Nombre de Zona
+zonetype=Tipo de Zona
+zoneprotected=Protegida
+zonepvp=PVP
+zonecolor=Color de Zona
+creator=Creador
+teams=Equipos
+noteams=Sin equipos
+allowedteams=Equipos Permitidos
+worldowner=Dueño del Mundo
+you=Tú
+
+# Acciones de Zona
+editzone=Editar Zona
+deletezone=Eliminar Zona
+renamezoneto=Renombrar zona a:
+deletezoneconfirm=¿Eliminar esta zona?
+expandzone=Expandir Zona
+shrinkzone=Reducir Zona
+expandzonetooltip=Clic izquierdo para expandir zona
+shrinkzonetooltip=Clic derecho para reducir zona
+createzone=Crear Zona
+addteam=Agregar Equipo
+removeteam=Eliminar Equipo
+selectteam=Seleccionar Equipo
+configurebutton=Configurar
+renamebutton=Renombrar
+savebutton=Guardar
+
+# Configuración de Zona Protegida
+ownerlabel=Dueño:
+ownertooltip=El jugador que posee esta zona
+allowownsteam=Permitir Equipo del Dueño
+allowownsteamtooltip=Si está habilitado, los jugadores del equipo del dueño pueden acceder a esta zona
+teampermissions=Permisos del Equipo:
+canbreak=Puede Romper
+canbreaktooltip=Los miembros del equipo pueden romper bloques y objetos
+canplace=Puede Colocar
+canplacetooltip=Los miembros del equipo pueden colocar bloques y objetos
+
+# Permisos de interacción granulares
+interactions=Interacciones:
+caninteractdoors=Puede Abrir Puertas
+caninteractdoorstooltip=Los miembros del equipo pueden abrir y cerrar puertas
+caninteractcontainers=Puede Abrir Cofres
+caninteractcontainerstooltip=Los miembros del equipo pueden acceder a cofres y contenedores
+caninteractstations=Puede Usar Estaciones
+caninteractstationstooltip=Los miembros del equipo pueden usar estaciones de fabricación
+caninteractsigns=Puede Editar Letreros
+caninteractsignstooltip=Los miembros del equipo pueden editar texto de letreros
+caninteractswitches=Puede Usar Interruptores
+caninteractswitchestooltip=Los miembros del equipo pueden usar palancas, interruptores y placas de presión
+caninteractfurniture=Puede Usar Muebles
+caninteractfurnituretooltip=Los miembros del equipo pueden interactuar con camas, sillas y muebles
+
+# Mensajes de error de permisos
+nopermissionbreak=No tienes permiso para romper en esta zona protegida
+nopermissionplace=No tienes permiso para colocar en esta zona protegida
+nopermissiondoors=No tienes permiso para usar puertas en esta zona
+nopermissioncontainers=No tienes permiso para abrir contenedores en esta zona
+nopermissionstations=No tienes permiso para usar estaciones de fabricación en esta zona
+nopermissionsigns=No tienes permiso para editar letreros en esta zona
+nopermissionswitches=No tienes permiso para usar interruptores en esta zona
+nopermissionfurniture=No tienes permiso para usar muebles en esta zona
+nopermissioninteract=No tienes permiso para interactuar en esta zona protegida
+
+ownernotfound=Jugador '{name}' no encontrado. Debe estar en línea para establecerlo como dueño.
+ownerset=Dueño de zona establecido en: {name}
+noneowner=Ninguno
+
+# Interfaz de Zona
+zonelist=Lista de Zonas
+nozonescreated=Aún no se han creado zonas
+zonelabel=Zona:
+backtomenu=Volver al Menú
+
+# Descripciones de Zona
+protectedzonedesc=Los jugadores solo pueden construir/destruir si son el creador, están en un equipo permitido o son el dueño del mundo
+pvpzonedesc=El PVP se activa automáticamente para todos los jugadores dentro de esta zona
+
+# Creación/Edición de Zona
+selectareatitle=Seleccionar Área de Zona
+selectareainfo=Haz clic y arrastra para seleccionar el área de la zona
+clickdragtocreate=Haz clic y arrastra para crear zona
+clickdragtoexpand=Haz clic y arrastra para expandir zona
+clickdragtoshrink=Haz clic y arrastra para reducir zona
+
+# Mensajes de Retroalimentación de Zona
+zonecreated=Zona creada: {name}
+zonedeleted=Zona eliminada
+zonerenamed=Zona renombrada a: {name}
+zoneexpanded=Zona expandida
+zoneshrunk=Zona reducida
+teamadded=Equipo agregado a la zona
+teamremoved=Equipo eliminado de la zona
+
+# Diálogos de Zona PvP
+spawnedinpvpzone=Apareciste en Zona PVP
+enterpvpzone=¿Entrar a Zona PVP?
+exitpvpzone=¿Salir de Zona PVP?
+enterzone=Entrar a Zona
+exitzone=Salir de Zona
+stayinzone=Quedarse en Zona
+stayoutside=Quedarse Afuera
+stayinside=Quedarse Adentro
+stay=Quedarse
+teleporttospawn=Teletransportar a Punto de Aparición
+
+# Interfaz General
+cancel=Cancelar
+back=Atrás
+damagelabel=Daño:
+combatlocklabel=Bloqueo de Combate:
+spawnedinpvpzonemsg=¡Has aparecido dentro de una zona PVP!
+stayorteleportmsg=¿Te gustaría quedarte o teletransportarte al punto de aparición del mundo?
+pvpenabledmsg=El PVP se activará cuando entres
+pvpdisabledmsg=El PVP se desactivará cuando salgas
+immunitymsg=5 segundos de inmunidad al entrar
+combatlockremaining=Bloqueo de Combate: <seconds>s restantes
+cannotexitcombat=¡No puedes salir mientras estás en combate!
+
+[misc]
+protectedzone=Esta área está protegida por la zona: <zone>
+combatlockmessage=No puedes salir - en combate por <seconds>s
+reentrycooldownmessage=No puedes entrar - tiempo de espera por <seconds>s
+
+[message]
+# Mensajes de Zona Protegida
+zone.protected.nobreak=No tienes permiso para romper bloques en esta zona protegida
+zone.protected.nobreakobjects=No tienes permiso para romper objetos en esta zona protegida
+zone.protected.ownernotfound=Jugador '<player>' no encontrado. Debe estar en línea para establecerlo como dueño.
+
+# Mensajes de Zona PvP
+zone.pvp.removed=Has sido movido fuera de una zona PVP debido a cambios en la zona
+zone.pvp.entered=Ahora estás dentro de una zona PVP debido a cambios en la zona
+zone.pvp.cooldown=Aún no puedes volver a entrar a la zona PVP debido al tiempo de espera de reingreso
+zone.pvp.teleportspawn=Teletransportado al punto de aparición del mundo
+zone.pvp.notexists=Esta zona PVP ya no existe. Teletransportando al punto de aparición del mundo.
+zone.pvp.staying=Quedándose en zona PVP: <name> (Daño: <damage>, Bloqueo de Combate: <lock>s)
+zone.pvp.deleted=Zona PVP eliminada - has sido removido de la zona
+zone.pvp.error.notexists=Error: La zona PVP ya no existe
+zone.pvp.combatlock=¡No puedes salir mientras estás en combate! (<seconds>s restantes)
+zone.pvp.exited=Saliste de la zona PVP: <name>
+zone.pvp.chosestay=Elegiste quedarte en la zona PVP
+zone.pvp.chosestayoutside=Elegiste quedarte fuera de la zona PVP
+zone.pvp.reentrycooldown=Debes esperar <seconds>s antes de volver a entrar a una zona PVP
+zone.pvp.entereddetails=Entraste a la zona PVP: <name> (Daño: <damage>, Bloqueo de Combate: <lock>s)
+
+# Mensajes de Modo de Construcción
+buildmode.nopermission=No tienes permiso para usar el modo de construcción (requiere ADMIN)
+buildmode.blocklimit=Demasiados bloques para colocar a la vez (límite: <limit>)
+
+

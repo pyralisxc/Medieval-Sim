@@ -1,17 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.NetworkClient
- *  necesse.entity.mobs.Mob
- *  net.bytebuddy.asm.Advice$Argument
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$Return
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
 import medievalsim.zones.AdminZonesLevelData;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.NetworkClient;

@@ -206,3 +206,30 @@ cannotexitcombat=You cannot exit while in combat!
 protectedzone=This area is protected by zone: <zone>
 combatlockmessage=Cannot exit - in combat for <seconds>s
 reentrycooldownmessage=Cannot enter - cooldown for <seconds>s
+
+[message]
+# Protected Zone Messages
+zone.protected.nobreak=You don't have permission to break tiles in this protected zone
+zone.protected.nobreakobjects=You don't have permission to break objects in this protected zone
+zone.protected.ownernotfound=Player '<player>' not found. They must be online to set as owner.
+
+# PvP Zone Messages
+zone.pvp.removed=You have been moved out of a PVP zone due to zone changes
+zone.pvp.entered=You are now inside a PVP zone due to zone changes
+zone.pvp.cooldown=You cannot re-enter the PVP zone yet due to re-entry cooldown
+zone.pvp.teleportspawn=Teleported to world spawn
+zone.pvp.notexists=This PVP zone no longer exists. Teleporting to world spawn.
+zone.pvp.staying=Staying in PVP zone: <name> (Damage: <damage>, Combat Lock: <lock>s)
+zone.pvp.deleted=PVP zone deleted - you have been removed from the zone
+zone.pvp.error.notexists=Error: PVP zone no longer exists
+zone.pvp.combatlock=You cannot leave while in combat! (<seconds>s remaining)
+zone.pvp.exited=Exited PVP zone: <name>
+zone.pvp.chosestay=You chose to stay in the PVP zone
+zone.pvp.chosestayoutside=You chose to stay outside the PVP zone
+zone.pvp.reentrycooldown=You must wait <seconds>s before re-entering a PVP zone
+zone.pvp.entereddetails=Entered PVP zone: <name> (Damage: <damage>, Combat Lock: <lock>s)
+
+# Build Mode Messages
+buildmode.nopermission=You don't have permission to use build mode (requires ADMIN)
+buildmode.blocklimit=Too many blocks to place at once (limit: <limit>)
+

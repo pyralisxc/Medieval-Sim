@@ -126,8 +126,7 @@ public class MultiChoiceWidget extends ParameterWidget {
             return new ParameterHandler<?>[] { parameter.getHandler() };
             
         } catch (Exception e) {
-            System.err.println("Failed to extract handlers from MultiParameterHandler: " + e.getMessage());
-            e.printStackTrace();
+            medievalsim.util.ModLogger.error("Failed to extract handlers from MultiParameterHandler: %s", e.getMessage());
             // Fallback to single handler
             return new ParameterHandler<?>[] { parameter.getHandler() };
         }
@@ -219,8 +218,8 @@ public class MultiChoiceWidget extends ParameterWidget {
      * @param newIndex Index of new selection
      */
     private void swapSubWidget(int oldIndex, int newIndex) {
-        if (parentForm == null) {
-            System.err.println("[MultiChoiceWidget] Cannot swap sub-widget - parentForm is null! Call setParentForm() first.");
+        if (this.parentForm == null) {
+            medievalsim.util.ModLogger.error("MultiChoiceWidget: Cannot swap sub-widget - parentForm is null! Call setParentForm() first.");
             return;
         }
         
@@ -240,7 +239,7 @@ public class MultiChoiceWidget extends ParameterWidget {
                     parentForm.removeComponent(currentSubComponent);
                 }
             } catch (Exception e) {
-                System.err.println("[MultiChoiceWidget] Failed to remove old sub-component: " + e.getMessage());
+                medievalsim.util.ModLogger.error("MultiChoiceWidget: Failed to remove old sub-component: %s", e.getMessage());
             }
         }
         
@@ -275,7 +274,7 @@ public class MultiChoiceWidget extends ParameterWidget {
                     parentForm.addComponent(currentSubComponent);
                 }
             } catch (Exception e) {
-                System.err.println("[MultiChoiceWidget] Failed to add new sub-component: " + e.getMessage());
+                medievalsim.util.ModLogger.error("MultiChoiceWidget: Failed to add new sub-component: %s", e.getMessage());
             }
         }
     }

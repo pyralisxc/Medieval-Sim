@@ -1,40 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- *
- * Could not load the following classes:
- *  necesse.engine.GlobalData
- *  necesse.engine.gameLoop.tickManager.TickManager
- *  necesse.engine.gameTool.GameTool
- *  necesse.engine.gameTool.GameToolManager
- *  necesse.engine.localization.Localization
- *  necesse.engine.localization.message.GameMessage
- *  necesse.engine.localization.message.StaticMessage
- *  necesse.engine.network.Packet
- *  necesse.engine.network.client.Client
- *  necesse.engine.state.MainGame
- *  necesse.engine.state.State
- *  necesse.engine.util.GameMath
- *  necesse.engine.window.GameWindow
- *  necesse.engine.window.WindowManager
- *  necesse.entity.mobs.PlayerMob
- *  necesse.gfx.Renderer
- *  necesse.gfx.forms.Form
- *  necesse.gfx.forms.components.FormCheckBox
- *  necesse.gfx.forms.components.FormComponent
- *  necesse.gfx.forms.components.FormContentBox
- *  necesse.gfx.forms.components.FormContentIconButton
- *  necesse.gfx.forms.components.FormInputSize
- *  necesse.gfx.forms.components.FormLabel
- *  necesse.gfx.forms.components.FormLabelEdit
- *  necesse.gfx.forms.components.FormSlider
- *  necesse.gfx.forms.components.FormTextButton
- *  necesse.gfx.gameFont.FontOptions
- *  necesse.gfx.ui.ButtonColor
- *  necesse.gfx.ui.ButtonTexture
- *  necesse.level.maps.hudManager.HudDrawElement
- */
 package medievalsim.ui;
-
 import java.awt.Color;
 import java.awt.Rectangle;
 import java.lang.reflect.Field;
@@ -143,6 +107,11 @@ extends Form {
     private FormLabelEdit activeOwnerInput = null;
     private int activeDropdownZoneID = -1;
 
+    // Debounce timers for slider updates (200ms delay)
+    private Map<Integer, Long> sliderDebounceTimers = new HashMap<>();
+    private Map<Integer, Runnable> pendingSliderUpdates = new HashMap<>();
+    private static final long SLIDER_DEBOUNCE_MS = 200L;
+
     private static final FontOptions WHITE_TEXT_20 = new FontOptions(20).color(Color.WHITE);
     private static final FontOptions WHITE_TEXT_16 = new FontOptions(16).color(Color.WHITE);
     private static final FontOptions WHITE_TEXT_14 = new FontOptions(14).color(Color.WHITE);
@@ -221,6 +190,9 @@ extends Form {
     }
 
     public void drawBase(TickManager tickManager) {
+        // Process any pending debounced slider updates
+        this.processPendingSliderUpdates();
+
         // Tick the CommandCenterPanel if it's currently shown (for search filtering)
         if (wasShowingCommandCenter && commandCenterPanel != null) {
             commandCenterPanel.tick(tickManager);
@@ -429,7 +401,7 @@ extends Form {
     }
 
     public void updateZones(Map<Integer, ProtectedZone> newProtectedZones, Map<Integer, PvPZone> newPvPZones) {
-        ModLogger.info("Updating local zone storage - " + newProtectedZones.size() + " protected, " + newPvPZones.size() + " PVP");
+        ModLogger.debug("Updating local zone storage - " + newProtectedZones.size() + " protected, " + newPvPZones.size() + " PVP");
         this.protectedZones = new HashMap<Integer, ProtectedZone>(newProtectedZones);
         this.pvpZones = new HashMap<Integer, PvPZone>(newPvPZones);
 
@@ -440,50 +412,29 @@ extends Form {
         }
 
         if (!this.protectedZonesForm.isHidden()) {
-            ModLogger.info("Refreshing protected zones list after sync");
+            ModLogger.debug("Refreshing protected zones list after sync");
             this.refreshZoneList(true);
         } else if (!this.pvpZonesForm.isHidden()) {
-            ModLogger.info("Refreshing PVP zones list after sync");
+            ModLogger.debug("Refreshing PVP zones list after sync");
             this.refreshZoneList(false);
-        }
-    }
-
-    @Deprecated
-    public void onZonesUpdated() {
-        if (!this.protectedZonesForm.isHidden()) {
-            ModLogger.info("Refreshing protected zones list after sync");
-            this.refreshZoneList(true);
-        } else if (!this.pvpZonesForm.isHidden()) {
-            ModLogger.info("Refreshing PVP zones list after sync");
-            this.refreshZoneList(false);
-        } else {
-            ModLogger.info("Zone sync received but no zone list is currently visible");
         }
     }
 
     public void onZoneChanged(AdminZone zone, boolean isProtectedZone) {
-        ModLogger.info("Zone changed - " + zone.uniqueID + " (" + zone.name + ")");
+        // Update local cache (no logging - this is called frequently during slider adjustments)
         if (isProtectedZone) {
             this.protectedZones.put(zone.uniqueID, (ProtectedZone)zone);
         } else {
             this.pvpZones.put(zone.uniqueID, (PvPZone)zone);
         }
 
-        // Skip refresh if player dropdown is currently open (Enhancement #4)
-        if (this.activePlayerDropdown != null) {
-            ModLogger.info("Skipping zone list refresh - player dropdown is open");
-            return;
-        }
-
-        if (isProtectedZone && !this.protectedZonesForm.isHidden()) {
-            this.refreshZoneList(true);
-        } else if (!isProtectedZone && !this.pvpZonesForm.isHidden()) {
-            this.refreshZoneList(false);
-        }
+        // DO NOT rebuild UI on zone config changes - only the local cache needs updating
+        // UI rebuilds happen on expand/collapse or zone creation/deletion
+        // This prevents 16+ refreshes when adjusting sliders
     }
 
     public void onZoneRemoved(int uniqueID, boolean isProtectedZone) {
-        System.out.println("MedievalSim: Zone removed - " + uniqueID);
+        ModLogger.info("Zone removed - %d", uniqueID);
         if (isProtectedZone) {
             this.protectedZones.remove(uniqueID);
         } else {
@@ -509,7 +460,6 @@ extends Form {
         currentY += scrollHeight + 10;
         int yPos = 10;
         if (isProtectedZones) {
-            ModLogger.info("refreshZoneList - found " + this.protectedZones.size() + " protected zones in local storage");
             if (this.protectedZones.isEmpty()) {
                 scrollContentBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"nozonescreated"), WHITE_TEXT_16, -1, scrollContentBox.getWidth() / 2, yPos));
             } else {
@@ -518,7 +468,6 @@ extends Form {
                 }
             }
         } else {
-            ModLogger.info("refreshZoneList - found " + this.pvpZones.size() + " PVP zones in local storage");
             if (this.pvpZones.isEmpty()) {
                 scrollContentBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"nozonescreated"), WHITE_TEXT_16, -1, scrollContentBox.getWidth() / 2, yPos));
             } else {
@@ -595,7 +544,7 @@ extends Form {
                 if (!nameLabel.getText().equals(zone.name)) {
                     String newName = nameLabel.getText();
                     this.client.network.sendPacket((Packet)new PacketRenameZone(zone.uniqueID, isProtectedZone, (GameMessage)new StaticMessage(newName)));
-                    System.out.println("Sent rename request for zone " + zone.uniqueID + " to: " + newName);
+                    ModLogger.info("Sent rename request for zone %d to: %s", zone.uniqueID, newName);
                 }
                 renameButton[0].setIcon(this.getInterfaceStyle().container_rename);
                 renameButton[0].setTooltips(new GameMessage[]{new StaticMessage(Localization.translate((String)"ui", (String)"renamebutton"))});
@@ -645,18 +594,20 @@ extends Form {
                 FormSlider[] damageSliderRef = new FormSlider[]{(FormSlider)entryBox.addComponent((FormComponent)new FormSlider("Damage: " + String.format("%.1f%%", Float.valueOf(pvpZone.damageMultiplier * 100.0f)), xPos, configY, damageValue, 1, 100, sliderWidth, WHITE_TEXT_10))};
                 damageSliderRef[0].drawValueInPercent = false;
                 damageSliderRef[0].onChanged(e -> {
-                    float newMultiplier;
-                    pvpZone.damageMultiplier = newMultiplier = (float)damageSliderRef[0].getValue() / 1000.0f;
-                    this.refreshZoneList(false);
-                    this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, newMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                    float newMultiplier = (float)damageSliderRef[0].getValue() / 1000.0f;
+                    pvpZone.damageMultiplier = newMultiplier;
+                    this.scheduleSliderUpdate(pvpZone.uniqueID, () -> {
+                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, newMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                    });
                 });
                 FormSlider[] combatLockSliderRef = new FormSlider[]{(FormSlider)entryBox.addComponent((FormComponent)new FormSlider("Combat Lock: " + pvpZone.combatLockSeconds + "s", xPos, configY += damageSliderRef[0].getTotalHeight() + 5, pvpZone.combatLockSeconds, 0, 10, sliderWidth, WHITE_TEXT_10))};
                 combatLockSliderRef[0].drawValueInPercent = false;
                 combatLockSliderRef[0].onChanged(e -> {
-                    int newCombatLock;
-                    pvpZone.combatLockSeconds = newCombatLock = combatLockSliderRef[0].getValue();
-                    this.refreshZoneList(false);
-                    this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, newCombatLock, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                    int newCombatLock = combatLockSliderRef[0].getValue();
+                    pvpZone.combatLockSeconds = newCombatLock;
+                    this.scheduleSliderUpdate(pvpZone.uniqueID, () -> {
+                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, newCombatLock, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                    });
                 });
 
                 // DoT: damage multiplier slider
@@ -665,8 +616,9 @@ extends Form {
                 dotDamageSlider.onChanged(e -> {
                     float v = (float)dotDamageSlider.getValue() / 100.0f;
                     pvpZone.dotDamageMultiplier = v;
-                    this.refreshZoneList(false);
-                    this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                    this.scheduleSliderUpdate(pvpZone.uniqueID, () -> {
+                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                    });
                 });
 
                 // DoT: interval multiplier slider
@@ -675,8 +627,9 @@ extends Form {
                 dotIntervalSlider.onChanged(e -> {
                     float v = (float)dotIntervalSlider.getValue() / 100.0f;
                     pvpZone.dotIntervalMultiplier = v;
-                    this.refreshZoneList(false);
-                    this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                    this.scheduleSliderUpdate(pvpZone.uniqueID, () -> {
+                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                    });
                 });
 
                 // Per-zone force-clean removed: use the global force-clean control in the PvP list
@@ -853,7 +806,7 @@ extends Form {
 
     private void deleteZone(AdminZone zone, boolean isProtectedZone) {
         this.client.network.sendPacket((Packet)new PacketDeleteZone(zone.uniqueID, isProtectedZone));
-        System.out.println("Sent delete zone request for " + zone.name);
+        ModLogger.info("Sent delete zone request for %s", zone.name);
     }
 
     private void updateHollowCheckbox(FormCheckBox hollowCheckbox) {
@@ -1365,6 +1318,39 @@ extends Form {
         }
     }
 
+    /**
+     * Schedules a slider update to be sent after a debounce delay.
+     * This prevents spamming packets while the user is dragging sliders.
+     * Only the last update within the debounce window will be sent.
+     */
+    private void scheduleSliderUpdate(int zoneID, Runnable updateAction) {
+        long now = System.currentTimeMillis();
+        this.sliderDebounceTimers.put(zoneID, now + SLIDER_DEBOUNCE_MS);
+        this.pendingSliderUpdates.put(zoneID, updateAction);
+    }
+
+    /**
+     * Process pending slider updates. Called from tick() method.
+     */
+    private void processPendingSliderUpdates() {
+        long now = System.currentTimeMillis();
+        List<Integer> toProcess = new ArrayList<>();
+        
+        for (Map.Entry<Integer, Long> entry : this.sliderDebounceTimers.entrySet()) {
+            if (now >= entry.getValue()) {
+                toProcess.add(entry.getKey());
+            }
+        }
+        
+        for (int zoneID : toProcess) {
+            Runnable action = this.pendingSliderUpdates.remove(zoneID);
+            this.sliderDebounceTimers.remove(zoneID);
+            if (action != null) {
+                action.run();
+            }
+        }
+    }
+
     public void dispose() {
         GameToolManager.clearGameTools((Object)((Object)this));
         this.removeZoneVisualization();
@@ -1382,7 +1368,7 @@ extends Form {
                 this.setText(text, maxWidth);
             }
             catch (Exception e) {
-                System.err.println("MedievalSim: ERROR - Failed to set white text on checkbox: " + e.getMessage());
+                ModLogger.error("Failed to set white text on checkbox: %s", e.getMessage());
             }
         }
     }

@@ -1,23 +1,6 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.localization.message.GameMessage
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.client.Client
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.level.maps.Level
- */
 package medievalsim.packets;
-
 import medievalsim.util.ModLogger;
-import medievalsim.util.ZonePacketValidator;
 import medievalsim.zones.AdminZone;
-import medievalsim.zones.AdminZonesLevelData;
 import necesse.engine.localization.message.GameMessage;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
@@ -54,34 +37,25 @@ extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Validate packet (permission, level, zone data)
-            ZonePacketValidator.ValidationResult validation =
-                ZonePacketValidator.validateZonePacket(server, client, "PacketRenameZone");
-            if (!validation.isValid) return;
+            // Validate using ZoneAPI
+            medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
+                .withPacketName("PacketRenameZone")
+                .requireAnyZone(this.zoneUniqueID, !this.isProtectedZone)
+                .build();
+            if (!ctx.isValid()) return;
 
-            // Zone lookup
-            AdminZone zone = this.isProtectedZone
-                ? (AdminZone)validation.zoneData.getProtectedZones().get(this.zoneUniqueID)
-                : (AdminZone)validation.zoneData.getPvPZones().get(this.zoneUniqueID);
-                
-            if (zone == null) {
-                ModLogger.warn("Attempted to rename non-existent zone ID " + this.zoneUniqueID);
-                PacketZoneRemoved removedPacket = new PacketZoneRemoved(this.zoneUniqueID, this.isProtectedZone);
-                client.sendPacket((Packet)removedPacket);
-                return;
-            }
+            AdminZone zone = ctx.getAdminZone();
             
             // Validate and apply new name
-            String translatedName = ZonePacketValidator.validateZoneName(this.newName.translate());
+            String translatedName = medievalsim.util.ZoneAPI.validateZoneName(this.newName.translate());
             zone.name = translatedName;
 
             ModLogger.info("Renamed zone " + this.zoneUniqueID + " to '" + translatedName + "' by " + client.getName());
             PacketZoneChanged changedPacket = new PacketZoneChanged(zone, this.isProtectedZone);
-            validation.level.getServer().network.sendToAllClients((Packet)changedPacket);
+            ctx.getLevel().getServer().network.sendToAllClients((Packet)changedPacket);
             
         } catch (Exception e) {
-            ModLogger.error("Exception in PacketRenameZone.processServer: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Exception in PacketRenameZone.processServer", e);
         }
     }
 

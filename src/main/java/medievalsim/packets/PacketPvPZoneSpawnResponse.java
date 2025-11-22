@@ -1,21 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.packet.PacketPlayerPvP
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.engine.util.LevelIdentifier
- *  necesse.entity.mobs.Mob
- *  necesse.entity.mobs.buffs.ActiveBuff
- *  necesse.level.maps.Level
- */
 package medievalsim.packets;
-
 import medievalsim.config.ModConfig;
 import medievalsim.util.ModLogger;
 
@@ -64,7 +47,7 @@ extends Packet {
                 Point spawnTile = server.world.worldEntity.spawnTile;
                 if (spawnLevelIdentifier != null && spawnTile != null) {
                     client.changeLevel(spawnLevelIdentifier, level -> new Point(spawnTile.x * 32 + 16, spawnTile.y * 32 + 16), true);
-                    client.sendChatMessage("Teleported to world spawn");
+                    client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.teleportspawn"));
                     ModLogger.info("Player " + client.getName() + " chose to teleport to spawn from PvP zone " + this.zoneID);
                 } else {
                     ModLogger.error("Failed to teleport " + client.getName() + " to spawn - spawn location null");
@@ -72,24 +55,22 @@ extends Packet {
                 return;
             }
             
-            // Level validation
+            // Use ZoneAPI for validation - note: using server.world.getLevel(client) for spawn scenarios
             Level level2 = server.world.getLevel(client);
             if (level2 == null) {
                 ModLogger.error("Failed to get level for client " + client.getName() + " in PacketPvPZoneSpawnResponse");
                 return;
             }
             
-            // Zone data validation
             AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level2);
             if (zoneData == null) {
                 ModLogger.error("Failed to get zone data for level " + level2.getIdentifier() + " in PacketPvPZoneSpawnResponse");
                 return;
             }
             
-            // Zone lookup
             PvPZone zone = zoneData.getPvPZone(this.zoneID);
             if (zone == null) {
-                client.sendChatMessage("This PVP zone no longer exists. Teleporting to world spawn.");
+                client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.notexists"));
                 ModLogger.warn("Player " + client.getName() + " spawned in non-existent PvP zone " + this.zoneID + ", teleporting to spawn");
                 LevelIdentifier spawnLevelIdentifier = server.world.worldEntity.spawnLevelIdentifier;
                 Point spawnTile = server.world.worldEntity.spawnTile;
@@ -99,7 +80,7 @@ extends Packet {
                 return;
             }
             
-            // Player chose to stay in zone - re-enter and enable PvP
+            // Player chose to stay - re-enter zone and enable PvP
             PvPZoneTracker.enterZone(client, zone);
             if (!client.pvpEnabled && !server.world.settings.forcedPvP) {
                 client.pvpEnabled = true;
@@ -112,12 +93,11 @@ extends Packet {
             }
             
             String damagePercentStr = medievalsim.zones.PvPZone.formatDamagePercent(zone.damageMultiplier);
-            client.sendChatMessage("Staying in PVP zone: " + zone.name + " (Damage: " + damagePercentStr + ", Combat Lock: " + zone.combatLockSeconds + "s)");
+            client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.staying", "name", zone.name, "damage", damagePercentStr, "lock", zone.combatLockSeconds));
             ModLogger.info("Player " + client.getName() + " chose to stay in PvP zone " + this.zoneID + " (" + zone.name + ") after spawn");
             
         } catch (Exception e) {
-            ModLogger.error("Exception in PacketPvPZoneSpawnResponse.processServer: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Exception in PacketPvPZoneSpawnResponse.processServer", e);
         }
     }
 }

@@ -1,19 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.gameLoop.tickManager.TickManager
- *  necesse.engine.util.Zoning
- *  necesse.entity.mobs.PlayerMob
- *  necesse.gfx.camera.GameCamera
- *  necesse.gfx.drawOptions.texture.SharedTextureDrawOptions
- *  necesse.gfx.drawables.SortedDrawable
- *  necesse.gfx.gameFont.FontManager
- *  necesse.gfx.gameFont.FontOptions
- *  necesse.level.maps.hudManager.HudDrawElement
- */
 package medievalsim.zones;
-
 import java.awt.Color;
 import java.awt.Rectangle;
 import java.util.List;

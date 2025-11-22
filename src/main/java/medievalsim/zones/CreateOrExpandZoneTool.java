@@ -1,34 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.GlobalData
- *  necesse.engine.gameLoop.tickManager.TickManager
- *  necesse.engine.gameTool.GameTool
- *  necesse.engine.input.InputEvent
- *  necesse.engine.input.InputPosition
- *  necesse.engine.input.controller.ControllerEvent
- *  necesse.engine.input.controller.ControllerInput
- *  necesse.engine.localization.Localization
- *  necesse.engine.network.Packet
- *  necesse.engine.network.client.Client
- *  necesse.engine.state.State
- *  necesse.engine.util.GameRandom
- *  necesse.engine.util.Zoning
- *  necesse.engine.window.GameWindow
- *  necesse.engine.window.WindowManager
- *  necesse.entity.mobs.PlayerMob
- *  necesse.gfx.camera.GameCamera
- *  necesse.gfx.drawOptions.texture.SharedTextureDrawOptions
- *  necesse.gfx.drawables.SortedDrawable
- *  necesse.gfx.gameTooltips.GameTooltips
- *  necesse.gfx.gameTooltips.InputTooltip
- *  necesse.gfx.gameTooltips.ListGameTooltips
- *  necesse.level.maps.Level
- *  necesse.level.maps.hudManager.HudDrawElement
- */
 package medievalsim.zones;
-
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.Rectangle;

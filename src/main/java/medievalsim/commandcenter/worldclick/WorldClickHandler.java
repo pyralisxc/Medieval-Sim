@@ -50,7 +50,7 @@ public class WorldClickHandler {
         this.coordinateCallback = callback;
         this.isActive = true;
         
-        System.out.println("[WorldClickHandler] Started coordinate selection mode");
+        medievalsim.util.ModLogger.debug("WorldClickHandler: Started coordinate selection mode");
         
         // Show message to guide user
         if (client != null) {
@@ -67,7 +67,7 @@ public class WorldClickHandler {
         this.lastHoverTileX = -1;
         this.lastHoverTileY = -1;
         
-        System.out.println("[WorldClickHandler] Stopped coordinate selection mode");
+        medievalsim.util.ModLogger.debug("WorldClickHandler: Stopped coordinate selection mode");
     }
     
     /**
@@ -90,7 +90,7 @@ public class WorldClickHandler {
             return false; // Not in selection mode, don't consume click
         }
         
-        System.out.println("[WorldClickHandler] World clicked at: " + tileX + ", " + tileY);
+        medievalsim.util.ModLogger.debug("WorldClickHandler: World clicked at: %d, %d", tileX, tileY);
         
         // Invoke the callback
         if (coordinateCallback != null) {

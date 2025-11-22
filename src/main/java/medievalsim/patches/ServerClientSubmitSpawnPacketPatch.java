@@ -1,19 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.packet.PacketSpawnPlayer
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.engine.util.GameMath
- *  necesse.level.maps.Level
- *  net.bytebuddy.asm.Advice$FieldValue
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
 import medievalsim.zones.PvPZone;
 import medievalsim.zones.PvPZoneTracker;
 import medievalsim.zones.ZoneManager;

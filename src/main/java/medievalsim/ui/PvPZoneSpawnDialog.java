@@ -1,22 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.GlobalData
- *  necesse.engine.network.Packet
- *  necesse.engine.network.client.Client
- *  necesse.engine.state.MainGame
- *  necesse.engine.window.WindowManager
- *  necesse.gfx.forms.Form
- *  necesse.gfx.forms.components.FormComponent
- *  necesse.gfx.forms.components.FormInputSize
- *  necesse.gfx.forms.components.FormLabel
- *  necesse.gfx.forms.components.FormTextButton
- *  necesse.gfx.gameFont.FontOptions
- *  necesse.gfx.ui.ButtonColor
- */
 package medievalsim.ui;
-
 import medievalsim.packets.PacketPvPZoneSpawnResponse;
 import necesse.engine.GlobalData;
 import necesse.engine.network.Packet;

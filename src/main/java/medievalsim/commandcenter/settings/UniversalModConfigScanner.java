@@ -98,8 +98,7 @@ public class UniversalModConfigScanner {
                            mod.id, mod.id.replace(".", "") + ".config.ModConfig");
             return Collections.emptyList();
         } catch (Exception e) {
-            ModLogger.error("Error scanning mod %s: %s", mod.id, e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Error scanning mod: " + mod.id, e);
             return Collections.emptyList();
         }
     }

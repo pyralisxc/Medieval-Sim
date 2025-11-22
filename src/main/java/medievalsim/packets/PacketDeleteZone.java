@@ -1,24 +1,7 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.commands.PermissionLevel
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.packet.PacketPlayerPvP
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.level.maps.Level
- */
 package medievalsim.packets;
 
-
 import medievalsim.util.ModLogger;
-import medievalsim.util.ZonePacketValidator;
 import medievalsim.zones.AdminZone;
-import medievalsim.zones.AdminZonesLevelData;
 import medievalsim.zones.PvPZone;
 import medievalsim.zones.PvPZoneTracker;
 import medievalsim.zones.ZoneManager;
@@ -53,21 +36,18 @@ extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Validate packet (permission, level, zone data)
-            ZonePacketValidator.ValidationResult validation =
-                ZonePacketValidator.validateZonePacket(server, client, "PacketDeleteZone");
-            if (!validation.isValid) return;
+            // Validate using ZoneAPI
+            medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
+                .withPacketName("PacketDeleteZone")
+                .requireAnyZone(this.zoneID, !this.isProtectedZone)
+                .build();
+            if (!ctx.isValid()) return;
 
-            // Zone lookup
-            AdminZone zone = this.isProtectedZone ? validation.zoneData.getProtectedZone(this.zoneID) : validation.zoneData.getPvPZone(this.zoneID);
-            if (zone == null) {
-                ModLogger.warn("Attempted to delete non-existent zone ID " + this.zoneID + " (protected=" + this.isProtectedZone + ")");
-                return;
-            }
+            AdminZone zone = ctx.getAdminZone();
 
             // Remove barriers for PvP zones
             if (!this.isProtectedZone && zone instanceof PvPZone) {
-                ((PvPZone)zone).removeBarriers(validation.level);
+                ((PvPZone)zone).removeBarriers(ctx.getLevel());
             }
 
             // Handle players currently in PvP zone
@@ -81,15 +61,15 @@ extends Packet {
                         playerClient.pvpEnabled = false;
                         server.network.sendToAllClients((Packet)new PacketPlayerPvP(playerClient.slot, false));
                     }
-                    playerClient.sendChatMessage("\u00a7cPVP zone deleted - you have been removed from the zone");
+                    playerClient.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.deleted"));
                 }
             }
 
             // Delete zone
             if (this.isProtectedZone) {
-                ZoneManager.deleteProtectedZone(validation.level, this.zoneID, client);
+                ZoneManager.deleteProtectedZone(ctx.getLevel(), this.zoneID, client);
             } else {
-                ZoneManager.deletePvPZone(validation.level, this.zoneID, client);
+                ZoneManager.deletePvPZone(ctx.getLevel(), this.zoneID, client);
             }
             
             ModLogger.info("Deleted zone " + this.zoneID + " (" + zone.name + ") by " + client.getName());
@@ -97,8 +77,7 @@ extends Packet {
             // Defer saving to the resolver/autosave to avoid heavy synchronous compression during packet processing
             
         } catch (Exception e) {
-            ModLogger.error("Exception in PacketDeleteZone.processServer: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Exception in PacketDeleteZone.processServer", e);
         }
     }
 }

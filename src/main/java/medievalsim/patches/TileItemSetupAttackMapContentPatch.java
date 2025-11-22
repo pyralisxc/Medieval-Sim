@@ -1,18 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.gameNetworkData.GNDItemMap
- *  necesse.entity.mobs.itemAttacker.ItemAttackerMob
- *  necesse.inventory.InventoryItem
- *  necesse.inventory.item.placeableItem.tileItem.TileItem
- *  necesse.level.maps.Level
- *  net.bytebuddy.asm.Advice$Argument
- *  net.bytebuddy.asm.Advice$OnMethodExit
- */
 package medievalsim.patches;
-
 import medievalsim.buildmode.BuildModeManager;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.gameNetworkData.GNDItemMap;

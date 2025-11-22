@@ -1,38 +1,10 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.commands.PermissionLevel
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.Packet
- *  necesse.engine.network.gameNetworkData.GNDItemMap
- *  necesse.engine.network.packet.PacketPlaceObject
- *  necesse.engine.network.server.ServerClient
- *  necesse.engine.util.GameMath
- *  necesse.entity.mobs.PlayerMob
- *  necesse.entity.mobs.itemAttacker.ItemAttackSlot
- *  necesse.entity.mobs.itemAttacker.ItemAttackerMob
- *  necesse.inventory.InventoryItem
- *  necesse.inventory.item.placeableItem.objectItem.ObjectItem
- *  necesse.level.gameObject.GameObject
- *  necesse.level.maps.Level
- *  necesse.level.maps.multiTile.MultiTile
- *  net.bytebuddy.asm.Advice$Argument
- *  net.bytebuddy.asm.Advice$OnMethodEnter
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$OnNonDefaultValue
- *  net.bytebuddy.asm.Advice$Return
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 import medievalsim.buildmode.ShapeCalculator;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.ProtectedZone;
+import medievalsim.util.ZoneProtectionValidator;
 import necesse.engine.commands.PermissionLevel;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.Packet;
@@ -63,17 +35,13 @@ public class ObjectItemOnAttackPatch {
         }
         PlayerMob player = (PlayerMob)attackerMob;
         
-        // Check protected zone permissions for breaking (both build mode and normal)
+        // Check protected zone permissions for breaking (both build mode and normal) using centralized validator
         if (level.isServer() && player.getServerClient() != null) {
-            int tileX = GameMath.getTileCoordinate((int)x);
-            int tileY = GameMath.getTileCoordinate((int)y);
-            AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
-            if (zoneData != null) {
-                ProtectedZone zone = zoneData.getProtectedZoneAt(tileX, tileY);
-                if (zone != null && !zone.canClientBreak(player.getServerClient(), level)) {
-                    player.getServerClient().sendChatMessage("You don't have permission to break objects in this protected zone");
-                    return null; // Block the attack
-                }
+            ZoneProtectionValidator.ValidationResult validation = 
+                ZoneProtectionValidator.validateBreakAtPosition(level, x, y, player.getServerClient());
+            if (!validation.isAllowed()) {
+                player.getServerClient().sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.protected.nobreakobjects"));
+                return null; // Block the attack
             }
         }
         
@@ -112,7 +80,7 @@ public class ObjectItemOnAttackPatch {
                 ServerClient serverClient = player.getServerClient();
                 if (serverClient != null && ((permLevel = serverClient.getPermissionLevel()) == null || permLevel.getLevel() < PermissionLevel.ADMIN.getLevel())) {
                     ModLogger.warn("Server rejected build mode placement: Player %s does not have ADMIN permission", player.getDisplayName());
-                    serverClient.sendChatMessage("You don't have permission to use build mode (requires ADMIN)");
+                    serverClient.sendChatMessage(necesse.engine.localization.Localization.translate("message", "buildmode.nopermission"));
                     buildModeResult.set(item);
                     shouldSkip.set(true);
                     return true;
@@ -120,7 +88,7 @@ public class ObjectItemOnAttackPatch {
                 if (positions.size() > 500) {
                     ModLogger.warn("Server rejected placement: %d blocks exceeds limit of 500 from player %s", positions.size(), player.getDisplayName());
                     if (serverClient != null) {
-                        serverClient.sendChatMessage("Too many blocks to place at once (limit: 500)");
+                        serverClient.sendChatMessage(necesse.engine.localization.Localization.translate("message", "buildmode.blocklimit", "limit", 500));
                     }
                     buildModeResult.set(item);
                     shouldSkip.set(true);

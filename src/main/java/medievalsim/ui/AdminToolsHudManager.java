@@ -1,16 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.network.Packet
- *  necesse.engine.network.client.Client
- *  necesse.engine.window.GameWindow
- *  necesse.gfx.forms.ContainerComponent
- *  necesse.gfx.forms.MainGameFormManager
- *  necesse.gfx.forms.components.FormComponent
- */
 package medievalsim.ui;
-
 import medievalsim.admintools.AdminToolsManager;
 import medievalsim.packets.PacketRequestZoneSync;
 import medievalsim.util.ModLogger;

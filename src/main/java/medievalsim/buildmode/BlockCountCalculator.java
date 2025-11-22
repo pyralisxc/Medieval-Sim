@@ -1,8 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package medievalsim.buildmode;
-
 
 public class BlockCountCalculator {
     public static int calculateBlockCount(int selectedShape, boolean isHollow, int lineLength, int squareSize, int circleRadius, int spacing) {

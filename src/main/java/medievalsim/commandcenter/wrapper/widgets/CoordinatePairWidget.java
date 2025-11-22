@@ -114,7 +114,7 @@ public class CoordinatePairWidget {
      */
     private void onClickWorldPressed() {
         if (client == null) {
-            System.err.println("[CoordinatePairWidget] Cannot start world-click: client is null");
+            medievalsim.util.ModLogger.error("CoordinatePairWidget: Cannot start world-click - client is null");
             return;
         }
         
@@ -134,13 +134,13 @@ public class CoordinatePairWidget {
      */
     private void onUseCurrentPressed() {
         if (client == null) {
-            System.err.println("[CoordinatePairWidget] Cannot use current position: client is null");
+            medievalsim.util.ModLogger.error("CoordinatePairWidget: Cannot use current position - client is null");
             return;
         }
         
         PlayerMob player = client.getPlayer();
         if (player == null) {
-            System.err.println("[CoordinatePairWidget] Cannot use current position: player is null");
+            medievalsim.util.ModLogger.error("CoordinatePairWidget: Cannot use current position - player is null");
             return;
         }
         

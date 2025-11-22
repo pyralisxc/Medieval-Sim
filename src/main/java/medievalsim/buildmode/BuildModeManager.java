@@ -1,23 +1,8 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.Settings
- *  necesse.engine.commands.PermissionLevel
- *  necesse.engine.modLoader.LoadedMod
- *  necesse.engine.modLoader.ModLoader
- *  necesse.engine.modLoader.ModSettings
- *  necesse.engine.network.client.Client
- *  necesse.level.maps.Level
- *  necesse.level.maps.hudManager.HudDrawElement
- */
 package medievalsim.buildmode;
-
 import necesse.engine.Settings;
 import necesse.engine.commands.PermissionLevel;
 import necesse.engine.modLoader.LoadedMod;
 import necesse.engine.modLoader.ModLoader;
-import necesse.engine.modLoader.ModSettings;
 import necesse.engine.network.client.Client;
 import necesse.level.maps.Level;
 import necesse.level.maps.hudManager.HudDrawElement;
@@ -114,11 +99,11 @@ public class BuildModeManager {
     public void setBuildModeEnabled(boolean enabled) {
         PermissionLevel level;
         if (!this.isClientValid()) {
-            System.err.println("MedievalSim: ERROR - Cannot set build mode - client is invalid or disconnected");
+            medievalsim.util.ModLogger.error("Cannot set build mode - client is invalid or disconnected");
             return;
         }
         if (enabled && ((level = this.client.getPermissionLevel()) == null || level.getLevel() < PermissionLevel.ADMIN.getLevel())) {
-            System.out.println("MedievalSim: WARNING - Player attempted to enable build mode without ADMIN permission");
+            medievalsim.util.ModLogger.warn("Player attempted to enable build mode without ADMIN permission");
             return;
         }
         this.buildModeEnabled = enabled;
@@ -168,7 +153,7 @@ public class BuildModeManager {
 
     public void setShape(int shape) {
         if (shape < 0 || shape > 9) {
-            System.err.println("MedievalSim: ERROR - Invalid shape " + shape + ", must be 0-9");
+            medievalsim.util.ModLogger.error("Invalid shape %d, must be 0-9", shape);
             return;
         }
         this.selectedShape = shape;
@@ -186,7 +171,7 @@ public class BuildModeManager {
 
     public void setLineLength(int length) {
         if (length < 1 || length > 50) {
-            System.err.println("MedievalSim: ERROR - Invalid line length " + length + ", must be 1-50");
+            medievalsim.util.ModLogger.error("Invalid line length %d, must be 1-50", length);
             return;
         }
         this.lineLength = length;
@@ -195,7 +180,7 @@ public class BuildModeManager {
 
     public void setSquareSize(int size) {
         if (size < 1 || size > 25) {
-            System.err.println("MedievalSim: ERROR - Invalid square size " + size + ", must be 1-25");
+            medievalsim.util.ModLogger.error("Invalid square size %d, must be 1-25", size);
             return;
         }
         this.squareSize = size;
@@ -204,7 +189,7 @@ public class BuildModeManager {
 
     public void setCircleRadius(int radius) {
         if (radius < 1 || radius > 25) {
-            System.err.println("MedievalSim: ERROR - Invalid circle radius " + radius + ", must be 1-25");
+            medievalsim.util.ModLogger.error("Invalid circle radius %d, must be 1-25", radius);
             return;
         }
         this.circleRadius = radius;
@@ -213,7 +198,7 @@ public class BuildModeManager {
 
     public void setSpacing(int spacing) {
         if (spacing < 1 || spacing > 10) {
-            System.err.println("MedievalSim: ERROR - Invalid spacing " + spacing + ", must be 1-10");
+            medievalsim.util.ModLogger.error("Invalid spacing %d, must be 1-10", spacing);
             return;
         }
         this.spacing = spacing;
@@ -222,7 +207,7 @@ public class BuildModeManager {
 
     public void setDirection(int direction) {
         if (direction < 0 || direction > 3) {
-            System.err.println("MedievalSim: ERROR - Invalid direction " + direction + ", must be 0-3");
+            medievalsim.util.ModLogger.error("Invalid direction %d, must be 0-3", direction);
             return;
         }
         this.direction = direction;
@@ -279,9 +264,8 @@ public class BuildModeManager {
 
     private void loadSettings() {
         try {
-            ModSettings modSettings;
             LoadedMod mod = ModLoader.getEnabledMods().stream().filter(m -> m.id.equals("medieval.sim")).findFirst().orElse(null);
-            if (mod != null && (modSettings = mod.getSettings()) instanceof medievalsim.config.UnifiedMedievalSimSettings) {
+            if (mod != null && mod.getSettings() instanceof medievalsim.config.UnifiedMedievalSimSettings) {
                 // Load directly from ModConfig
                 this.selectedShape = medievalsim.config.ModConfig.BuildMode.savedShape;
                 this.isHollow = medievalsim.config.ModConfig.BuildMode.savedIsHollow;
@@ -290,11 +274,11 @@ public class BuildModeManager {
                 this.circleRadius = medievalsim.config.ModConfig.BuildMode.savedCircleRadius;
                 this.spacing = medievalsim.config.ModConfig.BuildMode.savedSpacing;
                 this.direction = medievalsim.config.ModConfig.BuildMode.savedDirection;
-                System.out.println("MedievalSim: INFO - Loaded build mode settings from config");
+                medievalsim.util.ModLogger.info("Loaded build mode settings from config");
             }
         }
         catch (Exception e) {
-            System.err.println("MedievalSim: WARNING - Failed to load build mode settings: " + e.getMessage());
+            medievalsim.util.ModLogger.warn("Failed to load build mode settings: %s", e.getMessage());
         }
     }
 
@@ -305,9 +289,8 @@ public class BuildModeManager {
 
     private void saveSettingsNow() {
         try {
-            ModSettings modSettings;
             LoadedMod mod = ModLoader.getEnabledMods().stream().filter(m -> m.id.equals("medieval.sim")).findFirst().orElse(null);
-            if (mod != null && (modSettings = mod.getSettings()) instanceof medievalsim.config.UnifiedMedievalSimSettings) {
+            if (mod != null && mod.getSettings() instanceof medievalsim.config.UnifiedMedievalSimSettings) {
                 // Save directly to ModConfig
                 medievalsim.config.ModConfig.BuildMode.savedShape = this.selectedShape;
                 medievalsim.config.ModConfig.BuildMode.savedIsHollow = this.isHollow;
@@ -317,12 +300,12 @@ public class BuildModeManager {
                 medievalsim.config.ModConfig.BuildMode.savedSpacing = this.spacing;
                 medievalsim.config.ModConfig.BuildMode.savedDirection = this.direction;
                 Settings.saveClientSettings();
-                System.out.println("MedievalSim: INFO - Saved build mode settings to config");
+                medievalsim.util.ModLogger.info("Saved build mode settings to config");
                 this.settingsDirty = false;
             }
         }
         catch (Exception e) {
-            System.err.println("MedievalSim: WARNING - Failed to save build mode settings: " + e.getMessage());
+            medievalsim.util.ModLogger.warn("Failed to save build mode settings: %s", e.getMessage());
         }
     }
 

@@ -37,7 +37,7 @@ public class WorldClickTickManager {
      */
     public void init(Client client) {
         this.client = client;
-        System.out.println("[WorldClickTickManager] Initialized with client");
+        medievalsim.util.ModLogger.debug("WorldClickTickManager: Initialized with client");
     }
     
     /**

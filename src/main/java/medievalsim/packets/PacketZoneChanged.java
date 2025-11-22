@@ -1,19 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.client.Client
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.engine.util.Zoning
- *  necesse.level.maps.Level
- */
 package medievalsim.packets;
-
 import medievalsim.ui.AdminToolsHudForm;
 import medievalsim.ui.AdminToolsHudManager;
 import medievalsim.zones.AdminZone;

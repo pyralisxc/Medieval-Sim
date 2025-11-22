@@ -1,18 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.GlobalData
- *  necesse.engine.input.Control
- *  necesse.engine.input.InputEvent
- *  necesse.engine.localization.message.GameMessage
- *  necesse.engine.localization.message.StaticMessage
- *  necesse.engine.network.client.Client
- *  necesse.engine.state.MainGame
- *  necesse.entity.mobs.PlayerMob
- */
 package medievalsim.registries;
-
 import medievalsim.admintools.AdminToolsManager;
 import medievalsim.buildmode.BuildModeManager;
 import necesse.engine.GlobalData;

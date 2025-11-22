@@ -1,21 +1,6 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.commands.PermissionLevel
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.level.maps.Level
- */
 package medievalsim.packets;
-
 import java.awt.Rectangle;
 import medievalsim.util.ModLogger;
-import medievalsim.util.ZonePacketValidator;
 import medievalsim.zones.AdminZone;
 import medievalsim.zones.AdminZonesLevelData;
 
@@ -60,17 +45,14 @@ extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Validate packet (permission, level, zone data)
-            ZonePacketValidator.ValidationResult validation =
-                ZonePacketValidator.validateZonePacket(server, client, "PacketExpandZone");
-            if (!validation.isValid) return;
+            // Validate using ZoneAPI
+            medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
+                .withPacketName("PacketExpandZone")
+                .requireAnyZone(this.zoneID, !this.isProtectedZone)
+                .build();
+            if (!ctx.isValid()) return;
 
-            // Zone lookup
-            AdminZone zone = this.isProtectedZone ? validation.zoneData.getProtectedZone(this.zoneID) : validation.zoneData.getPvPZone(this.zoneID);
-            if (zone == null) {
-                ModLogger.warn("Attempted to expand non-existent zone ID " + this.zoneID);
-                return;
-            }
+            AdminZone zone = ctx.getAdminZone();
             
             // Snapshot old edge tiles for differential barrier removal
             java.util.Map<Integer, java.util.Collection<java.awt.Point>> oldEdgesSnapshot = new java.util.HashMap<>();
@@ -86,16 +68,15 @@ extends Packet {
             // Expand zone
             boolean changed = zone.expand(this.expandArea);
             if (changed) {
-                AdminZonesLevelData localZoneData = AdminZonesLevelData.getZoneData(validation.level, false);
+                AdminZonesLevelData localZoneData = AdminZonesLevelData.getZoneData(ctx.getLevel(), false);
                 if (localZoneData != null) {
-                    localZoneData.resolveAfterZoneChange(zone, validation.level, server, this.isProtectedZone, oldEdgesSnapshot);
+                    localZoneData.resolveAfterZoneChange(zone, ctx.getLevel(), server, this.isProtectedZone, oldEdgesSnapshot);
                 }
                 ModLogger.info("Expanded zone " + this.zoneID + " (" + zone.name + ") by " + client.getName());
             }
             
         } catch (Exception e) {
-            ModLogger.error("Exception in PacketExpandZone.processServer: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Exception in PacketExpandZone.processServer", e);
         }
     }
 }

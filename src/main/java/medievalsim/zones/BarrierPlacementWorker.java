@@ -27,7 +27,7 @@ public final class BarrierPlacementWorker {
         if (level == null || zone == null || region == null) return;
         Queue<PlacementTask> q = queues.computeIfAbsent(level, k -> new ConcurrentLinkedQueue<>());
         q.add(new PlacementTask(zone.uniqueID, region.regionX, region.regionY));
-        ModLogger.info("Queued barrier placement for zone '%s' region (%d,%d)", zone.name, region.regionX, region.regionY);
+        ModLogger.debug("Queued barrier placement for zone '%s' region (%d,%d)", zone.name, region.regionX, region.regionY);
     }
 
     public static void processTick(Level level, int maxTilesPerTick) {
@@ -45,9 +45,7 @@ public final class BarrierPlacementWorker {
             if (task.isComplete()) q.poll();
             if (did == 0) break;
         }
-        if (processed > 0) {
-            ModLogger.debug("Processed %d barrier placements this tick", processed);
-        }
+        // Note: Processed X tiles - logging removed to reduce spam
     }
 
     /** Remove queued placement tasks for a specific zone on a level. */
@@ -58,6 +56,7 @@ public final class BarrierPlacementWorker {
         try {
             q.removeIf(task -> task.zoneID == zoneID);
         } catch (Exception e) {
+            // Broad catch protects concurrent queue operations from crashing game
             ModLogger.error("Failed to remove queued tasks for zone %s", e, zoneID);
         }
     }

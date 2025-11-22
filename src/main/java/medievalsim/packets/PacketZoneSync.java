@@ -1,17 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.client.Client
- *  necesse.engine.util.Zoning
- *  necesse.level.maps.Level
- */
 package medievalsim.packets;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

@@ -66,19 +66,24 @@ public final class ModLogger {
     }
     
     /**
-     * Log an error with exception details
+     * Log an error with exception details including full stack trace
      */
     public static void error(String message, Throwable throwable) {
-        logger.severe(Constants.LOG_ERROR_PREFIX + message + ": " + throwable.getMessage());
-        // Print stack trace for debugging
-        throwable.printStackTrace();
+        // Log the message with exception class and message
+        logger.severe(Constants.LOG_ERROR_PREFIX + message + ": " + throwable.getClass().getName() + " - " + throwable.getMessage());
+        
+        // Capture and log the full stack trace through our logger (not stderr)
+        java.io.StringWriter sw = new java.io.StringWriter();
+        java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+        throwable.printStackTrace(pw);
+        logger.severe(sw.toString());
     }
     
     /**
-     * Log a debug message
+     * Log a debug message (only shown when logging level set to FINE or lower)
      */
     public static void debug(String message) {
-        logger.info(Constants.LOG_PREFIX + "DEBUG - " + message);
+        logger.fine(Constants.LOG_PREFIX + message);
     }
     
     /**

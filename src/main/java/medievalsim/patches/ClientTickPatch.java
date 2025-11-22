@@ -1,14 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.client.Client
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
 import medievalsim.buildmode.BuildModeManager;
 import medievalsim.commandcenter.worldclick.WorldClickIntegration;
 import necesse.engine.modLoader.annotations.ModMethodPatch;

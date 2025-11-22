@@ -12,9 +12,9 @@ public final class Constants {
     
     // ===== LOGGING =====
     public static final String LOG_PREFIX = "MedievalSim: ";
-    public static final String LOG_ERROR_PREFIX = "MedievalSim: ERROR - ";
-    public static final String LOG_WARNING_PREFIX = "MedievalSim: WARNING - ";
-    public static final String LOG_INFO_PREFIX = "MedievalSim: INFO - ";
+    public static final String LOG_ERROR_PREFIX = "MedievalSim: ";
+    public static final String LOG_WARNING_PREFIX = "MedievalSim: ";
+    public static final String LOG_INFO_PREFIX = "MedievalSim: ";
     
     // ===== BUILD MODE =====
     public static final class BuildMode {

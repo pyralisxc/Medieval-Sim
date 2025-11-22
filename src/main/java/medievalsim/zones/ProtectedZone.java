@@ -6,6 +6,8 @@ package medievalsim.zones;
 
 import java.util.HashSet;
 import java.util.Set;
+
+import medievalsim.util.ModLogger;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.network.server.Server;
@@ -174,8 +176,8 @@ extends AdminZone {
         // Unknown type - deny by default in protected zones
         else {
             // Log unknown object types for debugging
-            System.out.println("DEBUG: Unknown GameObject type in protected zone: " +
-                gameObject.getClass().getSimpleName() + " (ID: " + gameObject.getStringID() + ")");
+            ModLogger.debug("Unknown GameObject type in protected zone: %s (ID: %s)",
+                gameObject.getClass().getSimpleName(), gameObject.getStringID());
             return false;
         }
 
@@ -189,23 +191,7 @@ extends AdminZone {
     
     // Helper: Check if client is on owner's team
     private boolean isOnOwnerTeam(ServerClient client, Level level) {
-        if (ownerAuth == -1L) {
-            return false; // No owner set
-        }
-        
-        if (level == null || level.getServer() == null) {
-            return false;
-        }
-        
-        // Get owner's teamID
-        int ownerTeamID = level.getServer().world.getTeams().getPlayerTeamID(ownerAuth);
-        if (ownerTeamID == -1) {
-            return false; // Owner not on a team
-        }
-        
-        // Check if client is on same team
-        int clientTeamID = client.getTeamID();
-        return clientTeamID != -1 && clientTeamID == ownerTeamID;
+        return medievalsim.util.ZoneUtil.isOnOwnerTeam(this.ownerAuth, client, level);
     }
     
     public boolean isOwner(ServerClient client) {

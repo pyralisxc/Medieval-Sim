@@ -1,20 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.packet.PacketPlayerMovement
- *  necesse.engine.network.packet.PacketPlayerPvP
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.level.maps.Level
- *  necesse.level.maps.regionSystem.RegionPositionGetter
- */
 package medievalsim.packets;
-
 import java.awt.Point;
 import medievalsim.util.ModLogger;
 import medievalsim.zones.AdminZonesLevelData;
@@ -54,71 +38,35 @@ extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Player mob validation
-            if (client.playerMob == null) {
-                ModLogger.error("PacketPvPZoneExitResponse received for client with null playerMob: " + client.getName());
-                return;
-            }
+            // Use ZoneAPI builder for validation
+            medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
+                .withPacketName("PacketPvPZoneExitResponse")
+                .requirePvPZone(this.zoneID)
+                .checkCombatLock(server)
+                .build();
             
-            // Level validation
-            Level level = client.playerMob.getLevel();
-            if (level == null) {
-                ModLogger.error("Failed to get level for player " + client.getName() + " in PacketPvPZoneExitResponse");
-                return;
-            }
-            
-            // Zone data validation
-            AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
-            if (zoneData == null) {
-                ModLogger.error("Failed to get zone data for level " + level.getIdentifier() + " in PacketPvPZoneExitResponse");
-                return;
-            }
-            
-            // Zone lookup
-            PvPZone zone = zoneData.getPvPZone(this.zoneID);
-            if (zone == null) {
-                client.sendChatMessage("\u00a7cError: PVP zone no longer exists");
-                ModLogger.warn("Player " + client.getName() + " attempted to exit non-existent PvP zone ID " + this.zoneID);
-                return;
-            }
+            if (!ctx.isValid()) return;
             
             if (this.acceptExit) {
                 long serverTime = server.world.worldEntity.getTime();
                 
-                // Check combat lock
-                if (zone.combatLockSeconds > 0 && PvPZoneTracker.isInCombat(client, level, serverTime)) {
-                    int remainingSeconds = PvPZoneTracker.getRemainingCombatLockSeconds(client, level, serverTime);
-                    client.sendChatMessage("\u00a7cYou cannot leave while in combat! (" + remainingSeconds + "s remaining)");
-                    return;
-                }
-                
-                // Find closest tile outside zone and teleport player
-                Point exitTile = PvPZoneTracker.findClosestTileOutsideZone(zone, client.playerMob.x, client.playerMob.y);
-                if (exitTile != null) {
-                    float exitX = exitTile.x * 32 + 16;
-                    float exitY = exitTile.y * 32 + 16;
-                    client.playerMob.dx = 0.0f;
-                    client.playerMob.dy = 0.0f;
-                    client.playerMob.setPos(exitX, exitY, true);
-                    server.network.sendToClientsWithEntity((Packet)new PacketPlayerMovement(client, true), (RegionPositionGetter)client.playerMob);
-                }
+                // Teleport player out of zone
+                ctx.teleportOutOfZone(server);
                 
                 // Exit zone and disable PvP
-                PvPZoneTracker.exitZone(client, serverTime);
-                if (client.pvpEnabled && !server.world.settings.forcedPvP) {
-                    client.pvpEnabled = false;
-                    server.network.sendToAllClients((Packet)new PacketPlayerPvP(client.slot, false));
-                }
+                ctx.exitZone(serverTime);
+                ctx.disablePvP(server);
                 
-                client.sendChatMessage("\u00a7aExited PVP zone: " + zone.name);
+                // Send confirmation message
+                PvPZone zone = ctx.getPvPZone();
+                client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.exited", "name", zone.name));
                 ModLogger.info("Player " + client.getName() + " exited PvP zone " + this.zoneID + " (" + zone.name + ")");
             } else {
-                client.sendChatMessage("\u00a77You chose to stay in the PVP zone");
+                client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.chosestay"));
             }
             
         } catch (Exception e) {
-            ModLogger.error("Exception in PacketPvPZoneExitResponse.processServer: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Exception in PacketPvPZoneExitResponse.processServer", e);
         }
     }
 }

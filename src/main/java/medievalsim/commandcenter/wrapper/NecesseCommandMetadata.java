@@ -5,6 +5,7 @@ import necesse.engine.commands.ModularChatCommand;
 import necesse.engine.commands.PermissionLevel;
 import necesse.engine.commands.ParsedCommand;
 import medievalsim.commandcenter.CommandCategory;
+import medievalsim.util.ModLogger;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -81,8 +82,7 @@ public class NecesseCommandMetadata {
             return new NecesseCommandMetadata(id, action, permission, isCheat, parameters, category, cmdParameters);
 
         } catch (Exception e) {
-            System.err.println("Failed to parse command metadata for: " + command.name);
-            e.printStackTrace();
+            ModLogger.error("Failed to parse command metadata for: " + command.name, e);
             return null;
         }
     }

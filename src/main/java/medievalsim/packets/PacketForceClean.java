@@ -65,8 +65,7 @@ public class PacketForceClean extends Packet {
             ModLogger.info("Force clean barriers around (" + tileX + "," + tileY + ") radius " + r + " by " + client.getName());
             
         } catch (Exception e) {
-            ModLogger.error("Exception during forceClean: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Exception during forceClean", e);
         }
     }
 }

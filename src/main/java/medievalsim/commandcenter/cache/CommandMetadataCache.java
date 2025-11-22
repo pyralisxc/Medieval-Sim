@@ -60,7 +60,7 @@ public class CommandMetadataCache {
         lastModHash = getCurrentModHash();
         isCacheValid = true;
         
-        ModLogger.info("Cached %d command metadata entries", commands.size());
+        ModLogger.debug("Cached %d command metadata entries", commands.size());
     }
     
     /**

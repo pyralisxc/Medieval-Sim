@@ -1,8 +1,9 @@
 package medievalsim.zones;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import medievalsim.util.ModLogger;
 import necesse.engine.network.server.ServerClient;
 import necesse.engine.registries.BuffRegistry;
 import necesse.entity.mobs.buffs.ActiveBuff;
@@ -14,10 +15,12 @@ import necesse.level.maps.Level;
  * PvPZoneTracker pattern but intentionally only handles presence/zone
  * name, leaving gameplay restrictions to the ProtectedZone logic
  * and patches.
+ * 
+ * Thread-safe implementation using ConcurrentHashMap for server environment.
  */
 public class ProtectedZoneTracker {
 
-    private static final Map<Long, Integer> currentZones = new HashMap<Long, Integer>();
+    private static final Map<Long, Integer> currentZones = new ConcurrentHashMap<>();
 
     private ProtectedZoneTracker() {
     }
@@ -42,7 +45,6 @@ public class ProtectedZoneTracker {
                 currentZones.remove(auth);
                 if (client.playerMob != null && client.playerMob.buffManager != null) {
                     client.playerMob.buffManager.removeBuff(BuffRegistry.getBuffID("protectedzone"), true);
-                    medievalsim.util.ModLogger.info("Player " + client.getName() + " left protected zone (was in zone " + previous + ")");
                 }
             }
             return;
@@ -101,11 +103,8 @@ public class ProtectedZoneTracker {
                 // Send update packet to sync GND changes to client
                 necesse.entity.mobs.buffs.BuffManager.sendUpdatePacket(active);
             }
-            
-            medievalsim.util.ModLogger.info("Player " + client.getName() + " entered protected zone: " + zone.name);
         } catch (Exception e) {
-            medievalsim.util.ModLogger.error("Failed to apply protected zone buff: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Failed to apply protected zone buff", e);
         }
     }
 
@@ -121,17 +120,6 @@ public class ProtectedZoneTracker {
     
     // Helper to check if client is on owner's team
     private static boolean isOnOwnerTeam(ProtectedZone zone, ServerClient client, Level level) {
-        long ownerAuth = zone.getOwnerAuth();
-        if (ownerAuth == -1L || level == null || level.getServer() == null) {
-            return false;
-        }
-        
-        int ownerTeamID = level.getServer().world.getTeams().getPlayerTeamID(ownerAuth);
-        if (ownerTeamID == -1) {
-            return false;
-        }
-        
-        int clientTeamID = client.getTeamID();
-        return clientTeamID != -1 && clientTeamID == ownerTeamID;
+        return medievalsim.util.ZoneUtil.isOnOwnerTeam(zone.getOwnerAuth(), client, level);
     }
 }

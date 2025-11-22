@@ -42,7 +42,7 @@ public class WorldClickIntegration {
         Level level = client.getLevel();
         if (level != null) {
             level.hudManager.addElement(activeOverlay);
-            System.out.println("[WorldClickIntegration] Overlay registered to HUD");
+            medievalsim.util.ModLogger.debug("WorldClickIntegration: Overlay registered to HUD");
         }
     }
     
@@ -53,7 +53,7 @@ public class WorldClickIntegration {
     public static void stopIntegration() {
         if (activeOverlay != null) {
             activeOverlay.remove(); // HudDrawElement has remove() method
-            System.out.println("[WorldClickIntegration] Overlay removed from HUD");
+            medievalsim.util.ModLogger.debug("WorldClickIntegration: Overlay removed from HUD");
         }
         
         activeOverlay = null;

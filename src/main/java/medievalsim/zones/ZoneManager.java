@@ -4,10 +4,8 @@ import java.awt.Rectangle;
 import java.util.Map;
 import java.util.Random;
 
+import medievalsim.util.ModLogger;
 import medievalsim.util.ValidationUtil;
-import medievalsim.zones.events.ZoneEventBus;
-import medievalsim.zones.events.ZoneCreatedEvent;
-import medievalsim.zones.events.ZoneDeletedEvent;
 import necesse.engine.network.server.ServerClient;
 import necesse.level.maps.Level;
 
@@ -51,8 +49,12 @@ public class ZoneManager {
             }
         }
         
-        // Fire zone created event
-        ZoneEventBus.fire(new ZoneCreatedEvent(zone, creator));
+        // Log zone creation
+        if (creator != null) {
+            ModLogger.info("Protected zone '%s' created by %s", useName, creator.getName());
+        } else {
+            ModLogger.info("Protected zone '%s' created", useName);
+        }
         
         return zone;
     }
@@ -67,8 +69,12 @@ public class ZoneManager {
         String useName = (name == null || name.trim().isEmpty()) ? zoneData.getUniqueZoneName() : name;
         PvPZone zone = zoneData.addPvPZone(useName, creatorAuth, colorHue);
         
-        // Fire zone created event
-        ZoneEventBus.fire(new ZoneCreatedEvent(zone, creator));
+        // Log zone creation
+        if (creator != null) {
+            ModLogger.info("PvP zone '%s' created by %s", useName, creator.getName());
+        } else {
+            ModLogger.info("PvP zone '%s' created", useName);
+        }
         
         return zone;
     }
@@ -78,8 +84,13 @@ public class ZoneManager {
         if (zoneData != null) {
             ProtectedZone zone = zoneData.getProtectedZone(uniqueID);
             if (zone != null) {
+                String zoneName = zone.name;
                 zoneData.removeProtectedZone(uniqueID);
-                ZoneEventBus.fire(new ZoneDeletedEvent(zone, deleter));
+                if (deleter != null) {
+                    ModLogger.info("Protected zone '%s' deleted by %s", zoneName, deleter.getName());
+                } else {
+                    ModLogger.info("Protected zone '%s' deleted", zoneName);
+                }
             }
         }
     }
@@ -89,8 +100,13 @@ public class ZoneManager {
         if (zoneData != null) {
             PvPZone zone = zoneData.getPvPZone(uniqueID);
             if (zone != null) {
+                String zoneName = zone.name;
                 zoneData.removePvPZone(uniqueID);
-                ZoneEventBus.fire(new ZoneDeletedEvent(zone, deleter));
+                if (deleter != null) {
+                    ModLogger.info("PvP zone '%s' deleted by %s", zoneName, deleter.getName());
+                } else {
+                    ModLogger.info("PvP zone '%s' deleted", zoneName);
+                }
             }
         }
     }

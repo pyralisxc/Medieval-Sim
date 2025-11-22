@@ -1,25 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.localization.message.GameMessage
- *  necesse.engine.localization.message.StaticMessage
- *  necesse.engine.network.Packet
- *  necesse.engine.network.server.ServerClient
- *  necesse.engine.util.GameMath
- *  necesse.entity.mobs.PlayerMob
- *  necesse.gfx.camera.GameCamera
- *  necesse.gfx.gameTooltips.GameTooltipManager
- *  necesse.gfx.gameTooltips.GameTooltips
- *  necesse.gfx.gameTooltips.StringTooltips
- *  necesse.gfx.gameTooltips.TooltipLocation
- *  necesse.inventory.item.toolItem.ToolType
- *  necesse.level.gameObject.GameObject
- *  necesse.level.maps.Level
- *  necesse.level.maps.regionSystem.RegionType
- */
 package medievalsim.objects;
-
 import java.awt.Rectangle;
 import medievalsim.packets.PacketPvPZoneEntryDialog;
 import medievalsim.packets.PacketPvPZoneExitDialog;

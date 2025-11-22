@@ -1,18 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.GlobalData
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.client.Client
- *  necesse.engine.state.MainGame
- *  necesse.gfx.forms.components.FormComponent
- */
 package medievalsim.packets;
-
 import medievalsim.ui.PvPZoneExitDialog;
 import necesse.engine.GlobalData;
 import necesse.engine.network.NetworkPacket;
@@ -49,10 +35,14 @@ extends Packet {
 
     @Override
     public void processClient(NetworkPacket packet, Client client) {
+        if (client == null || GlobalData.getCurrentState() == null) return;
+        
         if (GlobalData.getCurrentState() instanceof MainGame) {
             MainGame mainGame = (MainGame)GlobalData.getCurrentState();
-            PvPZoneExitDialog dialog = new PvPZoneExitDialog(client, this.zoneID, this.zoneName, this.remainingCombatLockSeconds);
-            mainGame.formManager.addComponent((FormComponent)dialog);
+            if (mainGame.formManager != null) {
+                PvPZoneExitDialog dialog = new PvPZoneExitDialog(client, this.zoneID, this.zoneName, this.remainingCombatLockSeconds);
+                mainGame.formManager.addComponent((FormComponent)dialog);
+            }
         }
     }
 }

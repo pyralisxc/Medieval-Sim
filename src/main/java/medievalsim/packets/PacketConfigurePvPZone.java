@@ -1,22 +1,6 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.commands.PermissionLevel
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.level.maps.Level
- */
 package medievalsim.packets;
 
-
 import medievalsim.util.ModLogger;
-import medievalsim.util.ZonePacketValidator;
-import medievalsim.zones.AdminZonesLevelData;
 import medievalsim.zones.PvPZone;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
@@ -60,30 +44,26 @@ extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Validate packet (permission, level, zone data)
-            ZonePacketValidator.ValidationResult validation =
-                ZonePacketValidator.validateZonePacket(server, client, "PacketConfigurePvPZone");
-            if (!validation.isValid) return;
+            // Validate using ZoneAPI
+            medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
+                .withPacketName("PacketConfigurePvPZone")
+                .requirePvPZone(this.zoneID)
+                .build();
+            if (!ctx.isValid()) return;
 
-            // Zone lookup
-            PvPZone zone = validation.zoneData.getPvPZone(this.zoneID);
-            if (zone == null) {
-                ModLogger.warn("Attempted to configure non-existent PvP zone ID " + this.zoneID);
-                return;
-            }
+            PvPZone zone = ctx.getPvPZone();
             
-            // Apply validated settings
+            // Apply validated settings with clamping
             zone.damageMultiplier = Math.max(0.001f, Math.min(0.1f, this.damageMultiplier));
             zone.combatLockSeconds = Math.max(0, Math.min(10, this.combatLockSeconds));
             zone.dotDamageMultiplier = Math.max(0.01f, Math.min(2.0f, this.dotDamageMultiplier));
             zone.dotIntervalMultiplier = Math.max(0.25f, Math.min(4.0f, this.dotIntervalMultiplier));
             
-            ModLogger.info("Configured PvP zone " + this.zoneID + " (" + zone.name + ") by " + client.getName());
+            // Silent update - logging removed to prevent spam during slider adjustments
             server.network.sendToAllClients((Packet)new PacketZoneChanged(zone, false));
             
         } catch (Exception e) {
-            ModLogger.error("Exception in PacketConfigurePvPZone.processServer: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Exception in PacketConfigurePvPZone.processServer", e);
         }
     }
 }

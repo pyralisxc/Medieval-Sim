@@ -1,22 +1,4 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.localization.Localization
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.util.GameBlackboard
- *  necesse.entity.mobs.PlayerMob
- *  necesse.gfx.gameTooltips.ListGameTooltips
- *  necesse.inventory.InventoryItem
- *  necesse.inventory.item.Item
- *  necesse.inventory.item.placeableItem.PlaceableItem
- *  net.bytebuddy.asm.Advice$Argument
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$Return
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
 import medievalsim.buildmode.BlockCountCalculator;
 import medievalsim.buildmode.BuildModeManager;
 import medievalsim.util.ModLogger;

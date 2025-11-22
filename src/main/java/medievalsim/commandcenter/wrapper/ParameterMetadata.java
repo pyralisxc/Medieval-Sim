@@ -2,6 +2,7 @@ package medievalsim.commandcenter.wrapper;
 
 import necesse.engine.commands.CmdParameter;
 import necesse.engine.commands.parameterHandlers.*;
+import medievalsim.util.ModLogger;
 
 import java.lang.reflect.Field;
 
@@ -64,8 +65,7 @@ public class ParameterMetadata {
             return new ParameterMetadata(name, optional, partOfUsage, handler, handlerType, extraParams, cmdParam);
 
         } catch (Exception e) {
-            System.err.println("Failed to parse parameter metadata for: " + cmdParam.name);
-            e.printStackTrace();
+            ModLogger.error("Failed to parse parameter metadata for: " + cmdParam.name, e);
             return null;
         }
     }

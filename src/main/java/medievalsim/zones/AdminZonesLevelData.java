@@ -273,6 +273,8 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
                     zone.createBarriers(this.level);
                 }
                 catch (Exception e) {
+                    // Broad catch ensures one zone's failure doesn't break all zones in tick
+                    // Per-zone isolation prevents cascading failures during level loading
                     ModLogger.error("Error creating initial barriers for zone '" + (zone != null ? zone.name : "<null>") + "'", e);
                 }
             }
@@ -280,11 +282,6 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         
         // Update protected zone buffs for all players
         if (this.level != null && this.level.isServer() && this.level.getServer() != null) {
-            // Diagnostic: log zone count once per second (60 ticks)
-            if (this.level.getWorldEntity().getTime() % 60 == 0) {
-                ModLogger.debug("Total protected zones loaded: " + this.protectedZones.size());
-            }
-            
             for (ServerClient client : this.level.getServer().getClients()) {
                 if (client != null && client.playerMob != null && client.playerMob.getLevel() == this.level) {
                     int tileX = GameMath.getTileCoordinate((int) client.playerMob.x);
@@ -345,7 +342,7 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
     @Override
     public void addSaveData(SaveData save) {
         super.addSaveData(save);
-        ModLogger.info("Saving AdminZonesLevelData - protected=%d pvp=%d nextID=%d",
+        ModLogger.debug("Saving AdminZonesLevelData - protected=%d pvp=%d nextID=%d",
             this.protectedZones.size(), this.pvpZones.size(), this.nextUniqueID.get());
         save.addInt("nextUniqueID", this.nextUniqueID.get());
         save.addBoolean("hasCreatedInitialBarriers", this.hasCreatedInitialBarriers);
@@ -380,7 +377,7 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
     public void applyLoadData(LoadData save) {
         LoadData pvpSave;
         super.applyLoadData(save);
-        ModLogger.info("Loading AdminZonesLevelData - nextUniqueID(before)=%d", this.nextUniqueID.get());
+        ModLogger.debug("Loading AdminZonesLevelData - nextUniqueID(before)=%d", this.nextUniqueID.get());
         this.nextUniqueID.set(save.getInt("nextUniqueID", 1));
         this.hasCreatedInitialBarriers = save.getBoolean("hasCreatedInitialBarriers", false);
         LoadData protectedSave = save.getFirstLoadDataByName("PROTECTED_ZONES");
@@ -406,7 +403,7 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
                 }
             }
         }
-        ModLogger.info("Loaded AdminZonesLevelData - protected=%d pvp=%d nextID=%d",
+        ModLogger.debug("Loaded AdminZonesLevelData - protected=%d pvp=%d nextID=%d",
             this.protectedZones.size(), this.pvpZones.size(), this.nextUniqueID.get());
         int maxID = 0;
     Map<Integer, ProtectedZone> map = this.protectedZones;
@@ -550,7 +547,7 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         zone.zoning = newZoning;
         affected.add(zone);
 
-        ModLogger.info("Split zone '%s' into %d parts", zone.name, components.size());
+        ModLogger.debug("Split zone '%s' into %d parts", zone.name, components.size());
         return affected;
     }
 
@@ -757,7 +754,7 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         long area = (long)(maxX - minX + 1) * (long)(maxY - minY + 1);
         long maxArea = Math.max(1000, ModConfig.Zones.maxBarrierTiles * 4);
         if (area > maxArea) {
-            ModLogger.info("forceClean area too large (%d), skipping", area);
+            ModLogger.debug("forceClean area too large (%d), skipping", area);
             return;
         }
 
@@ -785,7 +782,7 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
                 }
             }
         }
-        ModLogger.info("forceClean removed %d stray barriers around (%d,%d) radius %d",
+        ModLogger.debug("forceClean removed %d stray barriers around (%d,%d) radius %d",
             removed, centerTileX, centerTileY, radius);
     }
 

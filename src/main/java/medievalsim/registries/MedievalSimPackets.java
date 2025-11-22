@@ -69,7 +69,7 @@ public class MedievalSimPackets {
     
     public static void registerCore() {
         PACKETS.forEach(PacketRegistry::registerPacket);
-        ModLogger.info("Registered %d network packets", PACKETS.size());
+        ModLogger.debug("Registered %d network packets", PACKETS.size());
     }
 }
 

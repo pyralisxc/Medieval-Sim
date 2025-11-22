@@ -1,21 +1,6 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.commands.PermissionLevel
- *  necesse.engine.network.NetworkPacket
- *  necesse.engine.network.Packet
- *  necesse.engine.network.PacketReader
- *  necesse.engine.network.PacketWriter
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.level.maps.Level
- */
 package medievalsim.packets;
-
 import java.awt.Rectangle;
 import medievalsim.util.ModLogger;
-import medievalsim.util.ZonePacketValidator;
 import medievalsim.zones.AdminZone;
 import medievalsim.zones.BarrierPlacementWorker;
 import medievalsim.zones.PvPZone;
@@ -61,18 +46,19 @@ extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Validate packet (permission, level, zone data)
-            ZonePacketValidator.ValidationResult validation =
-                ZonePacketValidator.validateZonePacket(server, client, "PacketCreateZone");
-            if (!validation.isValid) return;
+            // Validate using ZoneAPI
+            medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
+                .withPacketName("PacketCreateZone")
+                .build();
+            if (!ctx.isValid()) return;
 
             // Name validation
-            String validatedName = ZonePacketValidator.validateZoneName(this.zoneName);
+            String validatedName = medievalsim.util.ZoneAPI.validateZoneName(this.zoneName);
             
             // Create zone
             AdminZone zone = this.isProtectedZone
-                ? ZoneManager.createProtectedZone(validation.level, validatedName, client)
-                : ZoneManager.createPvPZone(validation.level, validatedName, client);
+                ? ZoneManager.createProtectedZone(ctx.getLevel(), validatedName, client)
+                : ZoneManager.createPvPZone(ctx.getLevel(), validatedName, client);
                 
             if (zone == null) {
                 ModLogger.error("Failed to create zone for client " + client.getName());
@@ -83,8 +69,8 @@ extends Packet {
             zone.expand(this.initialArea);
 
             // Handle zone splitting and barrier placement for PvP zones
-            if (validation.zoneData != null) {
-                java.util.List<AdminZone> affected = validation.zoneData.splitZoneIfDisconnected(zone, validation.level);
+            if (ctx.getZoneData() != null) {
+                java.util.List<AdminZone> affected = ctx.getZoneData().splitZoneIfDisconnected(zone, ctx.getLevel());
                 for (AdminZone az : affected) {
                     if (az instanceof PvPZone) {
                         // Queue full-zone barrier placement by iterating edge tiles and enqueueing per-region
@@ -93,8 +79,8 @@ extends Packet {
                             for (Object o : edge) {
                                 if (!(o instanceof java.awt.Point)) continue;
                                 java.awt.Point p = (java.awt.Point)o;
-                                necesse.level.maps.regionSystem.Region region = validation.level.regionManager.getRegionByTile(p.x, p.y, false);
-                                if (region != null) BarrierPlacementWorker.queueZoneRegionPlacement(validation.level, (PvPZone)az, region);
+                                necesse.level.maps.regionSystem.Region region = ctx.getLevel().regionManager.getRegionByTile(p.x, p.y, false);
+                                if (region != null) BarrierPlacementWorker.queueZoneRegionPlacement(ctx.getLevel(), (PvPZone)az, region);
                             }
                         }
                     }
@@ -106,8 +92,7 @@ extends Packet {
             // Defer saving to the central resolver or autosave to avoid large synchronous saves here
             
         } catch (Exception e) {
-            ModLogger.error("Exception in PacketCreateZone.processServer: " + e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("Exception in PacketCreateZone.processServer", e);
         }
     }
 }

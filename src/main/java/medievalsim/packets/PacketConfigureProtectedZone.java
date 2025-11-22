@@ -1,10 +1,7 @@
 package medievalsim.packets;
 
 import medievalsim.util.ModLogger;
-import medievalsim.util.ZonePacketValidator;
-import medievalsim.zones.AdminZonesLevelData;
 import medievalsim.zones.ProtectedZone;
-import medievalsim.zones.ZoneManager;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
@@ -85,13 +82,15 @@ public class PacketConfigureProtectedZone extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Validate packet (permission, level, zone data)
-            ZonePacketValidator.ValidationResult validation =
-                ZonePacketValidator.validateZonePacket(server, client, "PacketConfigureProtectedZone");
-            if (!validation.isValid) return;
+            // Validate using ZoneAPI
+            medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
+                .withPacketName("PacketConfigureProtectedZone")
+                .requireProtectedZone(zoneID)
+                .build();
+            if (!ctx.isValid()) return;
 
-            // Find zone
-            ProtectedZone zone = ZoneManager.getProtectedZone(validation.level, zoneID);
+            // Get zone
+            ProtectedZone zone = ctx.getProtectedZone();
             
             if (zone == null) {
                 ModLogger.warn("PacketConfigureProtectedZone: Zone " + zoneID + " not found");
@@ -133,7 +132,7 @@ public class PacketConfigureProtectedZone extends Packet {
                         }
                     } catch (NumberFormatException ex) {
                         ModLogger.warn("Owner '" + ownerName + "' not found online and not a valid auth ID");
-                        client.sendChatMessage("Player '" + ownerName + "' not found. They must be online to set as owner.");
+                        client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.protected.ownernotfound", "player", ownerName));
                         return;
                     }
                 }
@@ -155,8 +154,8 @@ public class PacketConfigureProtectedZone extends Packet {
             zone.setCanInteractFurniture(canInteractFurniture);
 
             // Sync to all clients (with name refresh)
-            if (validation.zoneData != null) {
-                server.network.sendToAllClients(new PacketZoneSync(validation.zoneData, server));
+            if (ctx.getZoneData() != null) {
+                server.network.sendToAllClients(new PacketZoneSync(ctx.getZoneData(), server));
             }
             
             ModLogger.info("Zone " + zoneID + " configured: owner=" + (resolvedOwnerName.isEmpty() ? "auth:" + ownerAuth : resolvedOwnerName) + 
@@ -165,8 +164,7 @@ public class PacketConfigureProtectedZone extends Packet {
                           ", signs=" + canInteractSigns + ", switches=" + canInteractSwitches + ", furniture=" + canInteractFurniture);
             
         } catch (Exception ex) {
-            ModLogger.error("Error configuring protected zone: " + ex.getMessage());
-            ex.printStackTrace();
+            ModLogger.error("Error configuring protected zone", ex);
         }
     }
 }

@@ -92,7 +92,7 @@ public class RelativeIntInputWidget extends ParameterWidget {
      */
     private void onClickWorldPressed() {
         if (client == null) {
-            System.err.println("[RelativeIntInputWidget] Cannot start world-click: client is null");
+            medievalsim.util.ModLogger.error("RelativeIntInputWidget: Cannot start world-click - client is null");
             return;
         }
         
@@ -123,13 +123,13 @@ public class RelativeIntInputWidget extends ParameterWidget {
      */
     private void onUseCurrentPressed() {
         if (client == null) {
-            System.err.println("[RelativeIntInputWidget] Cannot use current position: client is null");
+            medievalsim.util.ModLogger.error("RelativeIntInputWidget: Cannot use current position - client is null");
             return;
         }
         
         PlayerMob player = client.getPlayer();
         if (player == null) {
-            System.err.println("[RelativeIntInputWidget] Cannot use current position: player is null");
+            medievalsim.util.ModLogger.error("RelativeIntInputWidget: Cannot use current position - player is null");
             return;
         }
         

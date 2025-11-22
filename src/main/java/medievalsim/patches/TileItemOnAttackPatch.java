@@ -1,35 +1,10 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.Packet
- *  necesse.engine.network.gameNetworkData.GNDItemMap
- *  necesse.engine.network.packet.PacketPlaceTile
- *  necesse.engine.util.GameMath
- *  necesse.entity.mobs.PlayerMob
- *  necesse.entity.mobs.itemAttacker.ItemAttackSlot
- *  necesse.entity.mobs.itemAttacker.ItemAttackerMob
- *  necesse.inventory.InventoryItem
- *  necesse.inventory.item.placeableItem.tileItem.TileItem
- *  necesse.level.gameTile.GameTile
- *  necesse.level.maps.Level
- *  net.bytebuddy.asm.Advice$Argument
- *  net.bytebuddy.asm.Advice$OnMethodEnter
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$OnNonDefaultValue
- *  net.bytebuddy.asm.Advice$Return
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 import medievalsim.buildmode.ShapeCalculator;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.ProtectedZone;
+import medievalsim.util.ZoneProtectionValidator;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.Packet;
 import necesse.engine.network.gameNetworkData.GNDItemMap;
@@ -57,17 +32,13 @@ public class TileItemOnAttackPatch {
         }
         PlayerMob player = (PlayerMob)attackerMob;
         
-        // Check protected zone permissions for breaking (both build mode and normal)
+        // Check protected zone permissions for breaking (both build mode and normal) using centralized validator
         if (level.isServer() && player.getServerClient() != null) {
-            int tileX = GameMath.getTileCoordinate((int)x);
-            int tileY = GameMath.getTileCoordinate((int)y);
-            AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
-            if (zoneData != null) {
-                ProtectedZone zone = zoneData.getProtectedZoneAt(tileX, tileY);
-                if (zone != null && !zone.canClientBreak(player.getServerClient(), level)) {
-                    player.getServerClient().sendChatMessage("You don't have permission to break tiles in this protected zone");
-                    return null; // Block the attack
-                }
+            ZoneProtectionValidator.ValidationResult validation = 
+                ZoneProtectionValidator.validateBreakAtPosition(level, x, y, player.getServerClient());
+            if (!validation.isAllowed()) {
+                player.getServerClient().sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.protected.nobreak"));
+                return null; // Block the attack
             }
         }
         

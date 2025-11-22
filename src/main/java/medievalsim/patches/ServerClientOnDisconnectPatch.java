@@ -1,14 +1,5 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.server.ServerClient
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
+import medievalsim.zones.ProtectedZoneTracker;
 import medievalsim.zones.PvPZoneTracker;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.server.ServerClient;
@@ -20,7 +11,9 @@ public class ServerClientOnDisconnectPatch {
     public static class OnDisconnect {
         @Advice.OnMethodExit
         static void onExit(@Advice.This ServerClient client) {
+            // Clean up both zone tracker states to prevent memory leaks
             PvPZoneTracker.cleanupPlayerState(client);
+            ProtectedZoneTracker.cleanupPlayer(client);
         }
     }
 }

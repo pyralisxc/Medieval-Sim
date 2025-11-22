@@ -1,18 +1,8 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.network.Packet
- *  necesse.engine.network.server.Server
- *  necesse.engine.network.server.ServerClient
- *  necesse.level.maps.Level
- */
 package medievalsim.zones;
-
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import medievalsim.config.ModConfig;
 import medievalsim.packets.PacketPvPZoneSpawnDialog;
 
@@ -21,8 +11,13 @@ import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
 import necesse.level.maps.Level;
 
+/**
+ * Tracks PvP zone state for players including combat status, cooldowns, and zone transitions.
+ * 
+ * Thread-safe implementation using ConcurrentHashMap for server environment.
+ */
 public class PvPZoneTracker {
-    private static final Map<Long, PlayerPvPState> playerStates = new HashMap<Long, PlayerPvPState>();
+    private static final Map<Long, PlayerPvPState> playerStates = new ConcurrentHashMap<>();
 
     public static PlayerPvPState getPlayerState(ServerClient client) {
         return playerStates.computeIfAbsent(client.authentication, k -> new PlayerPvPState());

@@ -70,28 +70,21 @@ public final class ResponsiveButtonHelper {
             // Add generous padding for visual breathing room and text readability
             int paddedWidth = textWidth + (Constants.UI.TEXT_PADDING * 4); // Increased padding
             
-            // Debug logging to help identify truncation issues
-            System.out.println(Constants.LOG_INFO_PREFIX + "Button width calculation for '" + text + "':");
-            System.out.println("  Text width: " + textWidth + "px, Padded: " + paddedWidth + "px");
-            System.out.println("  Min: " + minWidth + "px, Max: " + maxWidth + "px");
-            
             // Apply constraints to ensure usability
             int finalWidth = Math.max(minWidth, Math.min(paddedWidth, maxWidth));
-            System.out.println("  Final width: " + finalWidth + "px");
             
             // Warn if we're hitting the maximum constraint (potential truncation)
             if (finalWidth == maxWidth && paddedWidth > maxWidth) {
-                System.err.println(Constants.LOG_WARNING_PREFIX + 
-                    "Button text '" + text + "' may be truncated! Needs " + paddedWidth + 
-                    "px but limited to " + maxWidth + "px");
+                ModLogger.warn("Button text '%s' may be truncated: needs %dpx but limited to %dpx",
+                    text, paddedWidth, maxWidth);
             }
             
             return finalWidth;
             
         } catch (Exception e) {
             // Fallback to standard width if font measurement fails
-            System.err.println(Constants.LOG_WARNING_PREFIX + 
-                "Failed to measure text width for: " + text + ". Using standard width.");
+            ModLogger.warn("Failed to measure text width for '%s', using standard width: %s",
+                text, e.getMessage());
             return Constants.UI.STANDARD_BUTTON_WIDTH;
         }
     }
@@ -168,8 +161,7 @@ public final class ResponsiveButtonHelper {
 
         // Ensure buttons meet minimum width requirement
         if (buttonWidth < Constants.UI.MIN_BUTTON_WIDTH) {
-            System.err.println(Constants.LOG_WARNING_PREFIX + 
-                "Calculated button width (" + buttonWidth + "px) is below minimum. Using minimum width.");
+            ModLogger.warn("Calculated button width (%dpx) is below minimum, using minimum width", buttonWidth);
             buttonWidth = Constants.UI.MIN_BUTTON_WIDTH;
         }
 
@@ -270,15 +262,7 @@ public final class ResponsiveButtonHelper {
     
     public static void validateButtonLayout(FormTextButton[] buttons, int expectedCount) {
         if (buttons.length != expectedCount) {
-            System.err.println(Constants.LOG_WARNING_PREFIX + 
-                "Button layout mismatch. Expected: " + expectedCount + ", Got: " + buttons.length);
-        }
-    }
-
-    public static void debugButtonSizes(FormTextButton[] buttons, String layoutName) {
-        System.out.println(Constants.LOG_INFO_PREFIX + "Button sizes for " + layoutName + ":");
-        for (int i = 0; i < buttons.length; i++) {
-            System.out.println("  Button " + i + ": " + buttons[i].getWidth() + "px wide");
+            ModLogger.warn("Button layout mismatch. Expected: %d, Got: %d", expectedCount, buttons.length);
         }
     }
 
@@ -298,9 +282,8 @@ public final class ResponsiveButtonHelper {
             
             boolean fits = requiredWidth <= availableWidth;
             if (!fits) {
-                System.err.println(Constants.LOG_WARNING_PREFIX + 
-                    "Text '" + text + "' WILL NOT FIT! Needs " + requiredWidth + 
-                    "px but only " + availableWidth + "px available");
+                ModLogger.warn("Text '%s' will not fit! Needs %dpx but only %dpx available",
+                    text, requiredWidth, availableWidth);
             }
             return fits;
         } catch (Exception e) {
@@ -317,12 +300,6 @@ public final class ResponsiveButtonHelper {
     public static FormTextButton createAutoExpandingButton(String text, int x, int y, int preferredWidth) {
         int optimalWidth = calculateOptimalWidth(text, Constants.UI.MIN_BUTTON_WIDTH, Integer.MAX_VALUE);
         int actualWidth = Math.max(preferredWidth, optimalWidth);
-        
-        if (actualWidth > preferredWidth) {
-            System.out.println(Constants.LOG_INFO_PREFIX + 
-                "Auto-expanding button '" + text + "' from " + preferredWidth + 
-                "px to " + actualWidth + "px to prevent truncation");
-        }
         
         return new FormTextButton(text, x, y, actualWidth, FormInputSize.SIZE_32, ButtonColor.BASE);
     }

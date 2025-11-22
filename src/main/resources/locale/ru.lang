@@ -1,0 +1,234 @@
+[tile]
+# Пока нет кастомных тайлов
+
+[object]
+# Пока нет кастомных объектов (барьер внутренний)
+
+[item]
+# Пока нет кастомных предметов
+
+[itemtooltip]
+# Пока нет кастомных тултипов
+
+[mob]
+# Пока нет кастомных мобов
+
+[buff]
+pvpimmunity=Иммунитет к ПвП
+pvpimmunitydesc=Ты временно неуязвим к ПвП урону
+protectedzone=Защищённая зона
+protectedzonedesc=Твои права на строительство и взаимодействие ограничены правилами зоны
+
+[itemmessage]
+protectedzone=Эта область защищена зоной
+pvpzone=Ты заходишь в ПвП зону!
+nopermission=У тебя нет прав на это
+
+[ui]
+# Админские инструменты
+admintools=Админские инструменты
+admintoolstitle=Админка
+admintoolsmenu=Главное меню
+commandcenter=Командный центр
+
+# Режим строительства
+buildtools=Инструменты для стройки
+buildmode=Режим строительства
+buildmodeon=Режим строительства: ВКЛ
+buildmodeoff=Режим строительства: ВЫКЛ
+buildmodeblockcost={shape}: нужно {count} блоков
+
+# Формы
+shape=Форма
+sizes=Размеры
+linetypes=Типы линий
+shapes=Формы
+shapenormal=Обычная
+shapeline=Линия
+shapecross=Крест
+shapel=Г
+shapet=Т
+shapesquare=Квадрат
+shapecircle=Круг
+shapediamond=Ромб
+shapehalfcircle=Полукруг
+shapetriangle=Треугольник
+hollow=Полый
+
+# Направления
+direction=Направление
+directionup=Вверх
+directiondown=Вниз
+directionleft=Влево
+directionright=Вправо
+rotationinfo=(Поворот по направлению взгляда игрока)
+
+# Контроль размера
+linelength=Длина линии
+squaresize=Размер квадрата
+circleradius=Радиус круга
+spacing=Отступ
+linelengthfull=Длина линии (Линия, Крест, Г, Т)
+squaresizefull=Размер квадрата (Квадрат, Ромб)
+circleradiusfull=Радиус круга (Круг, Полукруг, Треугольник)
+spacingfull=Отступ (Все формы)
+
+# Инструменты зон
+zonetools=Инструменты зон
+protectedzones=Защищённые зоны
+pvpzones=ПвП зоны
+createprotectedzone=Создать защищённую зону
+createpvpzone=Создать ПвП зону
+
+# Свойства зоны
+zonename=Название зоны
+zonetype=Тип зоны
+zoneprotected=Защищённая
+zonepvp=ПвП
+zonecolor=Цвет зоны
+creator=Создатель
+teams=Команды
+noteams=Нет команд
+allowedteams=Разрешённые команды
+worldowner=Владелец мира
+you=Ты
+
+# Действия с зонами
+editzone=Редактировать зону
+deletezone=Удалить зону
+renamezoneto=Переименовать зону в:
+deletezoneconfirm=Удалить эту зону?
+expandzone=Расширить зону
+shrinkzone=Сузить зону
+expandzonetooltip=ЛКМ чтобы расширить зону
+shrinkzonetooltip=ПКМ чтобы сузить зону
+createzone=Создать зону
+addteam=Добавить команду
+removeteam=Убрать команду
+selectteam=Выбрать команду
+configurebutton=Настроить
+renamebutton=Переименовать
+savebutton=Сохранить
+
+# Настройка защищённой зоны
+ownerlabel=Владелец:
+ownertooltip=Игрок, которому принадлежит эта зона
+allowownsteam=Разрешить команду владельца
+allowownsteamtooltip=Если включено, игроки из команды владельца могут заходить в эту зону
+teampermissions=Права команды:
+canbreak=Может ломать
+canbreaktooltip=Члены команды могут ломать тайлы и объекты
+canplace=Может строить
+canplacetooltip=Члены команды могут ставить тайлы и объекты
+
+# Enhancement #5: Детальные права на взаимодействие
+interactions=Взаимодействие:
+caninteractdoors=Может открывать двери
+caninteractdoorstooltip=Члены команды могут открывать и закрывать двери
+caninteractcontainers=Может открывать сундуки
+caninteractcontainerstooltip=Члены команды могут заходить в сундуки и хранилища
+caninteractstations=Может юзать станции
+caninteractstationstooltip=Члены команды могут юзать верстаки и крафтовые станции
+caninteractsigns=Может редактировать таблички
+caninteractsignstooltip=Члены команды могут редактировать текст на табличках
+caninteractswitches=Может юзать рычаги
+caninteractswitchestooltip=Члены команды могут юзать рычаги, переключатели и нажимные плиты
+caninteractfurniture=Может юзать мебель
+caninteractfurnituretooltip=Члены команды могут взаимодействовать с кроватями, стульями и мебелью
+
+# Сообщения об ошибках прав
+nopermissionbreak=У тебя нет прав ломать в этой защищённой зоне
+nopermissionplace=У тебя нет прав строить в этой защищённой зоне
+nopermissiondoors=У тебя нет прав юзать двери в этой зоне
+nopermissioncontainers=У тебя нет прав открывать контейнеры в этой зоне
+nopermissionstations=У тебя нет прав юзать крафтовые станции в этой зоне
+nopermissionsigns=У тебя нет прав редактировать таблички в этой зоне
+nopermissionswitches=У тебя нет прав юзать переключатели в этой зоне
+nopermissionfurniture=У тебя нет прав юзать мебель в этой зоне
+nopermissioninteract=У тебя нет прав взаимодействовать в этой защищённой зоне
+
+ownernotfound=Игрок '{name}' не найден. Он должен быть онлайн чтобы стать владельцем.
+ownerset=Владелец зоны установлен: {name}
+noneowner=Никто
+
+# Интерфейс зон
+zonelist=Список зон
+nozonescreated=Ещё не создано зон
+zonelabel=Зона:
+backtomenu=Назад в меню
+
+# Описания зон
+protectedzonedesc=Игроки могут строить/ломать только если они создатель, в разрешённой команде, или владелец мира
+pvpzonedesc=ПвП автоматически включается для всех игроков внутри этой зоны
+
+# Создание/редактирование зон
+selectareatitle=Выбери область зоны
+selectareainfo=Кликни и тащи чтобы выбрать область зоны
+clickdragtocreate=Кликни и тащи чтобы создать зону
+clickdragtoexpand=Кликни и тащи чтобы расширить зону
+clickdragtoshrink=Кликни и тащи чтобы сузить зону
+
+# Сообщения о действиях с зонами
+zonecreated=Зона создана: {name}
+zonedeleted=Зона удалена
+zonerenamed=Зона переименована в: {name}
+zoneexpanded=Зона расширена
+zoneshrunk=Зона сужена
+teamadded=Команда добавлена в зону
+teamremoved=Команда удалена из зоны
+
+# Диалоги ПвП зоны
+spawnedinpvpzone=Заспавнился в ПвП зоне
+enterpvpzone=Войти в ПвП зону?
+exitpvpzone=Выйти из ПвП зоны?
+enterzone=Войти в зону
+exitzone=Выйти из зоны
+stayinzone=Остаться в зоне
+stayoutside=Остаться снаружи
+stayinside=Остаться внутри
+stay=Остаться
+teleporttospawn=Телепортнуться на спавн
+
+# Общий интерфейс
+cancel=Отмена
+back=Назад
+damagelabel=Урон:
+combatlocklabel=Блокировка боя:
+spawnedinpvpzonemsg=Ты заспавнился внутри ПвП зоны!
+stayorteleportmsg=Хочешь остаться или телепортнуться на спавн мира?
+pvpenabledmsg=ПвП будет включён когда войдёшь
+pvpdisabledmsg=ПвП будет выключен когда выйдешь
+immunitymsg=5 секунд иммунитета при входе
+combatlockremaining=Блокировка боя: <seconds>с осталось
+cannotexitcombat=Ты не можешь выйти пока в бою!
+
+[misc]
+protectedzone=Эта область защищена зоной: <zone>
+combatlockmessage=Нельзя выйти - в бою ещё <seconds>с
+reentrycooldownmessage=Нельзя войти - кулдаун ещё <seconds>с
+
+[message]
+# Сообщения защищённой зоны
+zone.protected.nobreak=У тебя нет прав ломать тайлы в этой защищённой зоне
+zone.protected.nobreakobjects=У тебя нет прав ломать объекты в этой защищённой зоне
+zone.protected.ownernotfound=Игрок '<player>' не найден. Он должен быть онлайн чтобы стать владельцем.
+
+# Сообщения ПвП зоны
+zone.pvp.removed=Тебя вынесло из ПвП зоны из-за изменений зоны
+zone.pvp.entered=Ты теперь внутри ПвП зоны из-за изменений зоны
+zone.pvp.cooldown=Ты ещё не можешь войти в ПвП зону из-за кулдауна на повторный вход
+zone.pvp.teleportspawn=Телепортнулся на спавн мира
+zone.pvp.notexists=Этой ПвП зоны больше не существует. Телепортируемся на спавн мира.
+zone.pvp.staying=Остаёшься в ПвП зоне: <name> (Урон: <damage>, Блокировка боя: <lock>с)
+zone.pvp.deleted=ПвП зона удалена - тебя вынесло из зоны
+zone.pvp.error.notexists=Ошибка: ПвП зоны больше не существует
+zone.pvp.combatlock=Ты не можешь выйти пока в бою! (<seconds>с осталось)
+zone.pvp.exited=Вышел из ПвП зоны: <name>
+zone.pvp.chosestay=Ты выбрал остаться в ПвП зоне
+zone.pvp.chosestayoutside=Ты выбрал остаться снаружи ПвП зоны
+zone.pvp.reentrycooldown=Ты должен подождать <seconds>с перед повторным входом в ПвП зону
+zone.pvp.entereddetails=Зашёл в ПвП зону: <name> (Урон: <damage>, Блокировка боя: <lock>с)
+
+# Сообщения режима строительства
+buildmode.nopermission=У тебя нет прав юзать режим строительства (нужен АДМИН)
+buildmode.blocklimit=Слишком много блоков чтобы поставить за раз (лимит: <limit>)

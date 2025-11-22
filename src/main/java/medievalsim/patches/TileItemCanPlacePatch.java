@@ -1,27 +1,8 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.modLoader.annotations.ModMethodPatch
- *  necesse.engine.network.gameNetworkData.GNDItemMap
- *  necesse.engine.util.GameMath
- *  necesse.entity.mobs.PlayerMob
- *  necesse.inventory.InventoryItem
- *  necesse.inventory.item.placeableItem.tileItem.TileItem
- *  necesse.level.maps.Level
- *  net.bytebuddy.asm.Advice$Argument
- *  net.bytebuddy.asm.Advice$OnMethodExit
- *  net.bytebuddy.asm.Advice$Return
- *  net.bytebuddy.asm.Advice$This
- */
 package medievalsim.patches;
-
 import java.awt.geom.Line2D;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.ProtectedZone;
+import medievalsim.util.ZoneProtectionValidator;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.gameNetworkData.GNDItemMap;
-import necesse.engine.util.GameMath;
 import necesse.entity.mobs.PlayerMob;
 import necesse.inventory.InventoryItem;
 import necesse.inventory.item.placeableItem.tileItem.TileItem;
@@ -42,19 +23,14 @@ public class TileItemCanPlacePatch {
                 return;
             }
 
-            // Server-side protection check (authoritative)
+            // Server-side protection check (authoritative) using centralized validator
             // Note: Client-side optimistic placement is allowed, but server will reject unauthorized attempts
             // This is standard Necesse behavior - the server is authoritative and will sync the correct state
             if (level.isServer() && player != null && player.isServerClient()) {
-                ProtectedZone zone;
-                int tileX = GameMath.getTileCoordinate((int)x);
-                int tileY = GameMath.getTileCoordinate((int)y);
-                AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
-
-                if (zoneData != null && (zone = zoneData.getProtectedZoneAt(tileX, tileY)) != null) {
-                    if (!zone.canClientPlace(player.getServerClient(), level)) {
-                        result = "protectedzone";
-                    }
+                ZoneProtectionValidator.ValidationResult validation = 
+                    ZoneProtectionValidator.validatePlacementAtPosition(level, x, y, player.getServerClient());
+                if (!validation.isAllowed()) {
+                    result = validation.getReason();
                 }
             }
         }

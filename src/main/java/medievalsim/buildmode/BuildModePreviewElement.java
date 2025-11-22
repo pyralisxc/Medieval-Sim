@@ -1,34 +1,9 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  necesse.engine.gameLoop.tickManager.TickManager
- *  necesse.engine.localization.Localization
- *  necesse.engine.network.client.Client
- *  necesse.engine.util.GameMath
- *  necesse.entity.mobs.PlayerMob
- *  necesse.gfx.Renderer
- *  necesse.gfx.camera.GameCamera
- *  necesse.gfx.drawables.SortedDrawable
- *  necesse.gfx.gameFont.FontManager
- *  necesse.gfx.gameFont.FontOptions
- *  necesse.inventory.InventoryItem
- *  necesse.inventory.PlayerInventorySlot
- *  necesse.inventory.item.Item
- *  necesse.inventory.item.placeableItem.objectItem.ObjectItem
- *  necesse.inventory.item.placeableItem.tileItem.TileItem
- *  necesse.level.gameObject.GameObject
- *  necesse.level.gameTile.GameTile
- *  necesse.level.maps.Level
- *  necesse.level.maps.hudManager.HudDrawElement
- *  necesse.level.maps.multiTile.MultiTile
- */
 package medievalsim.buildmode;
-
 import java.awt.Color;
 import java.awt.Point;
 import java.util.List;
 import medievalsim.patches.ObjectItemOnAttackPatch;
+import medievalsim.util.ModLogger;
 import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.localization.Localization;
 import necesse.engine.network.client.Client;
@@ -160,8 +135,7 @@ extends HudDrawElement {
                         }
                     }
                     catch (Exception e2) {
-                        System.err.println("MedievalSim: ERROR - Preview rendering failed: " + e2.getMessage());
-                        e2.printStackTrace();
+                        ModLogger.error("Preview rendering failed", e2);
                     }
                 }
             });
