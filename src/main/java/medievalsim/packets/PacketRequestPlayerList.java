@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Set;
 import medievalsim.ui.AdminToolsHudForm;
 import medievalsim.ui.AdminToolsHudManager;
-import medievalsim.ui.PlayerDropdownEntry;
+import medievalsim.ui.helpers.PlayerDropdownEntry;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;

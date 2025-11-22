@@ -22,19 +22,45 @@ import java.util.concurrent.ConcurrentHashMap;
  * 
  * This scans Necesse's CommandsManager and extracts metadata for selected commands,
  * organizing them by category for the Command Center UI.
+ * 
+ * REFACTORED: Now uses getInstance() pattern for clearer lifecycle management while
+ * maintaining backwards compatibility with static methods.
  */
 public class NecesseCommandRegistry {
     
-    private static final Map<String, NecesseCommandMetadata> commands = new ConcurrentHashMap<>();
-    private static final Map<CommandCategory, List<NecesseCommandMetadata>> commandsByCategory = new ConcurrentHashMap<>();
-    private static boolean initialized = false;
+    private static NecesseCommandRegistry instance;
+    
+    private final Map<String, NecesseCommandMetadata> commands = new ConcurrentHashMap<>();
+    private final Map<CommandCategory, List<NecesseCommandMetadata>> commandsByCategory = new ConcurrentHashMap<>();
+    private boolean initialized = false;
+    
+    /**
+     * Private constructor - use getInstance()
+     */
+    private NecesseCommandRegistry() {
+    }
+    
+    /**
+     * Get singleton instance (thread-safe, lazy initialization)
+     */
+    public static NecesseCommandRegistry getInstance() {
+        if (instance == null) {
+            synchronized (NecesseCommandRegistry.class) {
+                if (instance == null) {
+                    instance = new NecesseCommandRegistry();
+                }
+            }
+        }
+        return instance;
+    }
     
     /**
      * Initialize the registry by scanning Necesse's CommandsManager.
      * Uses intelligent caching to reduce reflection overhead on subsequent calls.
      */
     public static void initialize() {
-        if (initialized) {
+        NecesseCommandRegistry instance = getInstance();
+        if (instance.initialized) {
             ModLogger.warn("NecesseCommandRegistry already initialized");
             return;
         }
@@ -45,10 +71,10 @@ public class NecesseCommandRegistry {
             Map<String, NecesseCommandMetadata> cachedCommands = cache.getCachedCommands();
             
             for (NecesseCommandMetadata metadata : cachedCommands.values()) {
-                registerCommand(metadata);
+                instance.registerCommand(metadata);
             }
             
-            initialized = true;
+            instance.initialized = true;
             ModLogger.debug("Loaded %d cached commands (skipped reflection scan)", cachedCommands.size());
             return;
         }
@@ -78,7 +104,7 @@ public class NecesseCommandRegistry {
                 ModularChatCommand modCmd = (ModularChatCommand) cmd;
                 
                 // Determine category based on command name/purpose
-                CommandCategory category = categorizeCommand(modCmd);
+                CommandCategory category = instance.categorizeCommand(modCmd);
                 
                 // Skip low-priority/debug commands for now
                 if (category == null) {
@@ -89,7 +115,7 @@ public class NecesseCommandRegistry {
                 NecesseCommandMetadata metadata = NecesseCommandMetadata.fromNecesseCommand(modCmd, category);
                 
                 if (metadata != null) {
-                    registerCommand(metadata);
+                    instance.registerCommand(metadata);
                     newCommands.put(metadata.getId(), metadata);
                     parsed++;
                 }
@@ -98,9 +124,9 @@ public class NecesseCommandRegistry {
             // Cache the results for future use
             cache.cacheCommands(newCommands);
             
-            initialized = true;
+            instance.initialized = true;
             ModLogger.debug("Registered %d/%d Necesse commands for UI wrapper across %d categories",
-                    parsed, scanned, commandsByCategory.size());
+                    parsed, scanned, instance.commandsByCategory.size());
             
         } catch (Exception e) {
             ModLogger.error("Failed to initialize NecesseCommandRegistry", e);
@@ -110,7 +136,7 @@ public class NecesseCommandRegistry {
     /**
      * Register a command metadata in the registry.
      */
-    private static void registerCommand(NecesseCommandMetadata metadata) {
+    private void registerCommand(NecesseCommandMetadata metadata) {
         commands.put(metadata.getId(), metadata);
         
         commandsByCategory
@@ -125,7 +151,7 @@ public class NecesseCommandRegistry {
      * STRATEGIC FILTERING: Focus on server administration and complex workflows,
      * avoid competing with F10 debug menu's creative tools.
      */
-    private static CommandCategory categorizeCommand(ModularChatCommand cmd) {
+    private CommandCategory categorizeCommand(ModularChatCommand cmd) {
         String name = cmd.name.toLowerCase();
         
         // ❌ EXCLUDE: Basic creative commands (F10 debug menu superior)
@@ -220,23 +246,24 @@ public class NecesseCommandRegistry {
         return CommandCategory.OTHER;
     }
     
-    // Public API
+    // Public API (static methods that delegate to instance for clearer lifecycle)
     
     public static NecesseCommandMetadata getCommand(String id) {
-        return commands.get(id);
+        return getInstance().commands.get(id);
     }
     
     public static Collection<NecesseCommandMetadata> getAllCommands() {
-        return commands.values();
+        return getInstance().commands.values();
     }
     
     public static List<NecesseCommandMetadata> getCommandsByCategory(CommandCategory category) {
-        return commandsByCategory.getOrDefault(category, Collections.emptyList());
+        return getInstance().commandsByCategory.getOrDefault(category, Collections.emptyList());
     }
     
     public static List<NecesseCommandMetadata> getCommandsByPermission(PermissionLevel minLevel) {
+        NecesseCommandRegistry instance = getInstance();
         List<NecesseCommandMetadata> result = new ArrayList<>();
-        for (NecesseCommandMetadata cmd : commands.values()) {
+        for (NecesseCommandMetadata cmd : instance.commands.values()) {
             if (cmd.getPermission().ordinal() >= minLevel.ordinal()) {
                 result.add(cmd);
             }
@@ -244,23 +271,21 @@ public class NecesseCommandRegistry {
         return result;
     }
     
-    public static Set<CommandCategory> getAvailableCategories() {
-        return commandsByCategory.keySet();
-    }
-    
     public static boolean isInitialized() {
-        return initialized;
+        return getInstance().initialized;
     }
     
-    /**
-     * Get statistics about registered commands.
-     */
+    public static Set<CommandCategory> getAvailableCategories() {
+        return getInstance().commandsByCategory.keySet();
+    }
+    
     public static Map<String, Integer> getStatistics() {
+        NecesseCommandRegistry instance = getInstance();
         Map<String, Integer> stats = new HashMap<>();
-        stats.put("total_commands", commands.size());
-        stats.put("total_categories", commandsByCategory.size());
+        stats.put("total_commands", instance.commands.size());
+        stats.put("total_categories", instance.commandsByCategory.size());
         
-        for (Map.Entry<CommandCategory, List<NecesseCommandMetadata>> entry : commandsByCategory.entrySet()) {
+        for (Map.Entry<CommandCategory, List<NecesseCommandMetadata>> entry : instance.commandsByCategory.entrySet()) {
             stats.put("category_" + entry.getKey().name(), entry.getValue().size());
         }
         

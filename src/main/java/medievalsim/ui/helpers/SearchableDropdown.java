@@ -1,4 +1,4 @@
-package medievalsim.ui;
+package medievalsim.ui.helpers;
 
 import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.gameLoop.tickManager.TickManager;

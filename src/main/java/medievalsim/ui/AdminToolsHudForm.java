@@ -11,6 +11,7 @@ import java.util.Set;
 import medievalsim.buildmode.BuildModeManager;
 import medievalsim.config.ModConfig;
 import medievalsim.packets.PacketConfigurePvPZone;
+import medievalsim.ui.helpers.PlayerDropdownEntry;
 import medievalsim.packets.PacketDeleteZone;
 import medievalsim.packets.PacketRenameZone;
 import medievalsim.packets.PacketRequestPlayerList;

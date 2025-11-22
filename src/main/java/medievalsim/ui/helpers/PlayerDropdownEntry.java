@@ -1,4 +1,4 @@
-package medievalsim.ui;
+package medievalsim.ui.helpers;
 
 /**
  * Data structure for player dropdown entries.

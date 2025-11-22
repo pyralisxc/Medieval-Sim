@@ -81,14 +81,34 @@ public class PlayerDropdownWidget extends ParameterWidget {
         dropdown.options.add("self", new StaticMessage("Self (You)"));
         
         // Add all online players from client (client-side view of connected players)
-        if (client != null && client.streamClients() != null) {
-            client.streamClients()
-                .filter(clientPlayer -> clientPlayer != null && clientPlayer.getName() != null)
-                .forEach(clientPlayer -> {
-                    String playerName = clientPlayer.getName();
-                    playerNames.add(playerName);
-                    dropdown.options.add(playerName, new StaticMessage(playerName));
-                });
+        if (client != null) {
+            try {
+                // Try to get current player's name
+                necesse.engine.network.client.ClientClient myClient = client.getClient();
+                if (myClient != null && myClient.getName() != null) {
+                    String myName = myClient.getName();
+                    if (!playerNames.contains(myName) && !myName.equalsIgnoreCase("self")) {
+                        playerNames.add(myName);
+                        dropdown.options.add(myName, new StaticMessage(myName + " (You)"));
+                    }
+                }
+                
+                // Get online players from the client stream
+                if (client.streamClients() != null) {
+                    client.streamClients()
+                        .filter(clientPlayer -> clientPlayer != null && clientPlayer.getName() != null)
+                        .forEach(clientPlayer -> {
+                            String playerName = clientPlayer.getName();
+                            if (!playerNames.contains(playerName)) {
+                                playerNames.add(playerName);
+                                dropdown.options.add(playerName, new StaticMessage(playerName));
+                            }
+                        });
+                }
+            } catch (Exception e) {
+                // Silently handle any errors - just show "self" option
+                // This can happen if client stream isn't ready yet
+            }
         }
         
         // Select "self" by default if required

@@ -1,4 +1,4 @@
-package medievalsim.ui;
+package medievalsim.ui.helpers;
 
 import necesse.gfx.forms.Form;
 

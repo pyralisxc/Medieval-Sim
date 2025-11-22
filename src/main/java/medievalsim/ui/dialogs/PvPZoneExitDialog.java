@@ -1,4 +1,4 @@
-package medievalsim.ui;
+package medievalsim.ui.dialogs;
 import medievalsim.packets.PacketPvPZoneExitResponse;
 import necesse.engine.GlobalData;
 import necesse.engine.network.Packet;
