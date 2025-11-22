@@ -422,16 +422,25 @@ extends Form {
     }
 
     public void onZoneChanged(AdminZone zone, boolean isProtectedZone) {
-        // Update local cache (no logging - this is called frequently during slider adjustments)
+        // Check if this is a new zone (not in cache yet)
+        boolean isNewZone;
         if (isProtectedZone) {
+            isNewZone = !this.protectedZones.containsKey(zone.uniqueID);
             this.protectedZones.put(zone.uniqueID, (ProtectedZone)zone);
         } else {
+            isNewZone = !this.pvpZones.containsKey(zone.uniqueID);
             this.pvpZones.put(zone.uniqueID, (PvPZone)zone);
         }
 
-        // DO NOT rebuild UI on zone config changes - only the local cache needs updating
-        // UI rebuilds happen on expand/collapse or zone creation/deletion
-        // This prevents 16+ refreshes when adjusting sliders
+        // Refresh UI only for new zones, not for config changes
+        // This prevents 16+ refreshes when adjusting sliders, but ensures new zones appear
+        if (isNewZone) {
+            if (isProtectedZone && !this.protectedZonesForm.isHidden()) {
+                this.refreshZoneList(true);
+            } else if (!isProtectedZone && !this.pvpZonesForm.isHidden()) {
+                this.refreshZoneList(false);
+            }
+        }
     }
 
     public void onZoneRemoved(int uniqueID, boolean isProtectedZone) {

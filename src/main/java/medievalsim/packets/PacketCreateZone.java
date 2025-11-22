@@ -49,6 +49,7 @@ extends Packet {
             // Validate using ZoneAPI
             medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
                 .withPacketName("PacketCreateZone")
+                .validateClient()
                 .build();
             if (!ctx.isValid()) return;
 
