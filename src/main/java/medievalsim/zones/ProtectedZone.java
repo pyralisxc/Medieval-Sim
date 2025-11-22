@@ -56,7 +56,14 @@ extends AdminZone {
 
     // NEW: Specific permission checks
     /**
-     * Helper: Check if client has elevated access (world owner, zone owner, or creator)
+     * Helper: Check if client has elevated access (full permissions).
+     * 
+     * Elevated users include:
+     * - World owner
+     * - Zone owner
+     * - Zone creator
+     * - Members of the owner's team (if allowOwnerTeam is enabled)
+     * - Members of explicitly allowed teams
      */
     private boolean hasElevatedAccess(ServerClient client, Level level) {
         if (client == null) {
@@ -68,26 +75,18 @@ extends AdminZone {
             return true;
         }
 
-        // When enabled, members of the owner's team are treated as fully trusted.
-        // They should not be constrained by per-flag checkboxes.
-        return allowOwnerTeam && isOnOwnerTeam(client, level);
-    }
-
-    /**
-     * Helper: Check if client has team-based permission (non-owner teams).
-     *
-     * Owner team is handled as "elevated" in hasElevatedAccess so that
-     * they behave like the owner and are not constrained by the granular
-     * permission flags. This method is now only for additional teams the
-     * admin has explicitly allowed in the UI.
-     */
-    private boolean hasTeamPermission(ServerClient client, Level level) {
-        if (client == null) {
-            return false;
+        // When enabled, members of the owner's team get full access
+        if (allowOwnerTeam && isOnOwnerTeam(client, level)) {
+            return true;
         }
 
+        // Members of explicitly allowed teams also get full access
         int clientTeamID = client.getTeamID();
-        return clientTeamID != -1 && this.allowedTeamIDs.contains(clientTeamID);
+        if (clientTeamID != -1 && this.allowedTeamIDs.contains(clientTeamID)) {
+            return true;
+        }
+
+        return false;
     }
 
     public boolean canClientBreak(ServerClient client, Level level) {
@@ -100,12 +99,9 @@ extends AdminZone {
             return true;
         }
 
-        // Team-based permission
-        if (hasTeamPermission(client, level)) {
-            return canBreak;
-        }
-
-        return false; // Deny by default
+        // Apply granular permission to all non-elevated players
+        // (Team membership doesn't gate permission access - permissions apply to everyone)
+        return canBreak;
     }
     
     public boolean canClientPlace(ServerClient client, Level level) {
@@ -118,12 +114,9 @@ extends AdminZone {
             return true;
         }
 
-        // Team-based permission
-        if (hasTeamPermission(client, level)) {
-            return canPlace;
-        }
-
-        return false;
+        // Apply granular permission to all non-elevated players
+        // (Team membership doesn't gate permission access - permissions apply to everyone)
+        return canPlace;
     }
     
     // Legacy canClientInteract - kept for backward compatibility, always returns true
@@ -181,12 +174,10 @@ extends AdminZone {
             return false;
         }
 
-        // Team-based permission
-        if (hasTeamPermission(client, level)) {
-            return hasPermission;
-        }
-
-        return false; // Deny by default
+        // Allow/deny based on the determined permission
+        // Permissions apply to ALL players (team members and non-team members alike)
+        // Team membership is checked separately and doesn't gate access to permissions
+        return hasPermission;
     }
     
     // Helper: Check if client is on owner's team
