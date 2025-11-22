@@ -158,6 +158,13 @@ public class PacketConfigureProtectedZone extends Packet {
                 server.network.sendToAllClients(new PacketZoneSync(ctx.getZoneData(), server));
             }
             
+            // Refresh buff for all players currently in this zone
+            for (ServerClient otherClient : server.getClients()) {
+                if (otherClient.playerMob != null) {
+                    medievalsim.zones.ProtectedZoneTracker.updatePlayerZone(otherClient, zone);
+                }
+            }
+            
             ModLogger.info("Zone " + zoneID + " configured: owner=" + (resolvedOwnerName.isEmpty() ? "auth:" + ownerAuth : resolvedOwnerName) + 
                           " (auth=" + ownerAuth + "), allowTeam=" + allowOwnerTeam + ", break=" + canBreak + ", place=" + canPlace + 
                           ", doors=" + canInteractDoors + ", containers=" + canInteractContainers + ", stations=" + canInteractStations + 

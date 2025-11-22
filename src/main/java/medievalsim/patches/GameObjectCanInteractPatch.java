@@ -22,22 +22,23 @@ import net.bytebuddy.asm.Advice;
 )
 public class GameObjectCanInteractPatch {
 
-    @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class)
-    public static Boolean onEnter(
+    @Advice.OnMethodExit
+    public static void onExit(
         @Advice.This GameObject gameObject,
         @Advice.Argument(0) Level level,
         @Advice.Argument(1) int x,
         @Advice.Argument(2) int y,
-        @Advice.Argument(3) PlayerMob player
+        @Advice.Argument(3) PlayerMob player,
+        @Advice.Return(readOnly = false) boolean result
     ) {
         // Only check on server side and for real players
         if (!level.isServer() || player == null || !player.isPlayer) {
-            return null; // Continue normal execution
+            return; // Keep original result
         }
 
         ServerClient client = player.getServerClient();
         if (client == null) {
-            return null; // Continue normal execution
+            return; // Keep original result
         }
 
         // Get tile coordinates
@@ -47,28 +48,28 @@ public class GameObjectCanInteractPatch {
         // Check if position is in a protected zone
         AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
         if (zoneData == null) {
-            return null; // No zones, continue normal execution
+            return; // No zones, keep original result
         }
 
         ProtectedZone zone = zoneData.getProtectedZoneAt(tileX, tileY);
         if (zone == null) {
-            return null; // Not in a protected zone, continue normal execution
+            return; // Not in a protected zone, keep original result
         }
 
-        // Enhancement #5: Use new granular interaction check with GameObject type detection
+        // Use granular interaction check with GameObject type detection
         if (!zone.canClientInteract(client, level, gameObject)) {
+            // Override result to block interaction
+            result = false;
+            
             // Send specific feedback message based on object type
             String messageKey = getMessageKeyForObject(gameObject);
-            String message = Localization.translate("ui", messageKey);
+            String message = Localization.translate("message", messageKey);
             client.sendChatMessage(message);
-            return false; // Block interaction
         }
-
-        // Player has permission, continue normal execution
-        return null;
+        // If player has permission, keep whatever the original method returned
     }
     
-    // Enhancement #5: Helper method to determine error message based on GameObject type
+    // Helper method to determine error message based on GameObject type
     private static String getMessageKeyForObject(GameObject gameObject) {
         if (gameObject.isDoor) {
             return "nopermissiondoors";
@@ -89,7 +90,7 @@ public class GameObjectCanInteractPatch {
         if (gameObject instanceof necesse.level.gameObject.furniture.FurnitureObject) {
             return "nopermissionfurniture";
         }
-        // Generic fallback (shouldn't reach here if ProtectedZone logic is correct)
+        // Generic fallback
         return "nopermissioninteract";
     }
 }

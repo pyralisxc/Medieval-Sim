@@ -41,7 +41,7 @@ public class ObjectItemOnAttackPatch {
                 ZoneProtectionValidator.validateBreakAtPosition(level, x, y, player.getServerClient());
             if (!validation.isAllowed()) {
                 player.getServerClient().sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.protected.nobreakobjects"));
-                return null; // Block the attack
+                return true; // Return non-default to skip method execution (ACTUALLY block the attack)
             }
         }
         

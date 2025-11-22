@@ -98,6 +98,16 @@ editzone=Edit Zone
 deletezone=Delete Zone
 renamezoneto=Rename zone to:
 deletezoneconfirm=Delete this zone?
+
+# Zone Protection Tooltip
+zoneprotectiontooltip=Blocked by {zone}'s Protection
+objecttype.door=door
+objecttype.container=container
+objecttype.station=crafting station
+objecttype.sign=sign
+objecttype.switch=switch
+objecttype.furniture=furniture
+objecttype.object=object
 expandzone=Expand Zone
 shrinkzone=Shrink Zone
 expandzonetooltip=Left click to expand zone
@@ -212,6 +222,15 @@ reentrycooldownmessage=Cannot enter - cooldown for <seconds>s
 zone.protected.nobreak=You don't have permission to break tiles in this protected zone
 zone.protected.nobreakobjects=You don't have permission to break objects in this protected zone
 zone.protected.ownernotfound=Player '<player>' not found. They must be online to set as owner.
+
+# Interaction Permission Messages (moved from [ui])
+nopermissiondoors=You don't have permission to use doors in this protected zone
+nopermissioncontainers=You don't have permission to access containers in this protected zone
+nopermissionstations=You don't have permission to use crafting stations in this protected zone
+nopermissionsigns=You don't have permission to edit signs in this protected zone
+nopermissionswitches=You don't have permission to use switches in this protected zone
+nopermissionfurniture=You don't have permission to use furniture in this protected zone
+nopermissioninteract=You don't have permission to interact with this object in this protected zone
 
 # PvP Zone Messages
 zone.pvp.removed=You have been moved out of a PVP zone due to zone changes

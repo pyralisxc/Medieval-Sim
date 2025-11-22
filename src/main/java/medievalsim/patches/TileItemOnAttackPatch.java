@@ -38,7 +38,7 @@ public class TileItemOnAttackPatch {
                 ZoneProtectionValidator.validateBreakAtPosition(level, x, y, player.getServerClient());
             if (!validation.isAllowed()) {
                 player.getServerClient().sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.protected.nobreak"));
-                return null; // Block the attack
+                return true; // Return non-default to skip method execution (ACTUALLY block the attack)
             }
         }
         
