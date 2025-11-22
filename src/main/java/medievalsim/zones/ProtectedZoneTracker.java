@@ -86,7 +86,12 @@ public class ProtectedZoneTracker {
                 // Now add buff with all GND data already set
                 client.playerMob.addBuff(active, true);
             } else {
-                // Buff already exists (zone switch) - update GND data and send packet
+                // Buff already exists - remove and re-add to force client refresh
+                // sendUpdatePacket() doesn't reliably update tooltips, so we remove and re-add
+                client.playerMob.buffManager.removeBuff(buffID, true);
+                
+                // Create fresh buff with updated GND data
+                active = new ActiveBuff("protectedzone", client.playerMob, 0, null);
                 active.getGndData().setString("zoneName", zone.name);
                 active.getGndData().setBoolean("isElevated", isElevated);
                 
@@ -100,8 +105,7 @@ public class ProtectedZoneTracker {
                     active.getGndData().setBoolean("canFurniture", zone.getCanInteractFurniture());
                 }
                 
-                // Send update packet to sync GND changes to client
-                necesse.entity.mobs.buffs.BuffManager.sendUpdatePacket(active);
+                client.playerMob.addBuff(active, true);
             }
         } catch (Exception e) {
             ModLogger.error("Failed to apply protected zone buff", e);

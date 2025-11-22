@@ -32,13 +32,24 @@ public class TileItemOnAttackPatch {
         }
         PlayerMob player = (PlayerMob)attackerMob;
         
-        // Check protected zone permissions for breaking (both build mode and normal) using centralized validator
+        // Check protected zone permissions for BREAKING (both build mode and normal) using centralized validator
         if (level.isServer() && player.getServerClient() != null) {
             ZoneProtectionValidator.ValidationResult validation = 
                 ZoneProtectionValidator.validateBreakAtPosition(level, x, y, player.getServerClient());
             if (!validation.isAllowed()) {
                 player.getServerClient().sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.protected.nobreak"));
                 return true; // Return non-default to skip method execution (ACTUALLY block the attack)
+            }
+        }
+        
+        // Check protected zone permissions for PLACING before any vanilla logic runs
+        // This prevents item consumption when placement is blocked
+        if (level.isServer() && player.getServerClient() != null) {
+            ZoneProtectionValidator.ValidationResult validation = 
+                ZoneProtectionValidator.validatePlacementAtPosition(level, x, y, player.getServerClient());
+            if (!validation.isAllowed()) {
+                player.getServerClient().sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.protected.noplace"));
+                return true; // Skip method execution to prevent item consumption
             }
         }
         
