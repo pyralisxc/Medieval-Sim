@@ -7,7 +7,6 @@ import medievalsim.ui.tabs.ModSettingsTab;
 import medievalsim.util.Constants;
 import necesse.engine.Settings;
 import necesse.engine.gameLoop.tickManager.TickManager;
-import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.network.client.Client;
 import necesse.gfx.forms.Form;
 import necesse.gfx.forms.components.FormLabel;

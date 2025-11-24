@@ -31,8 +31,6 @@ import java.util.*;
 public class ConsoleCommandsTab {
 
     // Font options
-    private static final FontOptions WHITE_TEXT_20 = new FontOptions(20).color(Color.WHITE);
-    private static final FontOptions WHITE_TEXT_14 = new FontOptions(14).color(Color.WHITE);
     private static final FontOptions WHITE_TEXT_11 = new FontOptions(11).color(Color.WHITE);
     private static final int MARGIN = 10;
 
@@ -617,35 +615,6 @@ public class ConsoleCommandsTab {
         }
 
         return args.toArray(new String[0]);
-    }
-
-    /**
-     * Cache current parameter widget values
-     */
-    private void cacheCurrentParameterValues() {
-        if (currentCommand == null || currentParameterWidgets == null) {
-            return;
-        }
-
-        Map<String, String> values = new HashMap<>();
-        for (ParameterWidget widget : currentParameterWidgets) {
-            if (widget == null || widget.getParameter() == null) {
-                continue;
-            }
-            String value = widget.getValue();
-            if (value != null) {
-                value = value.trim();
-            }
-            if (value != null && !value.isEmpty()) {
-                values.put(widget.getParameter().getName(), value);
-            }
-        }
-
-        if (values.isEmpty()) {
-            commandParameterCache.remove(currentCommand.getId());
-        } else {
-            commandParameterCache.put(currentCommand.getId(), values);
-        }
     }
 
     /**

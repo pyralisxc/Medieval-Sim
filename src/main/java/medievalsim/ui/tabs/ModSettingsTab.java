@@ -449,7 +449,7 @@ public class ModSettingsTab {
 
             case ENUM:
                 // Create enum dropdown
-                @SuppressWarnings({"rawtypes", "unchecked"})
+                @SuppressWarnings("rawtypes")
                 Class enumClass = setting.getEnumClass();
                 if (enumClass != null) {
                     Enum<?>[] enumValues = (Enum<?>[]) enumClass.getEnumConstants();

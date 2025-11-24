@@ -18,7 +18,6 @@ import java.lang.reflect.Field;
 public class CheckboxWidget extends ParameterWidget {
     
     private final FormCheckBox checkbox;
-    private final Client client;
     
     /**
      * Create a checkbox widget.
@@ -43,7 +42,6 @@ public class CheckboxWidget extends ParameterWidget {
      */
     public CheckboxWidget(ParameterMetadata parameter, int x, int y, Client client, String defaultValue) {
         super(parameter);
-        this.client = client;
         
         // Determine initial state
         boolean initialState;

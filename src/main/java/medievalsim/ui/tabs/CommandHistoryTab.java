@@ -29,6 +29,7 @@ public class CommandHistoryTab {
     private final Client client;
     private final Runnable onBackCallback;
     private List<FormComponent> allComponents;
+    @SuppressWarnings("unused") // Used in lambda callbacks, false positive from compiler
     private Form parentForm;
 
     // Store original panel dimensions for rebuilding

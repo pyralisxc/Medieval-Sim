@@ -262,7 +262,13 @@ public class ConfigurableSetting {
                     setStringValue(defaultValue);
                     break;
                 case ENUM:
-                    // TODO: Implement enum reset when enum support is added
+                    // Parse the enum constant from the default value string
+                    Class<?> enumClass = field.getType();
+                    if (enumClass != null && enumClass.isEnum()) {
+                        @SuppressWarnings({"rawtypes", "unchecked"})
+                        Enum enumValue = Enum.valueOf((Class<Enum>) enumClass, defaultValue);
+                        setValue(enumValue);
+                    }
                     break;
             }
         } catch (Exception e) {

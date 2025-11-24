@@ -1,19 +1,12 @@
 package medievalsim.packets;
-import java.awt.Point;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZonesLevelData;
 import medievalsim.zones.PvPZone;
-import medievalsim.zones.PvPZoneTracker;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
-import necesse.engine.network.packet.PacketPlayerMovement;
-import necesse.engine.network.packet.PacketPlayerPvP;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
-import necesse.level.maps.Level;
-import necesse.level.maps.regionSystem.RegionPositionGetter;
 
 public class PacketPvPZoneExitResponse
 extends Packet {
