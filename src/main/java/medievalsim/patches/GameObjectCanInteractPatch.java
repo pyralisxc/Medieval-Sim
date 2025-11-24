@@ -31,21 +31,20 @@ public class GameObjectCanInteractPatch {
         @Advice.Argument(3) PlayerMob player,
         @Advice.Return(readOnly = false) boolean result
     ) {
-        medievalsim.util.ModLogger.info("\n***** GameObjectCanInteractPatch triggered *****");
-        medievalsim.util.ModLogger.info("InteractPatch: x=%d, y=%d, gameObject=%s", 
-            x, y, gameObject != null ? gameObject.getStringID() : "null");
-        
         // Only check on server side and for real players
         if (!level.isServer() || player == null || !player.isPlayer) {
-            medievalsim.util.ModLogger.info("InteractPatch: Skipping - not server or not a player");
-            return; // Keep original result
+            return; // Keep original result (suppress spam)
         }
 
         ServerClient client = player.getServerClient();
         if (client == null) {
-            medievalsim.util.ModLogger.info("InteractPatch: Skipping - client is null");
             return; // Keep original result
         }
+        
+        // Log only when on server
+        medievalsim.util.ModLogger.info("\n***** GameObjectCanInteractPatch (SERVER) *****");
+        medievalsim.util.ModLogger.info("InteractPatch: x=%d, y=%d, player=%s, gameObject=%s", 
+            x, y, client.getName(), gameObject != null ? gameObject.getStringID() : "null");
 
         // Get tile coordinates
         int tileX = GameMath.getTileCoordinate(x);
