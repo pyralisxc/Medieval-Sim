@@ -23,6 +23,7 @@ extends Buff {
         this.isImportant = false;
         this.canCancel = false;
         this.isVisible = true;
+        this.isPassive = true;  // Mark as passive so it doesn't show duration/expire
     }
 
     public void init(ActiveBuff buff, BuffEventSubscriber eventSubscriber) {
@@ -34,7 +35,20 @@ extends Buff {
 
     public ListGameTooltips getTooltip(ActiveBuff buff, GameBlackboard blackboard) {
         ListGameTooltips tooltips = new ListGameTooltips();
-        tooltips.add("PVP damage reduced");
+        
+        // Get zone name from buff data
+        String zoneName = buff.getGndData().getString("zoneName");
+        if (zoneName != null && !zoneName.isEmpty()) {
+            tooltips.add("§ePvP Zone: §f" + zoneName);
+        } else {
+            tooltips.add("§ePvP Zone");
+        }
+        
+        // Get damage multiplier and format percentage
+        float damageMultiplier = buff.getGndData().getFloat("damageMultiplier", 1.0f);
+        String damagePercent = medievalsim.zones.PvPZone.formatDamagePercent(damageMultiplier);
+        tooltips.add("§cPvP Damage: §f" + damagePercent);
+        
         return tooltips;
     }
 }

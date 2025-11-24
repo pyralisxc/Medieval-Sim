@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import medievalsim.buildmode.ShapeCalculator;
 import medievalsim.util.ModLogger;
-import medievalsim.util.ZoneProtectionValidator;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.Packet;
 import necesse.engine.network.gameNetworkData.GNDItemMap;
@@ -32,23 +31,9 @@ public class TileItemOnAttackPatch {
         }
         PlayerMob player = (PlayerMob)attackerMob;
         
-        // Check protected zone permissions for PLACING before any vanilla logic runs
-        // This prevents item consumption when placement is blocked
-        // NOTE: Breaking is handled by ToolDamageItemCanDamageTilePatch
-        if (level.isServer() && player.getServerClient() != null) {
-            ZoneProtectionValidator.ValidationResult validation =
-                ZoneProtectionValidator.validatePlacementAtPosition(
-                    level,
-                    GameMath.getTileCoordinate(x),
-                    GameMath.getTileCoordinate(y),
-                    player.getServerClient()
-                );
-            if (!validation.isAllowed()) {
-                String message = necesse.engine.localization.Localization.translate("message", validation.getReason());
-                player.getServerClient().sendChatMessage(message);
-                return true; // Skip method to prevent item consumption
-            }
-        }
+        // NOTE: Protected zone validation is handled by TileItemCanPlacePatch.canPlace()
+        // which properly returns an error string, triggering Necesse's inventory sync via PacketPlaceTile.
+        // We DO NOT check permissions here to avoid skipping the method and causing inventory desync.
         
         hasBuildMode = mapContent != null && mapContent.getBoolean("medievalsim_buildmode");
         if (!hasBuildMode) {

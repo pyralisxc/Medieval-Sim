@@ -23,6 +23,7 @@ extends AdminZone {
     
     // NEW FIELDS: Owner and permissions
     private long ownerAuth = -1L;           // Owner's Steam ID/auth
+    private int ownerTeamID = -1;           // Owner's team ID (for client-side checks)
     private String ownerName = "";          // Owner's character name (for display)
     private boolean allowOwnerTeam = true;  // Allow owner's team access?
     private boolean canBreak = false;       // Team members can break
@@ -67,88 +68,53 @@ extends AdminZone {
      */
     private boolean hasElevatedAccess(ServerClient client, Level level) {
         if (client == null) {
-            ModLogger.debug("hasElevatedAccess: client is null");
             return false;
         }
 
-        // DEBUG: Log all checks
-        boolean isWorld = this.isWorldOwner(client, level);
-        boolean isOwner = this.isOwner(client);
-        boolean isCreator = this.isCreator(client);
-        
-        ModLogger.info("hasElevatedAccess: player=%s, isWorldOwner=%s, isZoneOwner=%s, isCreator=%s, ownerAuth=%d, clientAuth=%d, creatorAuth=%d",
-            client.getName(), isWorld, isOwner, isCreator, this.ownerAuth, client.authentication, this.creatorAuth);
-
         // World owner and explicit zone owner/creator always have full access
-        if (isWorld || isOwner || isCreator) {
-            ModLogger.info("hasElevatedAccess: GRANTED via ownership check");
+        if (this.isWorldOwner(client, level) || this.isOwner(client) || this.isCreator(client)) {
             return true;
         }
 
         // When enabled, members of the owner's team get full access
-        boolean onOwnerTeam = allowOwnerTeam && isOnOwnerTeam(client, level);
-        int clientTeamID = client.getTeamID();
-        ModLogger.info("hasElevatedAccess: allowOwnerTeam=%s, onOwnerTeam=%s, clientTeamID=%d",
-            allowOwnerTeam, onOwnerTeam, clientTeamID);
-        
-        if (onOwnerTeam) {
-            ModLogger.info("hasElevatedAccess: GRANTED via owner team membership");
+        if (allowOwnerTeam && isOnOwnerTeam(client, level)) {
             return true;
         }
 
         // Members of explicitly allowed teams also get full access
-        boolean inAllowedTeam = clientTeamID != -1 && this.allowedTeamIDs.contains(clientTeamID);
-        ModLogger.info("hasElevatedAccess: inAllowedTeam=%s, allowedTeamIDs=%s",
-            inAllowedTeam, this.allowedTeamIDs);
-        
-        if (inAllowedTeam) {
-            ModLogger.info("hasElevatedAccess: GRANTED via allowed team membership");
+        int clientTeamID = client.getTeamID();
+        if (clientTeamID != -1 && this.allowedTeamIDs.contains(clientTeamID)) {
             return true;
         }
 
-        ModLogger.info("hasElevatedAccess: DENIED - no elevated access");
         return false;
     }
 
     public boolean canClientBreak(ServerClient client, Level level) {
-        ModLogger.info("canClientBreak called: player=%s, zone=%s", 
-            client != null ? client.getName() : "null", this.name);
-        
         if (client == null) {
-            ModLogger.info("canClientBreak: FALSE - client is null");
             return false;
         }
 
         // Elevated access (world owner, zone owner, creator)
         if (hasElevatedAccess(client, level)) {
-            ModLogger.info("canClientBreak: TRUE - has elevated access");
             return true;
         }
 
         // Apply granular permission to all non-elevated players
-        // (Team membership doesn't gate permission access - permissions apply to everyone)
-        ModLogger.info("canClientBreak: returning zone permission canBreak=%s", canBreak);
         return canBreak;
     }
     
     public boolean canClientPlace(ServerClient client, Level level) {
-        ModLogger.info("canClientPlace called: player=%s, zone=%s", 
-            client != null ? client.getName() : "null", this.name);
-        
         if (client == null) {
-            ModLogger.info("canClientPlace: FALSE - client is null");
             return false;
         }
 
         // Elevated access (world owner, zone owner, creator)
         if (hasElevatedAccess(client, level)) {
-            ModLogger.info("canClientPlace: TRUE - has elevated access");
             return true;
         }
 
         // Apply granular permission to all non-elevated players
-        // (Team membership doesn't gate permission access - permissions apply to everyone)
-        ModLogger.info("canClientPlace: returning zone permission canPlace=%s", canPlace);
         return canPlace;
     }
     
@@ -232,6 +198,14 @@ extends AdminZone {
     
     public void setOwnerAuth(long auth) { 
         this.ownerAuth = auth; 
+    }
+    
+    public int getOwnerTeamID() {
+        return ownerTeamID;
+    }
+    
+    public void setOwnerTeamID(int teamID) {
+        this.ownerTeamID = teamID;
     }
     
     public String getOwnerName() {
@@ -348,7 +322,8 @@ extends AdminZone {
     }
 
     public void addAllowedTeam(int teamID) {
-        if (teamID != -1) {
+        // Only add valid team IDs (not -1 and not 0 which is the default/no-team ID)
+        if (teamID > 0) {
             this.allowedTeamIDs.add(teamID);
         }
     }
@@ -507,6 +482,7 @@ extends AdminZone {
         
         // Save owner and permissions
         save.addLong("ownerAuth", this.ownerAuth);
+        save.addInt("ownerTeamID", this.ownerTeamID);
         save.addUnsafeString("ownerName", this.ownerName);
         save.addBoolean("allowOwnerTeam", this.allowOwnerTeam);
         save.addBoolean("canBreak", this.canBreak);
@@ -532,6 +508,7 @@ extends AdminZone {
         
         // Load owner and permissions
         this.ownerAuth = save.getLong("ownerAuth", -1L);
+        this.ownerTeamID = save.getInt("ownerTeamID", -1);
         this.ownerName = save.getUnsafeString("ownerName", "");
         this.allowOwnerTeam = save.getBoolean("allowOwnerTeam", true);
         this.canBreak = save.getBoolean("canBreak", false);
@@ -557,6 +534,7 @@ extends AdminZone {
         
         // Write owner and permissions
         writer.putNextLong(this.ownerAuth);
+        writer.putNextInt(this.ownerTeamID);
         writer.putNextBoolean(this.allowOwnerTeam);
         writer.putNextBoolean(this.canBreak);
         writer.putNextBoolean(this.canPlace);
@@ -581,6 +559,7 @@ extends AdminZone {
         
         // Read owner and permissions
         this.ownerAuth = reader.getNextLong();
+        this.ownerTeamID = reader.getNextInt();
         this.allowOwnerTeam = reader.getNextBoolean();
         this.canBreak = reader.getNextBoolean();
         this.canPlace = reader.getNextBoolean();

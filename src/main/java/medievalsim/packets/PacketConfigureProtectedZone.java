@@ -141,6 +141,14 @@ public class PacketConfigureProtectedZone extends Packet {
             // Update zone
             zone.setOwnerAuth(ownerAuth);
             zone.setOwnerName(resolvedOwnerName); // Store character name for display
+            
+            // Track owner's team ID for client-side permission checks
+            int ownerTeamID = -1;
+            if (ownerAuth != -1L) {
+                ownerTeamID = server.world.getTeams().getPlayerTeamID(ownerAuth);
+            }
+            zone.setOwnerTeamID(ownerTeamID);
+            
             zone.setAllowOwnerTeam(allowOwnerTeam);
             zone.setCanBreak(canBreak);
             zone.setCanPlace(canPlace);
@@ -158,10 +166,18 @@ public class PacketConfigureProtectedZone extends Packet {
                 server.network.sendToAllClients(new PacketZoneSync(ctx.getZoneData(), server));
             }
             
-            // Refresh buff for all players currently in this zone
+            // Refresh buff for all players currently in this specific zone
             for (ServerClient otherClient : server.getClients()) {
                 if (otherClient.playerMob != null) {
-                    medievalsim.zones.ProtectedZoneTracker.updatePlayerZone(otherClient, zone);
+                    int tileX = otherClient.playerMob.getTileX();
+                    int tileY = otherClient.playerMob.getTileY();
+                    
+                    // Check if player is in THIS zone
+                    ProtectedZone playerZone = ctx.getZoneData().getProtectedZoneAt(tileX, tileY);
+                    if (playerZone != null && playerZone.uniqueID == zone.uniqueID) {
+                        // Player is in this zone - refresh their buff with new permissions
+                        medievalsim.zones.ProtectedZoneTracker.updatePlayerZone(otherClient, zone);
+                    }
                 }
             }
             

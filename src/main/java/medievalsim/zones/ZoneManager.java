@@ -42,11 +42,9 @@ public class ZoneManager {
         if (creator != null) {
             zone.setOwnerName(creator.getName());
             
-            // Add creator's team if they have one
-            int teamID = creator.getTeamID();
-            if (teamID != -1) {
-                zone.addAllowedTeam(teamID);
-            }
+            // DO NOT auto-add creator's team to allowedTeamIDs
+            // Team access should only be granted explicitly via zone configuration
+            // Otherwise, everyone on the default team (ID 0) would have access
         }
         
         // Log zone creation

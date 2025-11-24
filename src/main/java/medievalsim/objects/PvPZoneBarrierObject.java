@@ -89,6 +89,7 @@ extends GameObject {
         if (client == null) {
             return;
         }
+        
         long serverTime = level.getServer().world.worldEntity.getTime();
         for (PvPZone zone : zoneData.getPvPZones().values()) {
             if (zone == null || zone.zoning == null || !this.isBarrierForZone(zone, x, y)) continue;

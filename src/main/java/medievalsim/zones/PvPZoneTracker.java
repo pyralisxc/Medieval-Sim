@@ -5,10 +5,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import medievalsim.config.ModConfig;
 import medievalsim.packets.PacketPvPZoneSpawnDialog;
+import medievalsim.util.ModLogger;
 
 import necesse.engine.network.Packet;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
+import necesse.engine.registries.BuffRegistry;
+import necesse.entity.mobs.buffs.ActiveBuff;
 import necesse.level.maps.Level;
 
 /**
@@ -26,6 +29,11 @@ public class PvPZoneTracker {
     public static void cleanupPlayerState(ServerClient client) {
         if (client != null) {
             playerStates.remove(client.authentication);
+            // Remove damage reduction buff on cleanup
+            if (client.playerMob != null && client.playerMob.buffManager != null) {
+                int buffID = BuffRegistry.getBuffID("pvpdamagereduction");
+                client.playerMob.buffManager.removeBuff(buffID, true);
+            }
         }
     }
 
@@ -58,6 +66,12 @@ public class PvPZoneTracker {
         state.lastCombatTime = 0L;
         state.lastExitTime = serverTime;
         state.hasShownSpawnDialog = false;
+        
+        // Remove damage reduction buff when exiting zone
+        if (client != null && client.playerMob != null && client.playerMob.buffManager != null) {
+            int buffID = BuffRegistry.getBuffID("pvpdamagereduction");
+            client.playerMob.buffManager.removeBuff(buffID, true);
+        }
     }
 
     public static boolean canReEnter(ServerClient client, long serverTime) {
@@ -173,6 +187,61 @@ public class PvPZoneTracker {
             closest = new Point(checkX, checkY);
         }
         return closest != null ? closest : new Point(playerTileX, playerTileY);
+    }
+
+    /**
+     * Updates the PvP damage reduction buff for a player based on their current zone.
+     * Applies the buff when in a PvP zone, removes it when outside.
+     * 
+     * @param client The player client
+     * @param zone The current PvP zone (null if not in any zone)
+     */
+    public static void updatePlayerZoneBuff(ServerClient client, PvPZone zone) {
+        if (client == null || client.playerMob == null) {
+            return;
+        }
+
+        try {
+            int buffID = BuffRegistry.getBuffID("pvpdamagereduction");
+            ActiveBuff existingBuff = client.playerMob.buffManager.getBuff(buffID);
+
+            if (zone == null) {
+                // Player is not in any PvP zone - remove buff if present
+                if (existingBuff != null) {
+                    ModLogger.debug("Removing PvP damage reduction buff from %s", client.getName());
+                    client.playerMob.buffManager.removeBuff(buffID, true);
+                }
+                return;
+            }
+
+            // Player is in a PvP zone - apply/update buff with zone info
+            if (existingBuff == null) {
+                // Create new buff with zone data
+                ModLogger.debug("Applying PvP damage reduction buff to %s in zone %s", client.getName(), zone.name);
+                ActiveBuff buff = new ActiveBuff("pvpdamagereduction", client.playerMob, 0, null);
+                buff.getGndData().setString("zoneName", zone.name);
+                buff.getGndData().setFloat("damageMultiplier", zone.damageMultiplier);
+                buff.getGndData().setInt("zoneID", zone.uniqueID);
+                client.playerMob.addBuff(buff, true);
+            } else {
+                // Buff exists - only update if zone changed
+                int currentZoneID = existingBuff.getGndData().getInt("zoneID", -1);
+                
+                if (currentZoneID != zone.uniqueID) {
+                    // Zone changed - remove and re-add with new data
+                    ModLogger.debug("Updating PvP damage reduction buff for %s (zone changed to %s)", client.getName(), zone.name);
+                    client.playerMob.buffManager.removeBuff(buffID, true);
+                    ActiveBuff buff = new ActiveBuff("pvpdamagereduction", client.playerMob, 0, null);
+                    buff.getGndData().setString("zoneName", zone.name);
+                    buff.getGndData().setFloat("damageMultiplier", zone.damageMultiplier);
+                    buff.getGndData().setInt("zoneID", zone.uniqueID);
+                    client.playerMob.addBuff(buff, true);
+                }
+                // If same zone ID, buff persists unchanged (no flickering)
+            }
+        } catch (Exception e) {
+            ModLogger.error("Failed to apply PvP zone damage reduction buff", e);
+        }
     }
 
     public static class PlayerPvPState {

@@ -64,43 +64,30 @@ public final class ZoneProtectionValidator {
      * @return ValidationResult indicating if placement is allowed
      */
     public static ValidationResult validatePlacement(Level level, int tileX, int tileY, ServerClient client) {
-        medievalsim.util.ModLogger.info("===== PLACEMENT VALIDATION START =====");
-        medievalsim.util.ModLogger.info("validatePlacement called: player=%s, tileX=%d, tileY=%d", 
-            client != null ? client.getName() : "null", tileX, tileY);
-        
         // Only perform validation on server-side
         if (!ValidationUtil.isValidServerLevel(level) || client == null) {
-            medievalsim.util.ModLogger.info("validatePlacement: ALLOW - not valid server level or client is null");
             return ValidationResult.allow();
         }
         
         // Get zone data for this level
         AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
         if (zoneData == null) {
-            medievalsim.util.ModLogger.info("validatePlacement: ALLOW - no zone data for this level");
             return ValidationResult.allow();
         }
         
         // Check if this location is in a protected zone
         ProtectedZone zone = zoneData.getProtectedZoneAt(tileX, tileY);
         if (zone == null) {
-            medievalsim.util.ModLogger.info("validatePlacement: ALLOW - no protected zone at this location");
             return ValidationResult.allow();
         }
         
-        medievalsim.util.ModLogger.info("validatePlacement: Found zone '%s' at location, checking permissions...", zone.name);
-        
         // Check if player has permission to place in this zone
         boolean canPlace = zone.canClientPlace(client, level);
-        medievalsim.util.ModLogger.info("validatePlacement: player=%s, zone=%s, canPlace=%s, zonePerm=%s",
-            client.getName(), zone.name, canPlace, zone.getCanPlace());
         
         if (!canPlace) {
-            medievalsim.util.ModLogger.info("validatePlacement: DENY - player lacks permission");
             return ValidationResult.deny("nopermissionplace");
         }
         
-        medievalsim.util.ModLogger.info("validatePlacement: ALLOW - player has permission");
         return ValidationResult.allow();
     }
     
@@ -129,43 +116,31 @@ public final class ZoneProtectionValidator {
      * @return ValidationResult indicating if breaking is allowed
      */
     public static ValidationResult validateBreak(Level level, int tileX, int tileY, ServerClient client) {
-        medievalsim.util.ModLogger.info("===== BREAK VALIDATION START =====");
-        medievalsim.util.ModLogger.info("validateBreak called: player=%s, tileX=%d, tileY=%d", 
-            client != null ? client.getName() : "null", tileX, tileY);
         
         // Only perform validation on server-side
         if (!ValidationUtil.isValidServerLevel(level) || client == null) {
-            medievalsim.util.ModLogger.info("validateBreak: ALLOW - not valid server level or client is null");
             return ValidationResult.allow();
         }
         
         // Get zone data for this level
         AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
         if (zoneData == null) {
-            medievalsim.util.ModLogger.info("validateBreak: ALLOW - no zone data for this level");
             return ValidationResult.allow();
         }
         
         // Check if this location is in a protected zone
         ProtectedZone zone = zoneData.getProtectedZoneAt(tileX, tileY);
         if (zone == null) {
-            medievalsim.util.ModLogger.info("validateBreak: ALLOW - no protected zone at this location");
             return ValidationResult.allow();
         }
         
-        medievalsim.util.ModLogger.info("validateBreak: Found zone '%s' at location, checking permissions...", zone.name);
-        
         // Check if player has permission to break in this zone
         boolean canBreak = zone.canClientBreak(client, level);
-        medievalsim.util.ModLogger.info("validateBreak: player=%s, zone=%s, canBreak=%s, zonePerm=%s",
-            client.getName(), zone.name, canBreak, zone.getCanBreak());
         
         if (!canBreak) {
-            medievalsim.util.ModLogger.info("validateBreak: DENY - player lacks permission");
             return ValidationResult.deny("nopermissionbreak");
         }
         
-        medievalsim.util.ModLogger.info("validateBreak: ALLOW - player has permission");
         return ValidationResult.allow();
     }
     

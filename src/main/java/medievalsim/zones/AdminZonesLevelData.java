@@ -268,8 +268,10 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
             synchronized (map) {
                 snapshot.addAll(this.pvpZones.values());
             }
+            ModLogger.info("Creating initial barriers for %d PvP zones...", snapshot.size());
             for (PvPZone zone : snapshot) {
                 try {
+                    ModLogger.info("Creating barriers for PvP zone '%s' (ID: %d)", zone.name, zone.uniqueID);
                     zone.createBarriers(this.level);
                 }
                 catch (Exception e) {
@@ -286,8 +288,14 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
                 if (client != null && client.playerMob != null && client.playerMob.getLevel() == this.level) {
                     int tileX = GameMath.getTileCoordinate((int) client.playerMob.x);
                     int tileY = GameMath.getTileCoordinate((int) client.playerMob.y);
-                    ProtectedZone zone = this.getProtectedZoneAt(tileX, tileY);
-                    ProtectedZoneTracker.updatePlayerZone(client, zone);
+                    
+                    // Update protected zone buff
+                    ProtectedZone protectedZone = this.getProtectedZoneAt(tileX, tileY);
+                    ProtectedZoneTracker.updatePlayerZone(client, protectedZone);
+                    
+                    // Update PvP zone damage reduction buff (use player coordinates, not tiles)
+                    PvPZone pvpZone = this.getPvPZoneAt(client.playerMob.x, client.playerMob.y);
+                    PvPZoneTracker.updatePlayerZoneBuff(client, pvpZone);
                 }
             }
         }
