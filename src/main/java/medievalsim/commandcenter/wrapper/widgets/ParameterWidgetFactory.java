@@ -120,7 +120,7 @@ public class ParameterWidgetFactory {
                 return new NumberInputWidget(parameter, x, y, 100, true, defaultValue);
                 
             case BOOL:
-                return new ToggleButtonWidget(parameter, x, y, client, defaultValue);
+                return new CheckboxWidget(parameter, x, y, client, defaultValue);
                 
             case RELATIVE_INT:
                 return new RelativeIntInputWidget(parameter, x, y);
@@ -156,10 +156,17 @@ public class ParameterWidgetFactory {
                 // Similar to SERVER_CLIENT, reuse PlayerDropdownWidget
                 return new PlayerDropdownWidget(parameter, x, y, client);
                 
+            case PRESET_STRING:
+                // PresetStringParameterHandler has preset values - use dropdown
+                if (parameter.hasPresets()) {
+                    return new DropdownWidget(parameter, x, y, parameter.getPresets());
+                } else {
+                    return new TextInputWidget(parameter, x, y, 200, defaultValue);
+                }
+                
             case STORED_PLAYER:
             case LEVEL_IDENTIFIER:
             case CMD_NAME:
-            case PRESET_STRING:
             case UNBAN:
                 // Text input is appropriate for these
                 return new TextInputWidget(parameter, x, y, 200, defaultValue);

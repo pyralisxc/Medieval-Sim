@@ -78,7 +78,8 @@ public class ToolDamageItemCanDamageTilePatch {
         
         if (!validation.isAllowed()) {
             // Send message to player explaining why breaking is blocked
-            client.sendChatMessage(validation.getReason());
+            String message = necesse.engine.localization.Localization.translate("message", validation.getReason());
+            client.sendChatMessage(message);
             // Block the damage
             returnValue = false;
         }

@@ -5,6 +5,7 @@ import medievalsim.commandcenter.wrapper.widgets.ParameterWidget;
 import medievalsim.commandcenter.wrapper.widgets.ParameterWidgetFactory;
 import necesse.engine.network.client.Client;
 import necesse.gfx.forms.Form;
+import necesse.gfx.forms.components.FormComponent;
 import necesse.gfx.forms.components.FormContentBox;
 import necesse.gfx.forms.components.FormLabel;
 import necesse.gfx.gameFont.FontOptions;
@@ -89,10 +90,32 @@ public class ParameterFormBuilder {
             parameterScrollArea.addComponent(widget.getComponent());
             currentParameterWidgets.add(widget);
             
-            // For dropdown widgets, also add them to the parent form
-            // This ensures the dropdown menu can overlay the scroll area
-            if (widget.getComponent() instanceof necesse.gfx.forms.components.FormDropdownSelectionButton) {
-                parentForm.addComponent(widget.getComponent());
+            // Handle multi-component widgets
+            if (widget instanceof medievalsim.commandcenter.wrapper.widgets.PlayerDropdownWidget) {
+                // PlayerDropdownWidget has both text input and dropdown
+                medievalsim.commandcenter.wrapper.widgets.PlayerDropdownWidget playerWidget = 
+                    (medievalsim.commandcenter.wrapper.widgets.PlayerDropdownWidget) widget;
+                parameterScrollArea.addComponent(playerWidget.getDropdown());
+                yPos += WIDGET_HEIGHT; // Extra space for dropdown
+            } else if (widget instanceof medievalsim.commandcenter.wrapper.widgets.MultiChoiceWidget) {
+                // MultiChoiceWidget has type selector dropdown + currently selected sub-widget
+                // Note: Only the SELECTED sub-widget should be displayed, not all options
+                medievalsim.commandcenter.wrapper.widgets.MultiChoiceWidget multiWidget = 
+                    (medievalsim.commandcenter.wrapper.widgets.MultiChoiceWidget) widget;
+                
+                // CRITICAL: Set parent form so the widget can dynamically swap sub-widgets
+                multiWidget.setParentForm(parameterScrollArea);
+                
+                FormComponent[] selectedSubComponents = multiWidget.getAllSelectedSubComponents();
+                if (selectedSubComponents != null) {
+                    for (FormComponent subComponent : selectedSubComponents) {
+                        if (subComponent != null) {
+                            parameterScrollArea.addComponent(subComponent);
+                        }
+                    }
+                    // Add extra vertical space for the sub-widget(s)
+                    yPos += WIDGET_HEIGHT * selectedSubComponents.length;
+                }
             }
 
             yPos += WIDGET_HEIGHT;

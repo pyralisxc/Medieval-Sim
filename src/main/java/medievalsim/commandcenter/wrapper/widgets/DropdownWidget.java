@@ -42,9 +42,10 @@ public class DropdownWidget extends ParameterWidget {
             dropdown.options.add(option, new StaticMessage(option));
         }
         
-        // Select first option by default if required
-        if (parameter.isRequired() && options.length > 0) {
+        // Select first option by default (prevents showing "Select..." placeholder)
+        if (options.length > 0) {
             dropdown.setSelected(options[0], new StaticMessage(options[0]));
+            currentValue = options[0];
         }
         
         // Listen to selection events to update our value

@@ -25,7 +25,6 @@ public class CommandMetadataCache {
     
     private final Map<String, NecesseCommandMetadata> cachedCommands = new ConcurrentHashMap<>();
     private volatile boolean isCacheValid = false;
-    private volatile String lastModHash = "";
     
     private CommandMetadataCache() {
         // Singleton
@@ -36,18 +35,14 @@ public class CommandMetadataCache {
     }
     
     /**
-     * Check if cache is valid for current mod configuration.
+     * Check if cache is valid.
      * Returns true if cache can be used, false if full scan is needed.
+     * 
+     * Note: Cache does not auto-invalidate on mod changes. Call invalidateCache() 
+     * manually if mod configuration changes during development.
      */
     public boolean isCacheValid() {
-        String currentModHash = getCurrentModHash();
-        
-        if (!isCacheValid || !lastModHash.equals(currentModHash)) {
-            ModLogger.debug("Cache invalid - mod configuration changed");
-            return false;
-        }
-        
-        return !cachedCommands.isEmpty();
+        return isCacheValid && !cachedCommands.isEmpty();
     }
     
     /**
@@ -56,8 +51,6 @@ public class CommandMetadataCache {
     public void cacheCommands(Map<String, NecesseCommandMetadata> commands) {
         cachedCommands.clear();
         cachedCommands.putAll(commands);
-        
-        lastModHash = getCurrentModHash();
         isCacheValid = true;
         
         ModLogger.debug("Cached %d command metadata entries", commands.size());
@@ -72,11 +65,11 @@ public class CommandMetadataCache {
     
     /**
      * Clear the cache (force full rescan).
+     * Call this if mod configuration changes during development.
      */
     public void invalidateCache() {
         cachedCommands.clear();
         isCacheValid = false;
-        lastModHash = "";
         ModLogger.info("Command metadata cache invalidated");
     }
     
@@ -86,32 +79,8 @@ public class CommandMetadataCache {
     public CacheStats getStats() {
         return new CacheStats(
             cachedCommands.size(),
-            isCacheValid,
-            lastModHash.hashCode()
+            isCacheValid
         );
-    }
-    
-    // ===== PRIVATE HELPERS =====
-    
-    private String getCurrentModHash() {
-        try {
-            // Create hash of loaded mods for change detection
-            StringBuilder modInfo = new StringBuilder();
-            
-            // Add mod information from ModLoader
-            necesse.engine.modLoader.ModLoader.getEnabledMods().forEach(mod -> {
-                modInfo.append(mod.id).append(":").append(mod.version).append(";");
-            });
-            
-            // Include command count to detect new commands from other mods
-            modInfo.append("total_commands:").append(cachedCommands.size());
-            
-            return String.valueOf(modInfo.toString().hashCode());
-            
-        } catch (Exception e) {
-            ModLogger.debug("Failed to generate mod hash: %s", e.getMessage());
-            return "unknown_" + System.currentTimeMillis();
-        }
     }
     
     /**
@@ -120,18 +89,16 @@ public class CommandMetadataCache {
     public static class CacheStats {
         public final int cachedCommandCount;
         public final boolean isValid;
-        public final int modConfigHash;
         
-        public CacheStats(int cachedCommandCount, boolean isValid, int modConfigHash) {
+        public CacheStats(int cachedCommandCount, boolean isValid) {
             this.cachedCommandCount = cachedCommandCount;
             this.isValid = isValid;
-            this.modConfigHash = modConfigHash;
         }
         
         @Override
         public String toString() {
-            return String.format("CommandCache[commands=%d, valid=%s, hash=%x]",
-                    cachedCommandCount, isValid, modConfigHash);
+            return String.format("CommandCache[commands=%d, valid=%s]",
+                    cachedCommandCount, isValid);
         }
     }
 }

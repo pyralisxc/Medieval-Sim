@@ -5,9 +5,6 @@ import necesse.gfx.forms.components.FormDropdownSelectionButton;
 import necesse.gfx.forms.components.FormInputSize;
 import necesse.gfx.ui.ButtonColor;
 import necesse.engine.localization.message.StaticMessage;
-import necesse.engine.commands.parameterHandlers.EnumParameterHandler;
-
-import java.lang.reflect.Field;
 
 /**
  * Generic enum dropdown widget for ENUM parameters.
@@ -28,8 +25,8 @@ public class EnumDropdownWidget extends ParameterWidget {
     public EnumDropdownWidget(ParameterMetadata parameter, int x, int y) {
         super(parameter);
         
-        // Extract enum values from the handler using reflection
-        this.enumValues = extractEnumValues(parameter);
+        // Use cached enum values from ParameterMetadata (no reflection needed)
+        this.enumValues = parameter.getEnumValues();
         
         // Create dropdown
         this.enumDropdown = new FormDropdownSelectionButton<Enum<?>>(
@@ -87,32 +84,6 @@ public class EnumDropdownWidget extends ParameterWidget {
         }
         
         return result.toString();
-    }
-    
-    /**
-     * Extract enum values from EnumParameterHandler using reflection.
-     * EnumParameterHandler has a private field 'values' that contains the enum constants.
-     */
-    private Enum<?>[] extractEnumValues(ParameterMetadata parameter) {
-        try {
-            if (!(parameter.getHandler() instanceof EnumParameterHandler)) {
-                medievalsim.util.ModLogger.error("EnumDropdownWidget: Handler is not EnumParameterHandler: %s", parameter.getHandler().getClass().getName());
-                return null;
-            }
-            
-            EnumParameterHandler<?> enumHandler = (EnumParameterHandler<?>) parameter.getHandler();
-            
-            // Access private 'values' field from EnumParameterHandler
-            Field valuesField = EnumParameterHandler.class.getDeclaredField("values");
-            valuesField.setAccessible(true);
-            Enum<?>[] values = (Enum<?>[]) valuesField.get(enumHandler);
-            
-            return values;
-            
-        } catch (Exception e) {
-            // Failed to extract enum values via reflection
-            return null;
-        }
     }
     
     @Override

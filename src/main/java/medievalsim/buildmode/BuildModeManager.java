@@ -81,17 +81,6 @@ public class BuildModeManager {
         this.buildModeEnabled = false;
     }
 
-    @SuppressWarnings("unused") // Reserved for future validation logic
-    private Client getValidClient() {
-        if (this.client == null) {
-            throw new IllegalStateException("BuildModeManager client is null");
-        }
-        if (this.client.hasDisconnected()) {
-            throw new IllegalStateException("BuildModeManager client has disconnected");
-        }
-        return this.client;
-    }
-
     private boolean isClientValid() {
         return this.client != null && !this.client.hasDisconnected();
     }

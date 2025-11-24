@@ -14,14 +14,12 @@ import necesse.engine.GlobalData;
 import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.gameTool.GameTool;
 import necesse.engine.input.InputEvent;
-import necesse.engine.input.InputPosition;
 import necesse.engine.input.controller.ControllerEvent;
 import necesse.engine.input.controller.ControllerInput;
 import necesse.engine.localization.Localization;
 import necesse.engine.network.Packet;
 import necesse.engine.network.client.Client;
 import necesse.engine.state.State;
-import necesse.engine.util.GameRandom;
 import necesse.engine.util.Zoning;
 import necesse.engine.window.GameWindow;
 import necesse.engine.window.WindowManager;
@@ -44,18 +42,12 @@ implements GameTool {
     private HudDrawElement hudElement;
     private Point mouseDownTile;
     private boolean isRemoving;
-    @SuppressWarnings("unused") // Reserved for future hover functionality
-    private AdminZone lastHoverZone;
-    @SuppressWarnings("unused") // Reserved for future color functionality  
-    private int colorHue;
 
     public CreateOrExpandZoneTool(Client client, boolean isProtectedZone, Supplier<Map<Integer, ? extends AdminZone>> zonesSupplier) {
         this.client = client;
         this.level = client.getLevel();
         this.isProtectedZone = isProtectedZone;
         this.zonesSupplier = zonesSupplier;
-        GameRandom random = new GameRandom();
-        this.colorHue = random.getIntBetween(0, 360);
     }
 
     public void init() {
@@ -119,13 +111,6 @@ implements GameTool {
             }
         };
         this.level.hudManager.addElement(this.hudElement);
-    }
-
-    @SuppressWarnings("unused") // Reserved for future hover detection
-    private AdminZone getHoverZone(State currentState, InputPosition inputPosition) {
-        int tileX = currentState.getCamera().getMouseLevelTilePosX(inputPosition);
-        int tileY = currentState.getCamera().getMouseLevelTilePosY(inputPosition);
-        return this.streamEditZones().filter(z -> z.containsTile(tileX, tileY)).findFirst().orElse(null);
     }
 
     private Stream<? extends AdminZone> streamEditZones() {
@@ -244,16 +229,6 @@ implements GameTool {
 
     private void onRemovedZone(AdminZone zone, Rectangle selection) {
         this.client.network.sendPacket((Packet)new PacketShrinkZone(zone.uniqueID, this.isProtectedZone, selection));
-    }
-
-    @SuppressWarnings("unused") // Reserved for future ID generation
-    private int generateUniqueID() {
-        Map<Integer, ? extends AdminZone> zones = this.zonesSupplier.get();
-        if (zones == null || zones.isEmpty()) {
-            return 1;
-        }
-        int maxID = zones.keySet().stream().max(Integer::compare).orElse(0);
-        return maxID + 1;
     }
 
     public GameTooltips getTooltips() {

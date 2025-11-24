@@ -446,8 +446,9 @@ public class ConsoleCommandsTab {
                 commandParameterCache,
                 command.getId(),
                 () -> {
-                    cacheCurrentParameterValues();
-                    loadCommand(currentCommand);
+                    // Update command preview live as user types/changes fields
+                    updateCommandPreviewFromWidgets();
+                    updateButtonStates();
                 }
             );
         }

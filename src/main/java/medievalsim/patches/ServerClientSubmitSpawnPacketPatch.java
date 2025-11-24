@@ -30,6 +30,14 @@ public class ServerClientSubmitSpawnPacketPatch {
                 long serverTime = server.world.worldEntity.getTime();
                 PvPZoneTracker.handleSpawnInZone(client, zone, server, serverTime);
             }
+            
+            // Initialize ProtectedZone buff if spawning in a protected zone
+            medievalsim.zones.AdminZonesLevelData zoneData = 
+                medievalsim.zones.AdminZonesLevelData.getZoneData(level, false);
+            if (zoneData != null) {
+                medievalsim.zones.ProtectedZone protectedZone = zoneData.getProtectedZoneAt(tileX, tileY);
+                medievalsim.zones.ProtectedZoneTracker.updatePlayerZone(client, protectedZone);
+            }
         }
     }
 }

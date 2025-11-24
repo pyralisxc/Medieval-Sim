@@ -44,7 +44,8 @@ public class TileItemOnAttackPatch {
                     player.getServerClient()
                 );
             if (!validation.isAllowed()) {
-                player.getServerClient().sendChatMessage(validation.getReason());
+                String message = necesse.engine.localization.Localization.translate("message", validation.getReason());
+                player.getServerClient().sendChatMessage(message);
                 return true; // Skip method to prevent item consumption
             }
         }

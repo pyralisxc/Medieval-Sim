@@ -179,6 +179,29 @@ public class ConfigurableSetting {
     }
     
     /**
+     * Get the current value as an enum
+     */
+    @SuppressWarnings("unchecked")
+    public <E extends Enum<E>> E getEnumValue() {
+        Object value = getValue();
+        if (value != null && value.getClass().isEnum()) {
+            return (E) value;
+        }
+        return null;
+    }
+    
+    /**
+     * Get enum class if this setting is an enum type
+     */
+    @SuppressWarnings("unchecked")
+    public <E extends Enum<E>> Class<E> getEnumClass() {
+        if (type == SettingType.ENUM && field.getType().isEnum()) {
+            return (Class<E>) field.getType();
+        }
+        return null;
+    }
+    
+    /**
      * Set the value from an integer
      */
     public void setIntValue(int value) {

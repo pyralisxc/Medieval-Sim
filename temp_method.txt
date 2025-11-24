@@ -1,0 +1,19 @@
+﻿private String getHandlerDisplayName(ParameterHandler<?> handler) {
+        String className = handler.getClass().getSimpleName();
+
+        // Custom friendly labels for common multi-parameter combinations
+        // so the UI shows domain language instead of raw handler names.
+        if ("ServerClientParameterHandler".equals(className)) {
+            return "Server Options";
+        }
+        if ("StringParameterHandler".equals(className)) {
+            return "Text Input";
+        }
+
+        // Remove "ParameterHandler" suffix if present
+        if (className.endsWith("ParameterHandler")) {
+            className = className.substring(0, className.length() - "ParameterHandler".length());
+        }
+
+        // Add spaces before capital letters (camelCase 9 Camel Case)
+ 

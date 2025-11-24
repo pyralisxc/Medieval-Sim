@@ -8,7 +8,6 @@ import medievalsim.config.SettingsManager;
 import medievalsim.util.Constants;
 import medievalsim.util.ModLogger;
 import necesse.engine.Settings;
-import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.modLoader.LoadedMod;
 import necesse.engine.modLoader.ModLoader;
 import necesse.entity.mobs.PlayerMob;
@@ -449,17 +448,107 @@ public class ModSettingsTab {
                 break;
 
             case ENUM:
-                FormLabel enumLabel = new FormLabel(
-                    "ENUM (not yet supported)",
-                    WHITE_TEXT_11,
-                    FormLabel.ALIGN_LEFT,
-                    inputX, currentY, inputWidth
-                );
-                scrollArea.addComponent(enumLabel);
+                // Create enum dropdown
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                Class enumClass = setting.getEnumClass();
+                if (enumClass != null) {
+                    Enum<?>[] enumValues = (Enum<?>[]) enumClass.getEnumConstants();
+                    Enum<?> currentEnum = setting.getEnumValue();
+                    
+                    FormDropdownSelectionButton<Enum<?>> enumDropdown = new FormDropdownSelectionButton<Enum<?>>(
+                        inputX, currentY,
+                        FormInputSize.SIZE_16,
+                        ButtonColor.BASE,
+                        inputWidth,
+                        new necesse.engine.localization.message.StaticMessage("Select...")
+                    );
+                    
+                    // Add enum values to dropdown
+                    if (enumValues != null) {
+                        for (Enum<?> value : enumValues) {
+                            String displayName = formatEnumName(value.name());
+                            enumDropdown.options.add(value, new necesse.engine.localization.message.StaticMessage(displayName));
+                        }
+                        
+                        // Set current value
+                        if (currentEnum != null) {
+                            String displayName = formatEnumName(currentEnum.name());
+                            enumDropdown.setSelected(currentEnum, new necesse.engine.localization.message.StaticMessage(displayName));
+                        }
+                    }
+                    
+                    // Listen for changes
+                    enumDropdown.onSelected(event -> {
+                        if (event.value != null) {
+                            setting.setValue(event.value);
+                            Settings.saveClientSettings();
+                        }
+                    });
+                    
+                    scrollArea.addComponent(enumDropdown);
+                    
+                    // Reset button for enum
+                    FormTextButton enumResetButton = new FormTextButton(
+                        "↺",
+                        resetButtonX, currentY,
+                        30, // reset button width
+                        FormInputSize.SIZE_16,
+                        ButtonColor.BASE
+                    );
+                    enumResetButton.onClicked(e -> {
+                        setting.resetToDefault();
+                        Enum<?> resetValue = setting.getEnumValue();
+                        if (resetValue != null) {
+                            String displayName = formatEnumName(resetValue.name());
+                            enumDropdown.setSelected(resetValue, new necesse.engine.localization.message.StaticMessage(displayName));
+                        }
+                        Settings.saveClientSettings();
+                    });
+                    scrollArea.addComponent(enumResetButton);
+                } else {
+                    // Fallback if enum class couldn't be determined
+                    FormLabel enumLabel = new FormLabel(
+                        "ENUM (error loading)",
+                        WHITE_TEXT_11,
+                        FormLabel.ALIGN_LEFT,
+                        inputX, currentY, inputWidth
+                    );
+                    scrollArea.addComponent(enumLabel);
+                }
                 break;
         }
 
         currentY += 30;
         return currentY;
+    }
+    
+    /**
+     * Format enum constant name for display.
+     * Converts "PEACEFUL" to "Peaceful", "WORLD_BOSS" to "World Boss", etc.
+     */
+    private String formatEnumName(String name) {
+        if (name == null || name.isEmpty()) {
+            return name;
+        }
+        
+        // Split on underscores and capitalize first letter of each word
+        String[] parts = name.split("_");
+        StringBuilder result = new StringBuilder();
+        
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                result.append(" ");
+            }
+            
+            String part = parts[i].toLowerCase();
+            if (part.length() > 0) {
+                result.append(Character.toUpperCase(part.charAt(0)));
+                if (part.length() > 1) {
+                    result.append(part.substring(1));
+                }
+            }
+        }
+        
+        return result.toString();
     }
 }

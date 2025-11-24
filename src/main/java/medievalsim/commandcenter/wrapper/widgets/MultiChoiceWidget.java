@@ -1,7 +1,7 @@
 package medievalsim.commandcenter.wrapper.widgets;
 
 import medievalsim.commandcenter.wrapper.ParameterMetadata;
-import necesse.engine.commands.parameterHandlers.MultiParameterHandler;
+import medievalsim.util.ModLogger;
 import necesse.engine.commands.parameterHandlers.ParameterHandler;
 import necesse.engine.network.client.Client;
 import necesse.gfx.forms.components.FormComponent;
@@ -10,17 +10,25 @@ import necesse.gfx.forms.components.FormInputSize;
 import necesse.gfx.ui.ButtonColor;
 import necesse.engine.localization.message.StaticMessage;
 
-import java.lang.reflect.Field;
-
 /**
  * Widget for MULTI parameter type (OR logic - multiple handler options).
  * 
  * Uses reflection to inspect MultiParameterHandler and extract sub-handlers.
  * Provides a dropdown to select which handler type to use, then shows appropriate widget.
  * 
- * Example: "player OR preset location"
- *   - User selects "Player" → Shows PlayerDropdownWidget
+ * Two common patterns:
+ * 
+ * Pattern 1: ALTERNATE INPUTS (same data, different input methods)
+ *   Example: "player OR preset location"
+ *   - User selects "Player Name" → Shows PlayerDropdownWidget
  *   - User selects "Preset" → Shows PresetDropdownWidget
+ *   Both represent the same logical parameter, just different ways to specify it.
+ * 
+ * Pattern 2: COMMAND BRANCHING (different actions)
+ *   Example: "'list' OR set penalty"
+ *   - User selects "'list'" → Auto-fills preset, executes list action
+ *   - User selects "Set Death Penalty" → Shows enum dropdown, sets penalty
+ *   These are different command paths, not different ways to specify same data.
  */
 public class MultiChoiceWidget extends ParameterWidget {
     
@@ -57,8 +65,9 @@ public class MultiChoiceWidget extends ParameterWidget {
         this.currentSubComponent = null;
         this.currentSubComponents = null;
         
-        // Extract handlers from MultiParameterHandler using reflection
-        this.handlers = extractHandlers(parameter);
+        // Use cached handlers from ParameterMetadata (no reflection needed)
+        ParameterHandler<?>[] cachedHandlers = parameter.getMultiHandlers();
+        this.handlers = (cachedHandlers != null) ? cachedHandlers : new ParameterHandler<?>[] { parameter.getHandler() };
         
         // Create dropdown for handler selection
         choiceDropdown = new FormDropdownSelectionButton<>(
@@ -109,40 +118,98 @@ public class MultiChoiceWidget extends ParameterWidget {
     }
     
     /**
-     * Extract handlers array from MultiParameterHandler using reflection
+     * Check if a handler is a single-preset handler that doesn't need user input.
+     * For these handlers, we can auto-fill the value and skip showing a sub-widget.
      */
-    private ParameterHandler<?>[] extractHandlers(ParameterMetadata parameter) {
-        try {
-            Object handler = parameter.getHandler();
-            
-            if (handler instanceof MultiParameterHandler) {
-                // Use reflection to access the private 'handlers' field
-                Field handlersField = MultiParameterHandler.class.getDeclaredField("handlers");
-                handlersField.setAccessible(true);
-                return (ParameterHandler<?>[]) handlersField.get(handler);
+    private boolean isSinglePresetHandler(ParameterHandler<?> handler) {
+        String className = handler.getClass().getSimpleName();
+        if ("PresetStringParameterHandler".equals(className)) {
+            try {
+                java.lang.reflect.Field presetsField = handler.getClass().getDeclaredField("presets");
+                presetsField.setAccessible(true);
+                String[] presets = (String[]) presetsField.get(handler);
+                return presets != null && presets.length == 1;
+            } catch (Exception e) {
+                return false;
             }
-            
-            // Fallback: single handler
-            return new ParameterHandler<?>[] { parameter.getHandler() };
-            
-        } catch (Exception e) {
-            medievalsim.util.ModLogger.error("Failed to extract handlers from MultiParameterHandler: %s", e.getMessage());
-            // Fallback to single handler
-            return new ParameterHandler<?>[] { parameter.getHandler() };
         }
+        return false;
     }
     
     /**
-     * Get display name for a handler (based on class name)
+     * Get the single preset value from a PresetStringParameterHandler.
+     * Only call this after confirming isSinglePresetHandler() returns true.
+     */
+    private String getSinglePresetValue(ParameterHandler<?> handler) {
+        try {
+            java.lang.reflect.Field presetsField = handler.getClass().getDeclaredField("presets");
+            presetsField.setAccessible(true);
+            String[] presets = (String[]) presetsField.get(handler);
+            if (presets != null && presets.length == 1) {
+                return presets[0];
+            }
+        } catch (Exception e) {
+            ModLogger.error("MultiChoiceWidget: Could not extract single preset: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * Get display name for a handler showing the actual choice/action available
+     * rather than the technical handler type.
      */
     private String getHandlerDisplayName(ParameterHandler<?> handler) {
         String className = handler.getClass().getSimpleName();
 
-        // Custom friendly labels for common multi-parameter combinations
-        // so the UI shows domain language instead of raw handler names.
-        if ("ServerClientParameterHandler".equals(className)) {
-            return "Server Options";
+        // For PresetStringParameterHandler, show the actual preset values as the choice
+        if ("PresetStringParameterHandler".equals(className)) {
+            try {
+                java.lang.reflect.Field presetsField = handler.getClass().getDeclaredField("presets");
+                presetsField.setAccessible(true);
+                String[] presets = (String[]) presetsField.get(handler);
+                
+                if (presets != null && presets.length > 0) {
+                    // If single preset, show it as the action: "'list'"
+                    if (presets.length == 1) {
+                        return "'" + presets[0] + "'";
+                    }
+                    // Multiple presets: show as choices
+                    return "Choose: " + String.join(" / ", presets);
+                }
+            } catch (Exception e) {
+                ModLogger.error("MultiChoiceWidget: Could not extract presets: " + e.getMessage());
+            }
+            return "Preset Value";
         }
+
+        // For EnumParameterHandler, extract the enum type and format it nicely
+        if ("EnumParameterHandler".equals(className)) {
+            try {
+                java.lang.reflect.Field valuesField = handler.getClass().getDeclaredField("values");
+                valuesField.setAccessible(true);
+                Enum<?>[] values = (Enum<?>[]) valuesField.get(handler);
+                
+                if (values != null && values.length > 0) {
+                    // Get enum class name and format it
+                    String enumClassName = values[0].getClass().getSimpleName();
+                    // Remove common prefixes/suffixes
+                    enumClassName = enumClassName.replace("Game", "").replace("Type", "");
+                    // Convert camelCase to spaced: "DeathPenalty" -> "Death Penalty"
+                    String formatted = enumClassName.replaceAll("([A-Z])", " $1").trim();
+                    return "Set " + formatted;
+                }
+            } catch (Exception e) {
+                ModLogger.error("MultiChoiceWidget: Could not extract enum type: " + e.getMessage());
+            }
+            return "Enum Value";
+        }
+
+        // For ServerClientParameterHandler, this is selecting a player
+        if ("ServerClientParameterHandler".equals(className)) {
+            return "Player Name";
+        }
+
+        // For basic string input
         if ("StringParameterHandler".equals(className)) {
             return "Text Input";
         }
@@ -318,6 +385,54 @@ public class MultiChoiceWidget extends ParameterWidget {
     }
     
     /**
+     * Get all FormComponents for the currently selected sub-widget.
+     * For PlayerDropdownWidget, returns both text input and dropdown.
+     * For other widgets, returns single-element array.
+     * 
+     * @return Array of components, or null if none selected
+     */
+    public FormComponent[] getAllSelectedSubComponents() {
+        Integer selected = choiceDropdown.getSelected();
+        if (selected != null && selected >= 0 && selected < subWidgets.length) {
+            selectedIndex = selected;
+            
+            // Optimization: Skip rendering sub-widget for single-preset handlers
+            // The value is auto-filled, no user input needed
+            if (isSinglePresetHandler(handlers[selectedIndex])) {
+                return new FormComponent[0]; // Return empty array, no components to display
+            }
+            
+            ParameterWidget widget = subWidgets[selectedIndex];
+            if (widget instanceof PlayerDropdownWidget) {
+                PlayerDropdownWidget playerWidget = (PlayerDropdownWidget) widget;
+                return new FormComponent[] {
+                    playerWidget.getTextInput(),
+                    playerWidget.getDropdown()
+                };
+            }
+            return new FormComponent[] { widget.getComponent() };
+        }
+        // Default to first widget
+        if (subWidgets.length > 0) {
+            // Check if first handler is single-preset
+            if (isSinglePresetHandler(handlers[0])) {
+                return new FormComponent[0];
+            }
+            
+            ParameterWidget widget = subWidgets[0];
+            if (widget instanceof PlayerDropdownWidget) {
+                PlayerDropdownWidget playerWidget = (PlayerDropdownWidget) widget;
+                return new FormComponent[] {
+                    playerWidget.getTextInput(),
+                    playerWidget.getDropdown()
+                };
+            }
+            return new FormComponent[] { widget.getComponent() };
+        }
+        return null;
+    }
+    
+    /**
      * Get the index of the currently selected option
      */
     public int getSelectedIndex() {
@@ -349,7 +464,20 @@ public class MultiChoiceWidget extends ParameterWidget {
     
     @Override
     public String getValue() {
-        // Return value from currently selected sub-widget
+        // Optimization: For single-preset handlers, return the preset directly
+        // without needing to query the sub-widget
+        int index = getSelectedIndex();
+        if (index >= 0 && index < handlers.length) {
+            ParameterHandler<?> selectedHandler = handlers[index];
+            if (isSinglePresetHandler(selectedHandler)) {
+                String presetValue = getSinglePresetValue(selectedHandler);
+                if (presetValue != null) {
+                    return presetValue;
+                }
+            }
+        }
+        
+        // Normal case: Return value from currently selected sub-widget
         ParameterWidget selectedWidget = getSelectedWidget();
         return selectedWidget != null ? selectedWidget.getValue() : "";
     }

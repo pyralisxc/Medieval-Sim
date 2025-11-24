@@ -81,9 +81,15 @@ public final class ZoneProtectionValidator {
             return ValidationResult.allow();
         }
         
+        // DEBUG: Log validation attempt
+        boolean canPlace = zone.canClientPlace(client, level);
+        medievalsim.util.ModLogger.info("validatePlacement: player=" + client.getName() + 
+            ", zone=" + zone.name + ", canPlace=" + canPlace + 
+            ", zonePerm=" + zone.getCanPlace());
+        
         // Check if player has permission to place in this zone
-        if (!zone.canClientPlace(client, level)) {
-            return ValidationResult.deny("protectedzone");
+        if (!canPlace) {
+            return ValidationResult.deny("nopermissionplace");
         }
         
         return ValidationResult.allow();
@@ -131,9 +137,15 @@ public final class ZoneProtectionValidator {
             return ValidationResult.allow();
         }
         
+        // DEBUG: Log validation attempt
+        boolean canBreak = zone.canClientBreak(client, level);
+        medievalsim.util.ModLogger.info("validateBreak: player=" + client.getName() + 
+            ", zone=" + zone.name + ", canBreak=" + canBreak + 
+            ", zonePerm=" + zone.getCanBreak());
+        
         // Check if player has permission to break in this zone
-        if (!zone.canClientBreak(client, level)) {
-            return ValidationResult.deny("protectedzone");
+        if (!canBreak) {
+            return ValidationResult.deny("nopermissionbreak");
         }
         
         return ValidationResult.allow();

@@ -83,7 +83,10 @@ public class NecesseCommandRegistry {
         ModLogger.debug("Cache miss - scanning Necesse commands via reflection...");
         
         try {
-            // Get all commands from CommandsManager via reflection
+            // Access static serverCommands list
+            // NOTE: CommandsManager.getServerCommands() exists but requires instance.
+            // Since we're scanning statically registered commands, accessing the static
+            // field directly is acceptable here. The field is stable across versions.
             Field serverCommandsField = CommandsManager.class.getDeclaredField("serverCommands");
             serverCommandsField.setAccessible(true);
             @SuppressWarnings("unchecked")

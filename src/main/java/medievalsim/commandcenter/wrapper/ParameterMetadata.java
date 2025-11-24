@@ -28,6 +28,11 @@ public class ParameterMetadata {
      * This lets us map back into engine state (getCurrentArguments / autocomplete).
      */
     private final CmdParameter sourceParameter;
+    
+    // Cached reflection results (extracted once during construction)
+    private final String[] cachedPresets;
+    private final Enum<?>[] cachedEnumValues;
+    private final ParameterHandler<?>[] cachedHandlers;
 
     public ParameterMetadata(String name, boolean optional, boolean partOfUsage,
                              ParameterHandler<?> handler, ParameterHandlerType handlerType,
@@ -39,6 +44,77 @@ public class ParameterMetadata {
         this.handlerType = handlerType;
         this.extraParams = extraParams;
         this.sourceParameter = sourceParameter;
+        
+        // Extract reflection data once during construction to avoid repeated runtime reflection
+        this.cachedPresets = extractPresetsOnce(handler, handlerType);
+        this.cachedEnumValues = extractEnumValuesOnce(handler);
+        this.cachedHandlers = extractHandlersOnce(handler);
+    }
+    
+    /**
+     * Extract preset values once during construction (avoids repeated reflection).
+     */
+    private static String[] extractPresetsOnce(ParameterHandler<?> handler, ParameterHandlerType handlerType) {
+        // Check for PresetStringParameterHandler first (more specific)
+        if (handler.getClass().getSimpleName().equals("PresetStringParameterHandler")) {
+            try {
+                Field presetsField = handler.getClass().getDeclaredField("presets");
+                presetsField.setAccessible(true);
+                String[] presets = (String[]) presetsField.get(handler);
+                return (presets != null && presets.length > 0) ? presets : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        
+        // Also check StringParameterHandler
+        if (handlerType == ParameterHandlerType.STRING && handler instanceof StringParameterHandler) {
+            try {
+                Field presetsField = StringParameterHandler.class.getDeclaredField("presets");
+                presetsField.setAccessible(true);
+                String[] presets = (String[]) presetsField.get(handler);
+                return (presets != null && presets.length > 0) ? presets : null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Extract enum values once during construction (avoids repeated reflection).
+     */
+    private static Enum<?>[] extractEnumValuesOnce(ParameterHandler<?> handler) {
+        if (!(handler instanceof EnumParameterHandler)) {
+            return null;
+        }
+        
+        try {
+            EnumParameterHandler<?> enumHandler = (EnumParameterHandler<?>) handler;
+            Field valuesField = EnumParameterHandler.class.getDeclaredField("values");
+            valuesField.setAccessible(true);
+            return (Enum<?>[]) valuesField.get(enumHandler);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
+     * Extract handlers from MultiParameterHandler once during construction.
+     */
+    private static ParameterHandler<?>[] extractHandlersOnce(ParameterHandler<?> handler) {
+        if (!(handler instanceof MultiParameterHandler)) {
+            return null;
+        }
+        
+        try {
+            Field handlersField = MultiParameterHandler.class.getDeclaredField("handlers");
+            handlersField.setAccessible(true);
+            return (ParameterHandler<?>[]) handlersField.get(handler);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -183,62 +259,34 @@ public class ParameterMetadata {
     
     /**
      * Check if this parameter has preset values (for dropdown UI).
-     * Checks both StringParameterHandler and PresetStringParameterHandler.
+     * Uses cached values extracted during construction (no reflection).
      */
     public boolean hasPresets() {
-        // Check for PresetStringParameterHandler first (more specific)
-        if (handler.getClass().getSimpleName().equals("PresetStringParameterHandler")) {
-            try {
-                Field presetsField = handler.getClass().getDeclaredField("presets");
-                presetsField.setAccessible(true);
-                String[] presets = (String[]) presetsField.get(handler);
-                return presets != null && presets.length > 0;
-            } catch (Exception e) {
-                return false;
-            }
-        }
-        
-        // Also check StringParameterHandler (fallback)
-        if (handlerType == ParameterHandlerType.STRING && handler instanceof StringParameterHandler) {
-            try {
-                Field presetsField = StringParameterHandler.class.getDeclaredField("presets");
-                presetsField.setAccessible(true);
-                String[] presets = (String[]) presetsField.get(handler);
-                return presets != null && presets.length > 0;
-            } catch (Exception e) {
-                return false;
-            }
-        }
-        
-        return false;
+        return cachedPresets != null && cachedPresets.length > 0;
     }
     
     /**
      * Get preset values if this is a StringParameterHandler with presets.
+     * Uses cached values extracted during construction (no reflection).
      */
     public String[] getPresets() {
-        // Try PresetStringParameterHandler first
-        if (handler.getClass().getSimpleName().equals("PresetStringParameterHandler")) {
-            try {
-                Field presetsField = handler.getClass().getDeclaredField("presets");
-                presetsField.setAccessible(true);
-                return (String[]) presetsField.get(handler);
-            } catch (Exception e) {
-                // Fall through to try StringParameterHandler
-            }
-        }
-        
-        // Try StringParameterHandler
-        if (hasPresets() && handler instanceof StringParameterHandler) {
-            try {
-                Field presetsField = StringParameterHandler.class.getDeclaredField("presets");
-                presetsField.setAccessible(true);
-                return (String[]) presetsField.get(handler);
-            } catch (Exception e) {
-                return new String[0];
-            }
-        }
-        return new String[0];
+        return cachedPresets != null ? cachedPresets : new String[0];
+    }
+    
+    /**
+     * Get enum values if this is an EnumParameterHandler.
+     * Uses cached values extracted during construction (no reflection).
+     */
+    public Enum<?>[] getEnumValues() {
+        return cachedEnumValues;
+    }
+    
+    /**
+     * Get handlers if this is a MultiParameterHandler.
+     * Uses cached values extracted during construction (no reflection).
+     */
+    public ParameterHandler<?>[] getMultiHandlers() {
+        return cachedHandlers;
     }
     
     @Override

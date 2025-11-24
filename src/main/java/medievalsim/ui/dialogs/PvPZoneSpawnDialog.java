@@ -15,15 +15,9 @@ import necesse.gfx.ui.ButtonColor;
 
 public class PvPZoneSpawnDialog
 extends Form {
-    @SuppressWarnings("unused") // Reserved for future functionality
-    private final Client client;
-    @SuppressWarnings("unused") // Reserved for future functionality  
-    private final int zoneID;
 
     public PvPZoneSpawnDialog(Client client, int zoneID, String zoneName, float damageMultiplier, int combatLockSeconds) {
         super("pvp_zone_spawn", 450, 280);
-        this.client = client;
-        this.zoneID = zoneID;
         this.setPosMiddle(WindowManager.getWindow().getHudWidth() / 2, WindowManager.getWindow().getHudHeight() / 2);
         int currentY = 20;
         int margin = 20;

@@ -15,15 +15,9 @@ import necesse.gfx.ui.ButtonColor;
 
 public class PvPZoneExitDialog
 extends Form {
-    @SuppressWarnings("unused") // Reserved for future functionality  
-    private final int zoneID;
-    @SuppressWarnings("unused") // Reserved for future functionality
-    private final Client client;
 
     public PvPZoneExitDialog(Client client, int zoneID, String zoneName, int remainingCombatLockSeconds) {
         super("pvp_zone_exit", 450, 260);
-        this.client = client;
-        this.zoneID = zoneID;
         this.setPosMiddle(WindowManager.getWindow().getHudWidth() / 2, WindowManager.getWindow().getHudHeight() / 2);
         int currentY = 15;
         int margin = 20;

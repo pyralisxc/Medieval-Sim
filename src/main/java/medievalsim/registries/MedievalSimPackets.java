@@ -26,7 +26,7 @@ import medievalsim.packets.PacketZoneSync;
 import medievalsim.packets.PacketForceClean;
 import medievalsim.packets.PacketExecuteCommand;
 import medievalsim.packets.PacketCommandResult;
-import medievalsim.packets.PacketSyncSettings;
+
 import necesse.engine.network.Packet;
 import necesse.engine.registries.PacketRegistry;
 
@@ -63,8 +63,7 @@ public class MedievalSimPackets {
         
         // Command Center packets
         PacketExecuteCommand.class,
-        PacketCommandResult.class,
-        PacketSyncSettings.class
+        PacketCommandResult.class
     );
     
     public static void registerCore() {
