@@ -67,55 +67,88 @@ extends AdminZone {
      */
     private boolean hasElevatedAccess(ServerClient client, Level level) {
         if (client == null) {
+            ModLogger.debug("hasElevatedAccess: client is null");
             return false;
         }
 
+        // DEBUG: Log all checks
+        boolean isWorld = this.isWorldOwner(client, level);
+        boolean isOwner = this.isOwner(client);
+        boolean isCreator = this.isCreator(client);
+        
+        ModLogger.info("hasElevatedAccess: player=%s, isWorldOwner=%s, isZoneOwner=%s, isCreator=%s, ownerAuth=%d, clientAuth=%d, creatorAuth=%d",
+            client.getName(), isWorld, isOwner, isCreator, this.ownerAuth, client.authentication, this.creatorAuth);
+
         // World owner and explicit zone owner/creator always have full access
-        if (this.isWorldOwner(client, level) || this.isOwner(client) || this.isCreator(client)) {
+        if (isWorld || isOwner || isCreator) {
+            ModLogger.info("hasElevatedAccess: GRANTED via ownership check");
             return true;
         }
 
         // When enabled, members of the owner's team get full access
-        if (allowOwnerTeam && isOnOwnerTeam(client, level)) {
+        boolean onOwnerTeam = allowOwnerTeam && isOnOwnerTeam(client, level);
+        int clientTeamID = client.getTeamID();
+        ModLogger.info("hasElevatedAccess: allowOwnerTeam=%s, onOwnerTeam=%s, clientTeamID=%d",
+            allowOwnerTeam, onOwnerTeam, clientTeamID);
+        
+        if (onOwnerTeam) {
+            ModLogger.info("hasElevatedAccess: GRANTED via owner team membership");
             return true;
         }
 
         // Members of explicitly allowed teams also get full access
-        int clientTeamID = client.getTeamID();
-        if (clientTeamID != -1 && this.allowedTeamIDs.contains(clientTeamID)) {
+        boolean inAllowedTeam = clientTeamID != -1 && this.allowedTeamIDs.contains(clientTeamID);
+        ModLogger.info("hasElevatedAccess: inAllowedTeam=%s, allowedTeamIDs=%s",
+            inAllowedTeam, this.allowedTeamIDs);
+        
+        if (inAllowedTeam) {
+            ModLogger.info("hasElevatedAccess: GRANTED via allowed team membership");
             return true;
         }
 
+        ModLogger.info("hasElevatedAccess: DENIED - no elevated access");
         return false;
     }
 
     public boolean canClientBreak(ServerClient client, Level level) {
+        ModLogger.info("canClientBreak called: player=%s, zone=%s", 
+            client != null ? client.getName() : "null", this.name);
+        
         if (client == null) {
+            ModLogger.info("canClientBreak: FALSE - client is null");
             return false;
         }
 
         // Elevated access (world owner, zone owner, creator)
         if (hasElevatedAccess(client, level)) {
+            ModLogger.info("canClientBreak: TRUE - has elevated access");
             return true;
         }
 
         // Apply granular permission to all non-elevated players
         // (Team membership doesn't gate permission access - permissions apply to everyone)
+        ModLogger.info("canClientBreak: returning zone permission canBreak=%s", canBreak);
         return canBreak;
     }
     
     public boolean canClientPlace(ServerClient client, Level level) {
+        ModLogger.info("canClientPlace called: player=%s, zone=%s", 
+            client != null ? client.getName() : "null", this.name);
+        
         if (client == null) {
+            ModLogger.info("canClientPlace: FALSE - client is null");
             return false;
         }
 
         // Elevated access (world owner, zone owner, creator)
         if (hasElevatedAccess(client, level)) {
+            ModLogger.info("canClientPlace: TRUE - has elevated access");
             return true;
         }
 
         // Apply granular permission to all non-elevated players
         // (Team membership doesn't gate permission access - permissions apply to everyone)
+        ModLogger.info("canClientPlace: returning zone permission canPlace=%s", canPlace);
         return canPlace;
     }
     

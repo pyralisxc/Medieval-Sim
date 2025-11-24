@@ -50,18 +50,25 @@ public class ToolDamageItemCanDamageTilePatch {
         @Advice.Argument(5) InventoryItem item,
         @Advice.Return(readOnly = false) boolean returnValue
     ) {
+        medievalsim.util.ModLogger.info("\n***** ToolDamageItemCanDamageTilePatch triggered *****");
+        medievalsim.util.ModLogger.info("ToolDamagePatch: layerID=%d, tileX=%d, tileY=%d, attacker=%s", 
+            layerID, tileX, tileY, attackerMob != null ? attackerMob.getClass().getSimpleName() : "null");
+        
         // Skip if vanilla already denied
         if (!returnValue) {
+            medievalsim.util.ModLogger.info("ToolDamagePatch: Skipping - vanilla already denied");
             return;
         }
         
         // Only enforce on server
         if (!level.isServer()) {
+            medievalsim.util.ModLogger.info("ToolDamagePatch: Skipping - not server side");
             return;
         }
         
         // Only check for player attackers
         if (!(attackerMob instanceof PlayerMob)) {
+            medievalsim.util.ModLogger.info("ToolDamagePatch: Skipping - not a player mob");
             return;
         }
         
@@ -69,8 +76,11 @@ public class ToolDamageItemCanDamageTilePatch {
         ServerClient client = player.getServerClient();
         
         if (client == null) {
+            medievalsim.util.ModLogger.info("ToolDamagePatch: Skipping - client is null");
             return;
         }
+        
+        medievalsim.util.ModLogger.info("ToolDamagePatch: Checking zone permissions for player '%s'", client.getName());
         
         // Check zone permissions for breaking
         ZoneProtectionValidator.ValidationResult validation = 

@@ -7,7 +7,7 @@ plugins {
 project.ext.modID = "medieval.sim" // The unique id of your mod. Must be all lowercase and cannot use special characters.
 project.ext.modName = "Medieval Sim" // The display name of your mod.
 project.ext.modVersion = "1.0" // Your current builds version. Must follow the xx.xx... format.
-project.ext.gameVersion = "1.0.1" // The target game version.
+project.ext.gameVersion = "1.0.3" // The target game version.
 project.ext.modDescription = "Turn your world into a medieval rpg, where you can shape the world, create plots, protected and pvp ares etc." // Short description of what your mod is.
 project.ext.author = "Pyralis" // Your name
 
