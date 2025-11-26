@@ -2,7 +2,7 @@
 # No custom tiles yet
 
 [object]
-# No custom objects yet (barrier is internal)
+plotflag=Plot Flag
 
 [item]
 # No custom items yet
@@ -18,6 +18,8 @@ pvpimmunity=PvP Immunity
 pvpimmunitydesc=You are temporarily immune to PvP damage
 protectedzone=Protected Zone
 protectedzonedesc=Your build and interaction permissions are governed by zone rules
+settlementprotection=Settlement Protection
+settlementprotectiondesc=Your build and interaction permissions are governed by settlement protection rules
 
 [itemmessage]
 protectedzone=This area is protected by a zone
@@ -212,6 +214,13 @@ immunitymsg=5 seconds of immunity on entry
 combatlockremaining=Combat Lock: <seconds>s remaining
 cannotexitcombat=You cannot exit while in combat!
 
+# Plot Flag
+plotflagtip1=Purchasable settlement flag
+plotflagtip2=Players can walk up and pay to claim this as their settlement
+plotflaginteract=Purchase Settlement for <amount> <item>
+plotflagcannotafford=You cannot afford this plot! Requires <amount> <item>
+plotflagpurchased=Settlement purchased successfully!
+
 [misc]
 protectedzone=This area is protected by zone: <zone>
 combatlockmessage=Cannot exit - in combat for <seconds>s
@@ -251,4 +260,61 @@ zone.pvp.entereddetails=Entered PVP zone: <name> (Damage: <damage>, Combat Lock:
 # Build Mode Messages
 buildmode.nopermission=You don't have permission to use build mode (requires ADMIN)
 buildmode.blocklimit=Too many blocks to place at once (limit: <limit>)
+
+[ui]
+# Settlement Protection
+settlementprotection=Protection
+settlementprotectiontip=Configure settlement protection settings
+settlementprotectiondesc=Configure who can build and interact in your settlement
+protectionenabled=Protection Enabled
+allowteam=Allow Owner's Team
+teampermissions=Team Permissions
+interactions=Interactions
+canbreak=Can Break
+canplace=Can Place
+caninteractdoors=Can Interact: Doors
+caninteractcontainers=Can Interact: Containers
+caninteractstations=Can Interact: Stations
+caninteractsigns=Can Interact: Signs
+caninteractswitches=Can Interact: Switches
+caninteractfurniture=Can Interact: Furniture
+
+# Banking
+medievalsim_openbank=Bank
+banktitle=Bank
+bankcoins=Coins:
+bankupgrade=Upgrade Bank
+bankupgradecost=Upgrade Cost: <cost> coins
+bankupgradelevel=Bank Level: <level>/<max>
+bankslots=Slots: <current>/<max>
+depositcoins=Deposit Coins
+withdrawcoins=Withdraw Coins
+setpin=Set PIN
+changepin=Change PIN
+enterpin=Enter PIN:
+enternewpin=Enter New PIN:
+pinset=PIN set successfully
+pinchanged=PIN changed successfully
+pininvalid=Invalid PIN
+pinrequired=PIN Required
+bankupgraded=Bank upgraded successfully!
+bankmaxupgrade=Bank is at maximum upgrade level
+bankmaxlevel=Bank is at maximum level
+bankinsufficientfunds=Insufficient funds for upgrade
+depositamount=Deposit Amount:
+withdrawamount=Withdraw Amount:
+depositall=Deposit All
+withdrawall=Withdraw All
+bankinventoryfull=Your inventory cannot hold coins right now
+bankwithdrawpartial=Your inventory filled up after receiving <delivered> coins; <remaining> coins were returned
+coinsdeposited=<amount> coins deposited
+coinswithdrawn=<amount> coins withdrawn
+insufficientcoins=Insufficient coins
+invalidamount=Invalid amount
+
+# Grand Exchange
+grandexchange=Grand Exchange
+grandexchangetitle=Grand Exchange
+
+
 

@@ -218,39 +218,106 @@ USER EXPERIENCE:
 
 ------------------------------------------------------------------------
 
-6. PLOT FLAG SYSTEM (FUTURE FEATURE)
-====================================
+6. PLOT FLAG SYSTEM
+===================
 
-WHAT IT WILL DO:
-- Allow administrators to create purchasable settlement plots
-- Enable controlled settlement expansion through an economy system
-- Provide customizable pricing for different plot locations
+WHAT IT DOES:
+- Allows administrators to create purchasable settlement plots
+- Enables controlled settlement expansion through an economy system
+- Provides customizable pricing for different plot locations
 
-HOW IT WILL WORK:
+HOW IT WORKS:
 
 Plot Creation:
-- Administrators purchase special "Plot Flag" items
-- Set custom prices for each plot flag
+- Administrators purchase special "Plot Flag" items from the shop
+- Plot flags cost configurable amount of coins (default: 1000 coins)
 - Place plot flags in desired locations around the world
+- Plot flags respect settlement spacing rules
 
 Player Experience:
 - Players find plot flags placed by administrators
-- See the price to purchase each plot
+- Right-click plot flag to see purchase price
 - Spend in-game currency to buy the plot
-- Automatically receive a settlement flag upon purchase
-- Gain ownership of that location for settlement building
+- Plot flag automatically converts to settlement flag upon purchase
+- Purchaser becomes the settlement owner
 
 Administrative Control:
-- Set different prices for different locations (prime locations cost more)
-- Remove or repriced plots as needed
-- Track which plots have been sold
-- Manage settlement expansion in a controlled way
+- Set coin cost via mod settings (ModConfig.PlotFlags.coinCost)
+- Enable/disable plot flag system globally (ModConfig.PlotFlags.enabled)
+- When enabled, normal settlement flags cannot be purchased/placed
+- Plot flags respect settlement spacing configuration
+- Remove or replace plots as needed
 
 BENEFITS:
 - Creates an economic aspect to settlement creation
 - Allows administrators to control where settlements can be built
 - Generates currency sinks for the server economy
 - Enables strategic placement of settlements in desirable locations
+- Prevents random settlement sprawl
+
+------------------------------------------------------------------------
+
+7. SETTLEMENT PROTECTION SYSTEM
+================================
+
+WHAT IT DOES:
+- Allows settlement owners to protect their entire settlement from griefing
+- Provides granular permission controls similar to Protected Zones
+- Automatically applies protection to settlement boundaries
+- Shows visual buff indicator when inside protected settlements
+
+WHO CAN USE IT:
+- Settlement owners (only the owner can configure protection)
+- Settlement members (can be granted permissions by owner)
+- Owner's team (can be granted full access)
+
+HOW IT WORKS:
+
+Enabling Protection:
+- Settlement owner opens settlement settings (click settlement flag → "Settlement" button)
+- Click "Protection" button at top of settlement settings
+- Toggle "Enable Protection" checkbox
+- Configure permissions and team access
+- Click "Save" to apply settings
+
+Permission Controls:
+- Team Permissions: Allow owner's team to build and interact
+- Break Blocks: Allow breaking tiles
+- Place Blocks: Allow placing tiles
+- Doors: Allow opening/closing doors
+- Containers: Allow accessing chests and containers
+- Crafting Stations: Allow using crafting stations
+- Signs: Allow editing signs
+- Switches: Allow using switches
+- Furniture: Allow interacting with furniture
+
+Visual Feedback:
+- Settlement Protection buff appears when entering protected settlement
+- Buff shows settlement name, owner, and permission status
+- Buff disappears when leaving settlement
+- Clear indication of protection status
+
+Integration:
+- Works alongside Protected Zones (both systems can coexist)
+- Respects settlement boundaries automatically
+- No manual zone creation required
+- Protection follows settlement as it expands
+
+BENEFITS:
+- Protects settlements without requiring manual zone creation
+- Gives settlement owners control over their own protection
+- Simpler than creating Protected Zones for every settlement
+- Automatically adapts to settlement size changes
+- Clear visual feedback for players
+
+USER EXPERIENCE:
+- Settlement owner clicks settlement flag
+- Opens settlement settings
+- Clicks "Protection" button
+- Configures permissions in dialog
+- Saves settings
+- Protection immediately applies to entire settlement
+- All players see buff when entering protected settlement
 
 ========================================================================
                         INTEGRATION & USER FLOW
@@ -270,9 +337,10 @@ HOW EVERYTHING WORKS TOGETHER:
 4. Each tool opens its own specialized interface
 5. All tools work together - for example:
    - Use Build Mode to construct a building
-   - Use Zone Management to protect it from griefing
+   - Use Zone Management to protect it from griefing (or use Settlement Protection for player settlements)
    - Use Command Center to add special items or effects
    - Use Settlement tools to control nearby settlement creation
+   - Settlement owners can protect their own settlements without admin intervention
 
 PERMISSION SYSTEM:
 - All features respect Necesse's permission levels
@@ -312,9 +380,10 @@ Setting up a New Server Area:
 2. Use Zone Management to create protected spawn areas
 3. Use Command Center to configure world settings
 4. Use Settlement tools to control expansion
+5. Enable Settlement Protection for player-owned areas
 
 Managing a Community Event:
-1. Use Build Mode to construct event arena or structures  
+1. Use Build Mode to construct event arena or structures
 2. Use Zone Management to create PvP zones for competitions
 3. Use Command Center to give participants special items
 4. Use Zone Management to protect the event area from griefing
@@ -324,6 +393,15 @@ Daily Server Maintenance:
 2. Use Zone Management to adjust protection as needed
 3. Use Settlement tools to manage growth and expansion
 4. Use Build Mode for quick repairs or improvements
+5. Players manage their own settlement protection
+
+Player Settlement Management:
+1. Player places settlement flag (or purchases plot flag)
+2. Player opens settlement settings
+3. Player clicks "Protection" button
+4. Player configures permissions and team access
+5. Settlement is now protected from griefing
+6. Other players see buff when entering protected settlement
 
 ========================================================================
                              FUTURE VISION

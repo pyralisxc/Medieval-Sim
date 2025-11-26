@@ -262,9 +262,36 @@ public class ModSettingsTab {
                 currentY = buildSettingWidget(scrollArea, setting, x + 10, currentY, width - 10);
                 currentY += 5;
             }
+            
+            // Special case: Add help text for Plot Flags section
+            if (section.getName().equals("PLOT_FLAGS")) {
+                FormLabel helpLabel = new FormLabel(
+                    "Tip: Open your inventory crafting menu to create plot flags (admins only)",
+                    WHITE_TEXT_11,
+                    0,
+                    x + 10, currentY,
+                    width - 10
+                );
+                scrollArea.addComponent(helpLabel);
+                currentY += 18;
+            }
         }
 
         return currentY;
+    }
+    
+    /**
+     * Get the current player
+     */
+    private PlayerMob getPlayer() {
+        if (necesse.engine.GlobalData.getCurrentState() instanceof necesse.engine.state.MainGame) {
+            necesse.engine.state.MainGame mainGame = (necesse.engine.state.MainGame) necesse.engine.GlobalData.getCurrentState();
+            necesse.engine.network.client.Client client = mainGame.getClient();
+            if (client != null) {
+                return client.getPlayer();
+            }
+        }
+        return null;
     }
 
     /**
@@ -419,6 +446,7 @@ public class ModSettingsTab {
                 break;
 
             case STRING:
+                // Standard text input for string fields
                 FormTextInput stringInput = new FormTextInput(
                     inputX, currentY,
                     FormInputSize.SIZE_16,

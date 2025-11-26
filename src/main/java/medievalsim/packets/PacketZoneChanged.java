@@ -40,8 +40,9 @@ extends Packet {
             this.damageMultiplier = reader.getNextFloat();
             this.combatLockSeconds = reader.getNextInt();
         } else {
-            this.damageMultiplier = 0.05f;
-            this.combatLockSeconds = 3;
+            // Provide sensible defaults when data isn't present for protected zones
+            this.damageMultiplier = medievalsim.config.ModConfig.Zones.defaultDamageMultiplier;
+            this.combatLockSeconds = medievalsim.config.ModConfig.Zones.defaultCombatLockSeconds;
         }
     }
 
@@ -59,8 +60,8 @@ extends Packet {
             this.damageMultiplier = pvpZone.damageMultiplier;
             this.combatLockSeconds = pvpZone.combatLockSeconds;
         } else {
-            this.damageMultiplier = 0.05f;
-            this.combatLockSeconds = 3;
+            this.damageMultiplier = medievalsim.config.ModConfig.Zones.defaultDamageMultiplier;
+            this.combatLockSeconds = medievalsim.config.ModConfig.Zones.defaultCombatLockSeconds;
         }
         Packet zoningPacket = new Packet();
         PacketWriter zoningWriter = new PacketWriter(zoningPacket);

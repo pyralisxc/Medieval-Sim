@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import medievalsim.ui.AdminToolsHudForm;
 import medievalsim.ui.AdminToolsHudManager;
+import medievalsim.util.ModLogger;
 import medievalsim.zones.AdminZone;
 import medievalsim.zones.AdminZonesLevelData;
 import medievalsim.zones.ProtectedZone;
@@ -57,11 +58,13 @@ extends Packet {
     public PacketZoneSync(AdminZonesLevelData zoneData, Server server) {
         this.protectedZones = new ArrayList<ZoneData>();
         this.pvpZones = new ArrayList<ZoneData>();
-        
-        // Refresh owner names for online players before syncing
-        if (server != null) {
-            Map<Integer, ProtectedZone> protectedMap = zoneData.getProtectedZonesInternal();
-            synchronized (protectedMap) {
+
+        // Work with the correctly-typed internal maps
+        // Extend synchronized block to cover both owner name refresh AND zone data extraction
+        Map<Integer, ProtectedZone> protectedMap = zoneData.getProtectedZonesInternal();
+        synchronized (protectedMap) {
+            // Refresh owner names for online players before extracting zone data
+            if (server != null) {
                 for (ProtectedZone zone : protectedMap.values()) {
                     if (zone.getOwnerAuth() != -1L) {
                         ServerClient ownerClient = server.getClientByAuth(zone.getOwnerAuth());
@@ -72,15 +75,13 @@ extends Packet {
                     }
                 }
             }
-        }
-        
-        // Work with the correctly-typed internal maps
-        Map<Integer, ProtectedZone> protectedMap = zoneData.getProtectedZonesInternal();
-        synchronized (protectedMap) {
+
+            // Extract zone data while still holding the lock
             for (ProtectedZone protectedZone : protectedMap.values()) {
                 this.protectedZones.add(new ZoneData(protectedZone));
             }
         }
+
         Map<Integer, PvPZone> pvpMap = zoneData.getPvPZonesInternal();
         synchronized (pvpMap) {
             for (PvPZone pvPZone : pvpMap.values()) {
@@ -166,19 +167,45 @@ extends Packet {
         }
         AdminToolsHudForm hudForm = AdminToolsHudManager.getHudForm();
         if (hudForm != null) {
-            AdminZone zone2;
             HashMap<Integer, ProtectedZone> protectedMap = new HashMap<Integer, ProtectedZone>();
             HashMap<Integer, PvPZone> pvpMap = new HashMap<Integer, PvPZone>();
+
+            // Safely retrieve protected zones with null checks
             for (ZoneData data : this.protectedZones) {
-                zone2 = zoneData.getProtectedZones().get(data.uniqueID);
-                if (zone2 == null) continue;
+                if (data == null) {
+                    ModLogger.warn("Null ZoneData in protectedZones list during sync");
+                    continue;
+                }
+                AdminZone zone2 = zoneData.getProtectedZones().get(data.uniqueID);
+                if (zone2 == null) {
+                    ModLogger.debug("Protected zone %d not found in level data during sync", data.uniqueID);
+                    continue;
+                }
+                if (!(zone2 instanceof ProtectedZone)) {
+                    ModLogger.error("Zone %d is not a ProtectedZone (type: %s)", data.uniqueID, zone2.getClass().getName());
+                    continue;
+                }
                 protectedMap.put(zone2.uniqueID, (ProtectedZone)zone2);
             }
+
+            // Safely retrieve PvP zones with null checks
             for (ZoneData data : this.pvpZones) {
-                zone2 = zoneData.getPvPZones().get(data.uniqueID);
-                if (zone2 == null) continue;
+                if (data == null) {
+                    ModLogger.warn("Null ZoneData in pvpZones list during sync");
+                    continue;
+                }
+                AdminZone zone2 = zoneData.getPvPZones().get(data.uniqueID);
+                if (zone2 == null) {
+                    ModLogger.debug("PvP zone %d not found in level data during sync", data.uniqueID);
+                    continue;
+                }
+                if (!(zone2 instanceof PvPZone)) {
+                    ModLogger.error("Zone %d is not a PvPZone (type: %s)", data.uniqueID, zone2.getClass().getName());
+                    continue;
+                }
                 pvpMap.put(((PvPZone)zone2).uniqueID, (PvPZone)zone2);
             }
+
             hudForm.updateZones(protectedMap, pvpMap);
         }
     }

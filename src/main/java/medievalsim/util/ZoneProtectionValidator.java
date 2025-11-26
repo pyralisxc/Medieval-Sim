@@ -5,6 +5,7 @@ import necesse.engine.util.GameMath;
 import necesse.level.maps.Level;
 import medievalsim.zones.AdminZonesLevelData;
 import medievalsim.zones.ProtectedZone;
+import medievalsim.zones.SettlementProtectionHelper;
 
 /**
  * Centralized validator for zone protection checks across all patches.
@@ -68,26 +69,31 @@ public final class ZoneProtectionValidator {
         if (!ValidationUtil.isValidServerLevel(level) || client == null) {
             return ValidationResult.allow();
         }
-        
+
+        // Check settlement protection first (takes precedence over admin zones)
+        if (!SettlementProtectionHelper.canClientPlace(client, level, tileX, tileY)) {
+            return ValidationResult.deny("nopermissionplace");
+        }
+
         // Get zone data for this level
         AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
         if (zoneData == null) {
             return ValidationResult.allow();
         }
-        
+
         // Check if this location is in a protected zone
         ProtectedZone zone = zoneData.getProtectedZoneAt(tileX, tileY);
         if (zone == null) {
             return ValidationResult.allow();
         }
-        
+
         // Check if player has permission to place in this zone
         boolean canPlace = zone.canClientPlace(client, level);
-        
+
         if (!canPlace) {
             return ValidationResult.deny("nopermissionplace");
         }
-        
+
         return ValidationResult.allow();
     }
     

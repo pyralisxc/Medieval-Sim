@@ -36,7 +36,6 @@ public class BuildModeManager {
     private Level currentLevel;
     private boolean settingsDirty = false;
     private long lastSettingsSaveTime = 0L;
-    // Settings save delay removed - saving is now immediate
 
     private BuildModeManager(Client client) {
         this.client = client;
@@ -49,11 +48,13 @@ public class BuildModeManager {
         }
         if (instance == null) {
             instance = new BuildModeManager(client);
+        } else if (BuildModeManager.instance.client == null) {
+            // Instance exists but client is null - reinitialize with new client
+            BuildModeManager.instance.client = client;
         } else if (BuildModeManager.instance.client != client) {
+            // Different client - cleanup and create new instance
             instance.cleanup();
             instance = new BuildModeManager(client);
-        } else if (BuildModeManager.instance.client == null) {
-            BuildModeManager.instance.client = client;
         }
         return instance;
     }

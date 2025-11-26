@@ -199,11 +199,11 @@ public class ModConfig {
         public static int barrierMaxTilesPerTick = 10;
         
         @ConfigValue(
-            defaultValue = "30",
+            defaultValue = "3",
             description = "Default combat lock duration (seconds)",
-            min = 0, max = 300
+            min = 0, max = 10
         )
-        public static int defaultCombatLockSeconds = 30;
+        public static int defaultCombatLockSeconds = 3;
         
         @ConfigValue(
             defaultValue = "100",
@@ -211,7 +211,35 @@ public class ModConfig {
             min = 10, max = 500
         )
         public static int defaultForceCleanRadius = 100;
-        
+
+        @ConfigValue(
+            defaultValue = "500",
+            description = "Soft limit for protected zones (warning threshold)",
+            min = 10, max = 5000
+        )
+        public static int protectedZoneSoftLimit = 500;
+
+        @ConfigValue(
+            defaultValue = "500",
+            description = "Soft limit for PvP zones (warning threshold)",
+            min = 10, max = 5000
+        )
+        public static int pvpZoneSoftLimit = 500;
+
+        @ConfigValue(
+            defaultValue = "1000",
+            description = "Critical limit for protected zones (error threshold)",
+            min = 100, max = 10000
+        )
+        public static int protectedZoneCriticalLimit = 1000;
+
+        @ConfigValue(
+            defaultValue = "1000",
+            description = "Critical limit for PvP zones (error threshold)",
+            min = 100, max = 10000
+        )
+        public static int pvpZoneCriticalLimit = 1000;
+
         // Setters with validation
         public static void setPvpReentryCooldownMs(long value) {
             pvpReentryCooldownMs = validateLong(value, 0L, 300000L, "pvpReentryCooldownMs");
@@ -238,7 +266,95 @@ public class ModConfig {
         }
         
         public static void setDefaultCombatLockSeconds(int value) {
-            defaultCombatLockSeconds = validateInt(value, 0, 300, "defaultCombatLockSeconds");
+            defaultCombatLockSeconds = validateInt(value, 0, 10, "defaultCombatLockSeconds");
+        }
+
+        public static void setProtectedZoneSoftLimit(int value) {
+            protectedZoneSoftLimit = validateInt(value, 10, 5000, "protectedZoneSoftLimit");
+        }
+
+        public static void setPvpZoneSoftLimit(int value) {
+            pvpZoneSoftLimit = validateInt(value, 10, 5000, "pvpZoneSoftLimit");
+        }
+
+        public static void setProtectedZoneCriticalLimit(int value) {
+            protectedZoneCriticalLimit = validateInt(value, 100, 10000, "protectedZoneCriticalLimit");
+        }
+
+        public static void setPvpZoneCriticalLimit(int value) {
+            pvpZoneCriticalLimit = validateInt(value, 100, 10000, "pvpZoneCriticalLimit");
+        }
+    }
+    
+    // ===== PLOT FLAGS CONFIGURATION =====
+    
+    @ConfigSection(value = "PLOT_FLAGS", description = "Purchasable plot flags that convert to player settlements")
+    public static class PlotFlags {
+        
+        @ConfigValue(
+            defaultValue = "false",
+            description = "Enable plot flag system (when enabled, normal settlement flags cannot be purchased/placed)"
+        )
+        public static boolean enabled = false;
+        
+        @ConfigValue(
+            defaultValue = "1000",
+            description = "Coin cost to purchase plot flags",
+            min = 1, max = 1000000
+        )
+        public static int coinCost = 1000;
+        
+        // Setters with validation
+        public static void setEnabled(boolean value) {
+            enabled = value;
+        }
+        
+        public static void setCoinCost(int value) {
+            coinCost = validateInt(value, 1, 1000000, "coinCost");
+        }
+    }
+    
+    // ===== SETTLEMENT SPACING CONFIGURATION =====
+    
+    @ConfigSection(value = "SETTLEMENTS", description = "Settlement protection and configuration")
+    public static class Settlements {
+
+        @ConfigValue(
+            defaultValue = "false",
+            description = "Enable zone protection for settlements (protects settlement area from non-members)"
+        )
+        public static boolean protectionEnabled = false;
+
+        // Setter with validation
+        public static void setProtectionEnabled(boolean value) {
+            protectionEnabled = value;
+        }
+    }
+
+    @ConfigSection(value = "SETTLEMENT_SPACING", description = "Minimum distance between settlements")
+    public static class SettlementSpacing {
+
+        @ConfigValue(
+            defaultValue = "0",
+            description = "Minimum settlement tier for spacing calculation (0 = vanilla spacing, 1-6 = enforce tier spacing). Tier sizes: 0=40 tiles, 1=56 tiles, 2=72 tiles, 3=88 tiles, 4=104 tiles, 5=120 tiles, 6=136 tiles",
+            min = 0, max = 6
+        )
+        public static int minimumTier = 0;
+
+        @ConfigValue(
+            defaultValue = "0",
+            description = "Additional region padding beyond minimum tier (1 region = 8 tiles)",
+            min = 0, max = 10
+        )
+        public static int customPadding = 0;
+
+        // Setters with validation
+        public static void setMinimumTier(int value) {
+            minimumTier = validateInt(value, 0, 6, "minimumTier");
+        }
+
+        public static void setCustomPadding(int value) {
+            customPadding = validateInt(value, 0, 10, "customPadding");
         }
     }
     
@@ -277,6 +393,230 @@ public class ModConfig {
         public static int currentHeight = 500;
     }
 
+    // ===== LOGGING CONFIGURATION =====
+    @ConfigSection(value = "LOGGING", description = "Logging configuration for Medieval Sim")
+    public static class Logging {
+        @ConfigValue(defaultValue = "false", description = "Enable verbose debug logging for placement/spacing checks (development only)", runtime = true)
+        public static boolean verboseDebug = false;
+
+        public static void setVerboseDebug(boolean value) {
+            verboseDebug = value;
+        }
+    }
+
+    // ===== BANKING CONFIGURATION =====
+    @ConfigSection(value = "BANKING", description = "Player banking system configuration")
+    public static class Banking {
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Enable banking system (adds Bank option to Elder NPC)"
+        )
+        public static boolean enabled = true;
+
+        @ConfigValue(
+            defaultValue = "20",
+            description = "Base number of bank slots (before upgrades)",
+            min = 10, max = 100
+        )
+        public static int baseSlots = 20;
+
+        @ConfigValue(
+            defaultValue = "5",
+            description = "Number of slots added per upgrade",
+            min = 1, max = 20
+        )
+        public static int slotsPerUpgrade = 5;
+
+        @ConfigValue(
+            defaultValue = "1000",
+            description = "Coin cost per upgrade level (upgrade 1 = 1000, upgrade 2 = 2000, etc.)",
+            min = 100, max = 10000
+        )
+        public static int coinCostPerUpgrade = 1000;
+
+        @ConfigValue(
+            defaultValue = "20",
+            description = "Maximum number of upgrades allowed",
+            min = 1, max = 50
+        )
+        public static int maxUpgrades = 20;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Require PIN to access bank"
+        )
+        public static boolean requirePIN = true;
+
+        @ConfigValue(
+            defaultValue = "4",
+            description = "PIN length (number of digits)",
+            min = 4, max = 8
+        )
+        public static int pinLength = 4;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Allow sending items to bank from containers"
+        )
+        public static boolean allowRemoteDeposit = true;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Send settlement purchase coins to world owner's bank"
+        )
+        public static boolean settlementCoinsToBank = true;
+
+        // Setters with validation
+        public static void setBaseSlots(int value) {
+            baseSlots = validateInt(value, 10, 100, "baseSlots");
+        }
+
+        public static void setSlotsPerUpgrade(int value) {
+            slotsPerUpgrade = validateInt(value, 1, 20, "slotsPerUpgrade");
+        }
+
+        public static void setCoinCostPerUpgrade(int value) {
+            coinCostPerUpgrade = validateInt(value, 100, 10000, "coinCostPerUpgrade");
+        }
+
+        public static void setMaxUpgrades(int value) {
+            maxUpgrades = validateInt(value, 1, 50, "maxUpgrades");
+        }
+
+        public static void setPinLength(int value) {
+            pinLength = validateInt(value, 4, 8, "pinLength");
+        }
+
+        /** Calculate total slots for a given upgrade level */
+        public static int getTotalSlots(int upgradeLevel) {
+            return baseSlots + (upgradeLevel * slotsPerUpgrade);
+        }
+
+        /** Calculate coin cost for a specific upgrade level */
+        public static int getUpgradeCost(int upgradeLevel) {
+            return upgradeLevel * coinCostPerUpgrade;
+        }
+    }
+
+    // ===== GRAND EXCHANGE CONFIGURATION =====
+    @ConfigSection(value = "GRAND_EXCHANGE", description = "Player marketplace and trading system configuration")
+    public static class GrandExchange {
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Enable Grand Exchange system (adds GE option to Trader NPC)"
+        )
+        public static boolean enabled = true;
+
+        @ConfigValue(
+            defaultValue = "10",
+            description = "Maximum active listings per player",
+            min = 1, max = 50
+        )
+        public static int maxListingsPerPlayer = 10;
+
+        @ConfigValue(
+            defaultValue = "0.05",
+            description = "Listing fee as percentage of total value (0.05 = 5%)",
+            min = 0.0, max = 0.25
+        )
+        public static float listingFeePercent = 0.05f;
+
+        @ConfigValue(
+            defaultValue = "168",
+            description = "Maximum listing duration in hours (168 = 1 week)",
+            min = 1, max = 720
+        )
+        public static int maxListingDurationHours = 168;
+
+        @ConfigValue(
+            defaultValue = "50",
+            description = "Number of recent sales to track for price history",
+            min = 10, max = 200
+        )
+        public static int priceHistorySize = 50;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Allow purchasing items directly to bank"
+        )
+        public static boolean allowPurchaseToBank = true;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Send sale proceeds to seller's bank"
+        )
+        public static boolean saleProceedsToBank = true;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Return unsold items to seller's bank when listing expires"
+        )
+        public static boolean returnExpiredToBank = true;
+
+        @ConfigValue(
+            defaultValue = "30",
+            description = "Auto-refresh interval for market data (seconds)",
+            min = 5, max = 300
+        )
+        public static int autoRefreshSeconds = 30;
+
+        @ConfigValue(
+            defaultValue = "100",
+            description = "Maximum listings to display per page",
+            min = 10, max = 500
+        )
+        public static int maxListingsPerPage = 100;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Enable automatic listing expiration"
+        )
+        public static boolean enableListingExpiration = true;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Return unsold items to seller's bank on expiration"
+        )
+        public static boolean returnItemsToBank = true;
+
+        // Setters with validation
+        public static void setMaxListingsPerPlayer(int value) {
+            maxListingsPerPlayer = validateInt(value, 1, 50, "maxListingsPerPlayer");
+        }
+
+        public static void setListingFeePercent(float value) {
+            listingFeePercent = validateFloat(value, 0.0f, 0.25f, "listingFeePercent");
+        }
+
+        public static void setMaxListingDurationHours(int value) {
+            maxListingDurationHours = validateInt(value, 1, 720, "maxListingDurationHours");
+        }
+
+        public static void setPriceHistorySize(int value) {
+            priceHistorySize = validateInt(value, 10, 200, "priceHistorySize");
+        }
+
+        public static void setAutoRefreshSeconds(int value) {
+            autoRefreshSeconds = validateInt(value, 5, 300, "autoRefreshSeconds");
+        }
+
+        public static void setMaxListingsPerPage(int value) {
+            maxListingsPerPage = validateInt(value, 10, 500, "maxListingsPerPage");
+        }
+
+        /** Calculate listing fee for a given total value */
+        public static int getListingFee(int totalValue) {
+            return Math.max(1, (int)(totalValue * listingFeePercent));
+        }
+
+        /** Calculate listing expiration time in milliseconds */
+        public static long getListingExpirationMs() {
+            return maxListingDurationHours * 60L * 60L * 1000L;
+        }
+    }
+
     // ===== SAVE/LOAD FUNCTIONALITY =====
     
     /**
@@ -295,11 +635,36 @@ public class ModConfig {
             saveSectionToData(Zones.class, zonesData);
             parentSave.addSaveData(zonesData);
             
+            // Save PlotFlags section
+            SaveData plotFlagsData = new SaveData("PLOT_FLAGS");
+            saveSectionToData(PlotFlags.class, plotFlagsData);
+            parentSave.addSaveData(plotFlagsData);
+
+            // Save Settlements section
+            SaveData settlementsData = new SaveData("SETTLEMENTS");
+            saveSectionToData(Settlements.class, settlementsData);
+            parentSave.addSaveData(settlementsData);
+
+            // Save SettlementSpacing section
+            SaveData settlementSpacingData = new SaveData("SETTLEMENT_SPACING");
+            saveSectionToData(SettlementSpacing.class, settlementSpacingData);
+            parentSave.addSaveData(settlementSpacingData);
+
             // Save CommandCenter section
             SaveData commandCenterData = new SaveData("COMMAND_CENTER");
             saveSectionToData(CommandCenter.class, commandCenterData);
             parentSave.addSaveData(commandCenterData);
-            
+
+            // Save Banking section
+            SaveData bankingData = new SaveData("BANKING");
+            saveSectionToData(Banking.class, bankingData);
+            parentSave.addSaveData(bankingData);
+
+            // Save GrandExchange section
+            SaveData grandExchangeData = new SaveData("GRAND_EXCHANGE");
+            saveSectionToData(GrandExchange.class, grandExchangeData);
+            parentSave.addSaveData(grandExchangeData);
+
             ModLogger.debug("Saved configuration to data");
             
         } catch (Exception e) {
@@ -325,12 +690,42 @@ public class ModConfig {
                 loadSectionFromData(Zones.class, zonesData);
             }
             
+            // Load PlotFlags section
+            LoadData plotFlagsData = parentLoad.getFirstLoadDataByName("PLOT_FLAGS");
+            if (plotFlagsData != null) {
+                loadSectionFromData(PlotFlags.class, plotFlagsData);
+            }
+
+            // Load Settlements section
+            LoadData settlementsData = parentLoad.getFirstLoadDataByName("SETTLEMENTS");
+            if (settlementsData != null) {
+                loadSectionFromData(Settlements.class, settlementsData);
+            }
+
+            // Load SettlementSpacing section
+            LoadData settlementSpacingData = parentLoad.getFirstLoadDataByName("SETTLEMENT_SPACING");
+            if (settlementSpacingData != null) {
+                loadSectionFromData(SettlementSpacing.class, settlementSpacingData);
+            }
+            
             // Load CommandCenter section
             LoadData commandCenterData = parentLoad.getFirstLoadDataByName("COMMAND_CENTER");
             if (commandCenterData != null) {
                 loadSectionFromData(CommandCenter.class, commandCenterData);
             }
-            
+
+            // Load Banking section
+            LoadData bankingData = parentLoad.getFirstLoadDataByName("BANKING");
+            if (bankingData != null) {
+                loadSectionFromData(Banking.class, bankingData);
+            }
+
+            // Load GrandExchange section
+            LoadData grandExchangeData = parentLoad.getFirstLoadDataByName("GRAND_EXCHANGE");
+            if (grandExchangeData != null) {
+                loadSectionFromData(GrandExchange.class, grandExchangeData);
+            }
+
             ModLogger.debug("Loaded configuration from data");
             
         } catch (Exception e) {
@@ -356,7 +751,10 @@ public class ModConfig {
         BuildMode.savedCircleRadius = 5;
         BuildMode.savedSpacing = 1;
         BuildMode.savedDirection = 0;
-        
+
+        // Settlements defaults
+        Settlements.protectionEnabled = false;
+
         // Zones defaults
         Zones.pvpReentryCooldownMs = 30000L;
         Zones.pvpSpawnImmunitySeconds = 10.0f;
@@ -364,8 +762,12 @@ public class ModConfig {
         Zones.maxBarrierTiles = 1000;
         Zones.barrierAddBatchSize = 50;
         Zones.barrierMaxTilesPerTick = 10;
-        Zones.defaultCombatLockSeconds = 30;
+        Zones.defaultCombatLockSeconds = 3;
         Zones.defaultForceCleanRadius = 100;
+        Zones.protectedZoneSoftLimit = 500;
+        Zones.pvpZoneSoftLimit = 500;
+        Zones.protectedZoneCriticalLimit = 1000;
+        Zones.pvpZoneCriticalLimit = 1000;
         
         // CommandCenter defaults
         CommandCenter.defaultWidth = 600;

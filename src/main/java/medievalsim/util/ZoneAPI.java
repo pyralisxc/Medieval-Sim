@@ -186,18 +186,36 @@ public class ZoneAPI {
     
     /**
      * Validate and sanitize a zone name.
-     * Trims whitespace and limits length to 30 characters.
-     * 
+     * Trims whitespace, limits length to 30 characters, and filters invalid characters.
+     * Only allows: alphanumeric, spaces, and basic punctuation (.-_'!?)
+     *
      * @param name The zone name to validate
-     * @return The validated zone name (trimmed and length-limited)
+     * @return The validated zone name (trimmed, sanitized, and length-limited)
      */
     public static String validateZoneName(String name) {
         if (name == null) return "";
         String trimmed = name.trim();
-        if (trimmed.length() > 30) {
-            trimmed = trimmed.substring(0, 30);
+
+        // Filter to allowed characters: alphanumeric, spaces, and basic punctuation
+        // Allowed: a-z, A-Z, 0-9, space, period, hyphen, underscore, apostrophe, exclamation, question mark
+        StringBuilder sanitized = new StringBuilder();
+        for (char c : trimmed.toCharArray()) {
+            if (Character.isLetterOrDigit(c) ||
+                c == ' ' || c == '.' || c == '-' || c == '_' ||
+                c == '\'' || c == '!' || c == '?') {
+                sanitized.append(c);
+            }
+            // Silently skip invalid characters
         }
-        return trimmed;
+
+        String result = sanitized.toString().trim(); // Trim again in case filtering removed edge chars
+
+        // Limit length to 30 characters
+        if (result.length() > 30) {
+            result = result.substring(0, 30);
+        }
+
+        return result;
     }
     
     /**

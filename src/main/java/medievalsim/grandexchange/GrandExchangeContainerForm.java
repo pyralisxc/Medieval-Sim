@@ -1,0 +1,637 @@
+package medievalsim.grandexchange;
+
+import necesse.engine.network.client.Client;
+import necesse.gfx.forms.presets.containerComponent.ContainerForm;
+import necesse.gfx.forms.components.FormFlow;
+import necesse.gfx.forms.components.containerSlot.FormContainerSlot;
+import necesse.gfx.forms.components.FormTextButton;
+import necesse.gfx.forms.components.FormInputSize;
+import necesse.gfx.forms.components.FormTextInput;
+import necesse.gfx.forms.components.FormLabel;
+import necesse.gfx.gameFont.FontOptions;
+import necesse.gfx.ui.ButtonColor;
+
+import java.util.List;
+
+/**
+ * Client-side UI form for Grand Exchange.
+ * Displays:
+ * - Sell slot (where player places item to sell)
+ * - Price input fields
+ * - Create listing button
+ * - Market listings (TODO: Phase 10)
+ * - Filters and search (TODO: Phase 10)
+ */
+public class GrandExchangeContainerForm<T extends GrandExchangeContainer> extends ContainerForm<T> {
+
+    private FormTextInput quantityInput;
+    private FormTextInput priceInput;
+    private FormTextButton createListingButton;
+    private FormTextButton refreshButton;
+
+    // Filter inputs
+    private FormTextInput minPriceInput;
+    private FormTextInput maxPriceInput;
+    private FormTextInput minQuantityInput;
+
+    public GrandExchangeContainerForm(Client client, T container) {
+        super(client, 900, 650, container);  // Even larger for filter controls
+
+        FormFlow flow = new FormFlow(10);
+
+        // Title
+        this.addComponent(new FormLabel("Grand Exchange", new FontOptions(20), -1, 10, flow.next(30)));
+
+        // Sell section
+        this.addComponent(new FormLabel("Sell Item:", new FontOptions(16), -1, 10, flow.next(30)));
+
+        // Sell slot (where player drags item to sell)
+        int sellSlotY = flow.next(50);
+        this.addComponent(new FormContainerSlot(
+            client,
+            container,
+            GrandExchangeContainer.SELL_SLOT_INDEX,
+            10,
+            sellSlotY
+        ));
+
+        // Quantity input (to the right of sell slot)
+        this.addComponent(new FormLabel("Quantity:", new FontOptions(16), -1, 70, sellSlotY));
+        this.quantityInput = this.addComponent(new FormTextInput(
+            150,
+            sellSlotY,
+            FormInputSize.SIZE_16,
+            100,
+            200,
+            10
+        ));
+        this.quantityInput.setText("1");
+
+        // Price per item input
+        int priceY = flow.next(30);
+        this.addComponent(new FormLabel("Price per item:", new FontOptions(16), -1, 70, priceY));
+        this.priceInput = this.addComponent(new FormTextInput(
+            150,
+            priceY,
+            FormInputSize.SIZE_16,
+            100,
+            200,
+            10
+        ));
+        this.priceInput.setText("100");
+
+        // Create listing button
+        int buttonY = flow.next(40);
+        this.createListingButton = this.addComponent(new FormTextButton(
+            "Create Listing",
+            10,
+            buttonY,
+            200,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        ));
+        this.createListingButton.onClicked((e) -> {
+            handleCreateListing();
+        });
+
+        // Refresh button
+        this.refreshButton = this.addComponent(new FormTextButton(
+            "Refresh Listings",
+            220,
+            buttonY,
+            150,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        ));
+        this.refreshButton.onClicked((e) -> {
+            container.refreshListings.runAndSend();
+        });
+
+        // Browse section
+        flow.next(20); // Spacing
+        this.addComponent(new FormLabel("Browse Market:", new FontOptions(16), -1, 10, flow.next(30)));
+
+        // Search input
+        int searchY = flow.next(40);
+        this.addComponent(new FormLabel("Search:", new FontOptions(14), -1, 10, searchY));
+        FormTextInput searchInput = this.addComponent(new FormTextInput(
+            80,
+            searchY,
+            FormInputSize.SIZE_16,
+            200,
+            300,
+            50
+        ));
+
+        // Search button
+        FormTextButton searchButton = this.addComponent(new FormTextButton(
+            "Search",
+            290,
+            searchY,
+            100,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        ));
+        searchButton.onClicked((e) -> {
+            String searchTerm = searchInput.getText().trim();
+            container.setFilter.runAndSend(searchTerm);
+        });
+
+        // Clear search button
+        FormTextButton clearButton = this.addComponent(new FormTextButton(
+            "Clear",
+            400,
+            searchY,
+            80,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        ));
+        clearButton.onClicked((e) -> {
+            searchInput.setText("");
+            container.setFilter.runAndSend("");
+        });
+
+        // Sort controls
+        int sortY = flow.next(40);
+        this.addComponent(new FormLabel("Sort by:", new FontOptions(14), -1, 10, sortY));
+
+        // Price Low-High button
+        this.addComponent(new FormTextButton(
+            "Price ↑",
+            80,
+            sortY,
+            90,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> container.setSortMode.runAndSend(1));
+
+        // Price High-Low button
+        this.addComponent(new FormTextButton(
+            "Price ↓",
+            180,
+            sortY,
+            90,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> container.setSortMode.runAndSend(2));
+
+        // Quantity button
+        this.addComponent(new FormTextButton(
+            "Quantity",
+            280,
+            sortY,
+            90,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> container.setSortMode.runAndSend(3));
+
+        // Time Remaining button
+        this.addComponent(new FormTextButton(
+            "Time",
+            380,
+            sortY,
+            90,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> container.setSortMode.runAndSend(4));
+
+        // Sort status label
+        this.addComponent(new FormLabel(
+            getSortModeText(container.sortMode),
+            new FontOptions(12),
+            -1,
+            480,
+            sortY + 8
+        ));
+
+        // Advanced Filters Section
+        flow.next(15);
+        int filtersY = flow.next(30);
+        this.addComponent(new FormLabel("Filters:", new FontOptions(14), -1, 10, filtersY));
+
+        // Price range filter
+        int priceFilterY = flow.next(35);
+        this.addComponent(new FormLabel("Price:", new FontOptions(12), -1, 10, priceFilterY));
+
+        this.minPriceInput = this.addComponent(new FormTextInput(
+            70,
+            priceFilterY - 4,
+            FormInputSize.SIZE_16,
+            80,
+            100,
+            10
+        ));
+        this.minPriceInput.setText("0");
+
+        this.addComponent(new FormLabel("-", new FontOptions(12), -1, 160, priceFilterY));
+
+        this.maxPriceInput = this.addComponent(new FormTextInput(
+            180,
+            priceFilterY - 4,
+            FormInputSize.SIZE_16,
+            80,
+            100,
+            10
+        ));
+        this.maxPriceInput.setText("0");
+
+        // Apply price filter button
+        this.addComponent(new FormTextButton(
+            "Apply",
+            270,
+            priceFilterY - 4,
+            70,
+            FormInputSize.SIZE_16,
+            ButtonColor.BASE
+        )).onClicked((e) -> {
+            try {
+                int minPrice = Integer.parseInt(this.minPriceInput.getText());
+                int maxPrice = Integer.parseInt(this.maxPriceInput.getText());
+                container.setPriceFilter.runAndSend(minPrice, maxPrice);
+            } catch (NumberFormatException ex) {
+                // Invalid input, ignore
+            }
+        });
+
+        // Minimum quantity filter
+        this.addComponent(new FormLabel("Min Qty:", new FontOptions(12), -1, 360, priceFilterY));
+
+        this.minQuantityInput = this.addComponent(new FormTextInput(
+            430,
+            priceFilterY - 4,
+            FormInputSize.SIZE_16,
+            80,
+            100,
+            10
+        ));
+        this.minQuantityInput.setText("0");
+
+        // Apply quantity filter button
+        this.addComponent(new FormTextButton(
+            "Apply",
+            520,
+            priceFilterY - 4,
+            70,
+            FormInputSize.SIZE_16,
+            ButtonColor.BASE
+        )).onClicked((e) -> {
+            try {
+                int minQty = Integer.parseInt(this.minQuantityInput.getText());
+                container.setMinQuantityFilter.runAndSend(minQty);
+            } catch (NumberFormatException ex) {
+                // Invalid input, ignore
+            }
+        });
+
+        // Filter buttons row
+        int filterButtonsY = flow.next(35);
+
+        // "My Listings" button
+        this.addComponent(new FormTextButton(
+            "My Listings",
+            10,
+            filterButtonsY,
+            120,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> container.togglePlayerListings.runAndSend(1));
+
+        // "All Listings" button
+        this.addComponent(new FormTextButton(
+            "All Listings",
+            140,
+            filterButtonsY,
+            120,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> container.togglePlayerListings.runAndSend(0));
+
+        // "Clear Filters" button
+        this.addComponent(new FormTextButton(
+            "Clear All Filters",
+            270,
+            filterButtonsY,
+            150,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> {
+            container.clearFilters.runAndSend();
+            // Reset UI inputs
+            this.minPriceInput.setText("0");
+            this.maxPriceInput.setText("0");
+            this.minQuantityInput.setText("0");
+        });
+
+        // Category filters section
+        flow.next(15);
+        int categoryY = flow.next(30);
+        this.addComponent(new FormLabel("Categories:", new FontOptions(14), -1, 10, categoryY));
+
+        // Category buttons (row 1)
+        int catRow1Y = flow.next(35);
+        addCategoryButton("All", "", 10, catRow1Y, 80, container);
+        addCategoryButton("Weapons", "weapons", 100, catRow1Y, 90, container);
+        addCategoryButton("Armor", "armor", 200, catRow1Y, 80, container);
+        addCategoryButton("Tools", "tools", 290, catRow1Y, 70, container);
+        addCategoryButton("Materials", "materials", 370, catRow1Y, 100, container);
+        addCategoryButton("Food", "food", 480, catRow1Y, 70, container);
+
+        // Category buttons (row 2)
+        int catRow2Y = flow.next(35);
+        addCategoryButton("Potions", "potions", 10, catRow2Y, 80, container);
+        addCategoryButton("Trinkets", "trinkets", 100, catRow2Y, 90, container);
+        addCategoryButton("Seeds", "seeds", 200, catRow2Y, 70, container);
+        addCategoryButton("Objects", "objects", 280, catRow2Y, 80, container);
+        addCategoryButton("Tiles", "tiles", 370, catRow2Y, 70, container);
+        addCategoryButton("Misc", "misc", 450, catRow2Y, 70, container);
+
+        // Stats label (shows total listings, filtered count)
+        int statsY = flow.next(35);
+        this.addComponent(new FormLabel(
+            getStatsText(container),
+            new FontOptions(12),
+            -1,
+            10,
+            statsY
+        ));
+
+        // Listings display area
+        flow.next(10);
+        int listingsY = flow.next(0);
+        this.addComponent(new FormLabel("Market Listings:", new FontOptions(14), -1, 10, listingsY));
+
+        // Display current page of listings
+        displayListings(container, flow.next(25));
+
+        // Note: Full listing display with scrollable list would require custom components
+        // This is a simplified version - full implementation would need:
+        // - FormScrollContainer for scrollable listing area
+        // - Custom listing row components showing: item icon, name, quantity, price, going price
+        // - Purchase buttons for each listing
+        // - Pagination controls
+
+        // Pagination controls
+        int paginationY = this.getHeight() - 50;
+        this.addComponent(new FormTextButton(
+            "< Prev",
+            10,
+            paginationY,
+            100,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> {
+            if (container.currentPage > 0) {
+                container.setPage.runAndSend(container.currentPage - 1);
+            }
+        });
+
+        this.addComponent(new FormLabel(
+            getPageText(container),
+            new FontOptions(14),
+            0,
+            300,
+            paginationY + 8
+        ));
+
+        this.addComponent(new FormTextButton(
+            "Next >",
+            490,
+            paginationY,
+            100,
+            FormInputSize.SIZE_32,
+            ButtonColor.BASE
+        )).onClicked((e) -> {
+            if (container.currentPage < container.getTotalPages() - 1) {
+                container.setPage.runAndSend(container.currentPage + 1);
+            }
+        });
+    }
+
+    /**
+     * Display current page of listings with bulk purchase controls.
+     */
+    private void displayListings(T container, int startY) {
+        List<MarketListing> pageListings = container.getCurrentPageListings();
+
+        if (pageListings.isEmpty()) {
+            this.addComponent(new FormLabel(
+                "No listings found",
+                new FontOptions(14),
+                -1,
+                10,
+                startY
+            ));
+            return;
+        }
+
+        // Display up to 8 listings per page (reduced to fit bulk purchase controls)
+        int y = startY;
+        int maxDisplay = Math.min(8, pageListings.size());
+
+        for (int i = 0; i < maxDisplay; i++) {
+            MarketListing listing = pageListings.get(i);
+            int listingIDLower = (int)(listing.getListingID() & 0xFFFFFFFFL);
+
+            // Listing row: [Item Name] - [Quantity] x [Price] coins
+            String listingText = String.format("%s - %dx @ %d coins ea. (Total: %d)",
+                listing.getItemStringID(),
+                listing.getQuantity(),
+                listing.getPricePerItem(),
+                listing.getQuantity() * listing.getPricePerItem()
+            );
+
+            this.addComponent(new FormLabel(
+                listingText,
+                new FontOptions(11),
+                -1,
+                10,
+                y
+            ));
+
+            // Check if this is the player's own listing
+            boolean isOwnListing = container.showOnlyPlayerListings;
+
+            if (isOwnListing) {
+                // Show Cancel button for own listings
+                this.addComponent(new FormTextButton(
+                    "Cancel Listing",
+                    550,
+                    y - 4,
+                    150,
+                    FormInputSize.SIZE_16,
+                    ButtonColor.BASE
+                )).onClicked((e) -> container.cancelListing.runAndSend(listingIDLower));
+            } else {
+                // Show purchase controls for other players' listings
+
+                // Bulk purchase input (quantity to buy)
+                FormTextInput bulkQtyInput = this.addComponent(new FormTextInput(
+                    550,
+                    y - 4,
+                    FormInputSize.SIZE_16,
+                    60,
+                    80,
+                    6
+                ));
+                bulkQtyInput.setText("1");
+
+                // Buy X button (bulk purchase)
+                this.addComponent(new FormTextButton(
+                    "Buy",
+                    620,
+                    y - 4,
+                    70,
+                    FormInputSize.SIZE_16,
+                    ButtonColor.BASE
+                )).onClicked((e) -> {
+                    try {
+                        int qty = Integer.parseInt(bulkQtyInput.getText());
+                        if (qty > 0 && qty <= listing.getQuantity()) {
+                            container.purchaseListing.runAndSend(listingIDLower, qty);
+                        }
+                    } catch (NumberFormatException ex) {
+                        // Invalid input, ignore
+                    }
+                });
+
+                // Buy All button
+                this.addComponent(new FormTextButton(
+                    "All",
+                    700,
+                    y - 4,
+                    60,
+                    FormInputSize.SIZE_16,
+                    ButtonColor.BASE
+                )).onClicked((e) -> container.purchaseListing.runAndSend(listingIDLower, listing.getQuantity()));
+
+                // To Bank button (send to bank instead of inventory)
+                this.addComponent(new FormTextButton(
+                    "→Bank",
+                    770,
+                    y - 4,
+                    80,
+                    FormInputSize.SIZE_16,
+                    ButtonColor.BASE
+                )).onClicked((e) -> {
+                    try {
+                        int qty = Integer.parseInt(bulkQtyInput.getText());
+                        if (qty > 0 && qty <= listing.getQuantity()) {
+                            container.purchaseToBank.runAndSend(listingIDLower, qty);
+                        }
+                    } catch (NumberFormatException ex) {
+                        // Invalid input, default to 1
+                        container.purchaseToBank.runAndSend(listingIDLower, 1);
+                    }
+                });
+            }
+
+            y += 30; // Increased spacing for bulk controls
+        }
+    }
+
+    /**
+     * Get sort mode display text.
+     */
+    private String getSortModeText(int sortMode) {
+        switch (sortMode) {
+            case 1: return "Sorted: Price (Low-High)";
+            case 2: return "Sorted: Price (High-Low)";
+            case 3: return "Sorted: Quantity";
+            case 4: return "Sorted: Time Remaining";
+            default: return "Sorted: None";
+        }
+    }
+
+    /**
+     * Get stats display text with active filters.
+     */
+    private String getStatsText(T container) {
+        int total = container.currentListings.size();
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("Showing %d listings", total));
+
+        // Build filter description
+        java.util.List<String> activeFilters = new java.util.ArrayList<>();
+
+        if (!container.currentFilter.isEmpty()) {
+            activeFilters.add("name: \"" + container.currentFilter + "\"");
+        }
+        if (container.minPrice > 0 || container.maxPrice > 0) {
+            if (container.minPrice > 0 && container.maxPrice > 0) {
+                activeFilters.add(String.format("price: %d-%d", container.minPrice, container.maxPrice));
+            } else if (container.minPrice > 0) {
+                activeFilters.add(String.format("price: >=%d", container.minPrice));
+            } else {
+                activeFilters.add(String.format("price: <=%d", container.maxPrice));
+            }
+        }
+        if (container.minQuantity > 0) {
+            activeFilters.add(String.format("qty: >=%d", container.minQuantity));
+        }
+        if (!container.categoryFilter.isEmpty()) {
+            activeFilters.add("category: " + container.categoryFilter);
+        }
+        if (container.showOnlyPlayerListings) {
+            activeFilters.add("my listings only");
+        }
+
+        if (!activeFilters.isEmpty()) {
+            sb.append(" (Filters: ");
+            sb.append(String.join(", ", activeFilters));
+            sb.append(")");
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * Get page display text.
+     */
+    private String getPageText(T container) {
+        int totalPages = container.getTotalPages();
+        if (totalPages == 0) {
+            return "Page 0 of 0";
+        }
+        return String.format("Page %d of %d", container.currentPage + 1, totalPages);
+    }
+    
+    /**
+     * Handle create listing button click.
+     */
+    private void handleCreateListing() {
+        try {
+            int quantity = Integer.parseInt(this.quantityInput.getText());
+            int pricePerItem = Integer.parseInt(this.priceInput.getText());
+            
+            if (quantity <= 0 || pricePerItem <= 0) {
+                // TODO: Show error message to player
+                return;
+            }
+            
+            // Send create listing action to server
+            this.container.createListing.runAndSend(quantity, pricePerItem);
+            
+            // Clear inputs
+            this.quantityInput.setText("1");
+            this.priceInput.setText("100");
+            
+        } catch (NumberFormatException e) {
+            // TODO: Show error message to player
+        }
+    }
+
+    /**
+     * Add a category filter button.
+     */
+    private void addCategoryButton(String label, String category, int x, int y, int width, T container) {
+        this.addComponent(new FormTextButton(
+            label,
+            x,
+            y,
+            width,
+            FormInputSize.SIZE_16,
+            ButtonColor.BASE
+        )).onClicked((e) -> container.setCategoryFilter.runAndSend(category));
+    }
+}
+

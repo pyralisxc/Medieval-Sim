@@ -7,6 +7,7 @@ import medievalsim.util.ModLogger;
 
 import medievalsim.packets.PacketConfigurePvPZone;
 import medievalsim.packets.PacketConfigureProtectedZone;
+import medievalsim.packets.PacketConfigureSettlementProtection;
 import medievalsim.packets.PacketCreateZone;
 import medievalsim.packets.PacketDeleteZone;
 import medievalsim.packets.PacketExpandZone;
@@ -26,6 +27,13 @@ import medievalsim.packets.PacketZoneSync;
 import medievalsim.packets.PacketForceClean;
 import medievalsim.packets.PacketExecuteCommand;
 import medievalsim.packets.PacketCommandResult;
+import medievalsim.packets.PacketOpenBank;
+import medievalsim.packets.PacketSetBankPIN;
+import medievalsim.packets.PacketBankSync;
+import medievalsim.packets.PacketBankInventoryUpdate;
+import medievalsim.packets.PacketBankOpenResponse;
+import medievalsim.packets.PacketOpenGrandExchange;
+import medievalsim.packets.PacketGESync;
 
 import necesse.engine.network.Packet;
 import necesse.engine.registries.PacketRegistry;
@@ -42,7 +50,8 @@ public class MedievalSimPackets {
         PacketRenameZone.class,
         PacketConfigurePvPZone.class,
         PacketConfigureProtectedZone.class,  // NEW: Protected zone configuration
-        
+        PacketConfigureSettlementProtection.class,  // NEW: Settlement protection configuration
+
         // Zone synchronization packets
         PacketZoneSync.class,
         PacketRequestZoneSync.class,
@@ -63,7 +72,18 @@ public class MedievalSimPackets {
         
         // Command Center packets
         PacketExecuteCommand.class,
-        PacketCommandResult.class
+        PacketCommandResult.class,
+
+        // Banking packets
+        PacketOpenBank.class,
+        PacketSetBankPIN.class,
+        PacketBankOpenResponse.class,
+        PacketBankSync.class,
+        PacketBankInventoryUpdate.class,
+
+        // Grand Exchange packets
+        PacketOpenGrandExchange.class,
+        PacketGESync.class
     );
     
     public static void registerCore() {

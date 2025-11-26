@@ -3,6 +3,7 @@ package medievalsim.zones;
 import java.awt.Rectangle;
 
 import medievalsim.config.ModConfig;
+import medievalsim.util.ModLogger;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.save.LoadData;
@@ -34,14 +35,19 @@ extends AdminZone {
     }
 
     /**
-     * Format a damage multiplier (e.g. 0.05) into a human-friendly percent string.
+     * Format a damage multiplier (e.g. 0.05) into a compact, human-friendly percent string.
      * - For values >= 1% returns an integer percent ("5%").
      * - For values between 0% (exclusive) and 1% returns one decimal place ("0.5%").
      * - For exactly 0 returns "0%".
      */
     public static String formatDamagePercent(float damageMultiplier) {
         float percent = damageMultiplier * 100.0f;
-        // Always show one decimal place (e.g. 0.1%, 1.0%, 10.0%) so small increments are visible
+        if (percent <= 0.0f) return "0%";
+        if (percent >= 1.0f) {
+            // Show integer percent for larger values
+            return String.format(java.util.Locale.ROOT, "%d%%", Math.round(percent));
+        }
+        // Show one decimal place for sub-1% values (e.g. 0.5%)
         return String.format(java.util.Locale.ROOT, "%.1f%%", percent);
     }
 
@@ -62,10 +68,11 @@ extends AdminZone {
     @Override
     public void applyLoadData(LoadData save) {
         super.applyLoadData(save);
-        this.damageMultiplier = save.getFloat("damageMultiplier", 0.05f);
+        this.damageMultiplier = save.getFloat("damageMultiplier", ModConfig.Zones.defaultDamageMultiplier);
         this.dotDamageMultiplier = save.getFloat("dotDamageMultiplier", 1.0f);
         this.dotIntervalMultiplier = save.getFloat("dotIntervalMultiplier", 1.0f);
-        this.combatLockSeconds = save.getInt("combatLockSeconds", 3);
+        // Use the centralized default so saved defaults follow configuration values
+        this.combatLockSeconds = save.getInt("combatLockSeconds", ModConfig.Zones.defaultCombatLockSeconds);
     }
 
     @Override
@@ -117,26 +124,45 @@ extends AdminZone {
     }
 
     /**
+     * Helper method to snapshot zone edges before modification.
+     * Used for differential barrier updates.
+     */
+    private java.util.Map<Integer, java.util.Collection<java.awt.Point>> snapshotEdges() {
+        java.util.Map<Integer, java.util.Collection<java.awt.Point>> snapshot = new java.util.HashMap<>();
+        try {
+            necesse.engine.util.PointHashSet edge = this.zoning.getEdgeTiles();
+            if (edge != null) {
+                java.util.List<java.awt.Point> points = new java.util.ArrayList<>();
+                for (Object o : edge) {
+                    if (o instanceof java.awt.Point) {
+                        points.add(new java.awt.Point((java.awt.Point)o));
+                    }
+                }
+                snapshot.put(this.uniqueID, points);
+            }
+        } catch (Exception e) {
+            // Best-effort operation; log details when verbose debug is enabled
+            if (ModConfig.Logging.verboseDebug) {
+                ModLogger.debug("Warning while snapshotting edges for PvPZone %d: %s",
+                               this.uniqueID, e.getMessage());
+            }
+        }
+        return snapshot;
+    }
+
+    /**
      * Expand the zone and update barriers using a differential update.
      * Returns true if the zone changed.
      */
     public boolean expandAndUpdateBarriers(Level level, Rectangle rectangle) {
-        // Delegate to AdminZonesLevelData resolver which handles merging/splitting and enqueues barrier work.
-        // snapshot old edges
-        java.util.Map<Integer, java.util.Collection<java.awt.Point>> oldEdgesSnapshot = new java.util.HashMap<>();
-        try {
-            necesse.engine.util.PointHashSet edge = this.zoning.getEdgeTiles();
-            if (edge != null) {
-                java.util.List<java.awt.Point> l = new java.util.ArrayList<>();
-                for (Object o : edge) if (o instanceof java.awt.Point) l.add(new java.awt.Point((java.awt.Point)o));
-                oldEdgesSnapshot.put(this.uniqueID, l);
-            }
-        } catch (Exception e) { /* best-effort */ }
+        java.util.Map<Integer, java.util.Collection<java.awt.Point>> oldEdgesSnapshot = snapshotEdges();
 
         boolean changed = this.expand(rectangle);
         if (changed && level != null && level.isServer()) {
             AdminZonesLevelData data = AdminZonesLevelData.getZoneData(level, false);
-            if (data != null) data.resolveAfterZoneChange(this, level, null, false, oldEdgesSnapshot);
+            if (data != null) {
+                data.resolveAfterZoneChange(this, level, null, false, oldEdgesSnapshot);
+            }
         }
         return changed;
     }
@@ -146,21 +172,14 @@ extends AdminZone {
      * Returns true if the zone changed.
      */
     public boolean shrinkAndUpdateBarriers(Level level, Rectangle rectangle) {
-        // Delegate to AdminZonesLevelData to handle split/merge and enqueue barrier work.
-        java.util.Map<Integer, java.util.Collection<java.awt.Point>> oldEdgesSnapshot = new java.util.HashMap<>();
-        try {
-            necesse.engine.util.PointHashSet edge = this.zoning.getEdgeTiles();
-            if (edge != null) {
-                java.util.List<java.awt.Point> l = new java.util.ArrayList<>();
-                for (Object o : edge) if (o instanceof java.awt.Point) l.add(new java.awt.Point((java.awt.Point)o));
-                oldEdgesSnapshot.put(this.uniqueID, l);
-            }
-        } catch (Exception e) { /* best-effort */ }
+        java.util.Map<Integer, java.util.Collection<java.awt.Point>> oldEdgesSnapshot = snapshotEdges();
 
         boolean changed = this.shrink(rectangle);
         if (changed && level != null && level.isServer()) {
             AdminZonesLevelData data = AdminZonesLevelData.getZoneData(level, false);
-            if (data != null) data.resolveAfterZoneChange(this, level, null, false, oldEdgesSnapshot);
+            if (data != null) {
+                data.resolveAfterZoneChange(this, level, null, false, oldEdgesSnapshot);
+            }
         }
         return changed;
     }

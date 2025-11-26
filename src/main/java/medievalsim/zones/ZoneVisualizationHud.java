@@ -72,7 +72,10 @@ extends HudDrawElement {
             if ((bounds = zone.zoning.getTileBounds()) != null && !bounds.isEmpty()) {
                 final int centerTileX = bounds.x + bounds.width / 2;
                 final int centerTileY = bounds.y + bounds.height / 2;
-                final String zoneName = zone.name.isEmpty() ? "Unnamed Zone" : zone.name;
+                // Trim whitespace and check if empty
+                final String zoneName = (zone.name == null || zone.name.trim().isEmpty())
+                    ? "Unnamed Zone"
+                    : zone.name.trim();
                 final Color labelColor = edgeColor;
                 list.add(new SortedDrawable(){
 

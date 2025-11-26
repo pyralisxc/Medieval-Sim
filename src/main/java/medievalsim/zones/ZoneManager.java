@@ -4,6 +4,7 @@ import java.awt.Rectangle;
 import java.util.Map;
 import java.util.Random;
 
+import medievalsim.config.ModConfig;
 import medievalsim.util.ModLogger;
 import medievalsim.util.ValidationUtil;
 import necesse.engine.network.server.ServerClient;
@@ -28,11 +29,54 @@ public class ZoneManager {
         return AdminZonesLevelData.getZoneData(level, createIfMissing);
     }
 
+    /**
+     * Check zone count limits and log warnings/errors as appropriate.
+     * @param zoneData The zone data to check
+     * @param isProtectedZone True for protected zones, false for PvP zones
+     */
+    private static void checkZoneCountLimits(AdminZonesLevelData zoneData, boolean isProtectedZone) {
+        if (zoneData == null) {
+            return;
+        }
+
+        int currentCount;
+        int softLimit;
+        int criticalLimit;
+        String zoneType;
+
+        if (isProtectedZone) {
+            currentCount = zoneData.getProtectedZones().size();
+            softLimit = ModConfig.Zones.protectedZoneSoftLimit;
+            criticalLimit = ModConfig.Zones.protectedZoneCriticalLimit;
+            zoneType = "protected";
+        } else {
+            currentCount = zoneData.getPvPZones().size();
+            softLimit = ModConfig.Zones.pvpZoneSoftLimit;
+            criticalLimit = ModConfig.Zones.pvpZoneCriticalLimit;
+            zoneType = "PvP";
+        }
+
+        if (currentCount >= criticalLimit) {
+            ModLogger.error("CRITICAL: %s zone count (%d) has reached critical limit (%d)! Performance degradation likely. Consider cleanup.",
+                zoneType, currentCount, criticalLimit);
+        } else if (currentCount >= softLimit) {
+            ModLogger.warn("WARNING: %s zone count (%d) has exceeded soft limit (%d). Consider cleanup to maintain performance.",
+                zoneType, currentCount, softLimit);
+        } else if (currentCount >= softLimit * 0.8) {
+            ModLogger.info("INFO: %s zone count (%d) approaching soft limit (%d).",
+                zoneType, currentCount, softLimit);
+        }
+    }
+
     public static ProtectedZone createProtectedZone(Level level, String name, ServerClient creator) {
         AdminZonesLevelData zoneData = getValidatedZoneData(level, true);
         if (zoneData == null) {
             return null;
         }
+
+        // Check zone count limits before creating
+        checkZoneCountLimits(zoneData, true);
+
         long creatorAuth = creator != null ? creator.authentication : -1L;
         int colorHue = ZoneManager.generateRandomColorHue();
     String useName = (name == null || name.trim().isEmpty()) ? zoneData.getUniqueZoneName() : name;
@@ -62,6 +106,10 @@ public class ZoneManager {
         if (zoneData == null) {
             return null;
         }
+
+        // Check zone count limits before creating
+        checkZoneCountLimits(zoneData, false);
+
         long creatorAuth = creator != null ? creator.authentication : -1L;
         int colorHue = ZoneManager.generateRandomColorHue();
         String useName = (name == null || name.trim().isEmpty()) ? zoneData.getUniqueZoneName() : name;

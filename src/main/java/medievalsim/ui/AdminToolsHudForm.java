@@ -15,6 +15,7 @@ import medievalsim.ui.helpers.PlayerDropdownEntry;
 import medievalsim.packets.PacketDeleteZone;
 import medievalsim.packets.PacketRenameZone;
 import medievalsim.packets.PacketRequestPlayerList;
+import medievalsim.util.Constants;
 import medievalsim.util.ModLogger;
 import medievalsim.zones.AdminZone;
 import medievalsim.zones.CreateOrExpandZoneTool;
@@ -53,7 +54,6 @@ import necesse.gfx.ui.ButtonColor;
 import necesse.gfx.ui.ButtonTexture;
 import necesse.level.maps.hudManager.HudDrawElement;
 import medievalsim.util.ResponsiveButtonHelper;
-import medievalsim.util.Constants;
 
 public class AdminToolsHudForm
 extends Form {
@@ -108,16 +108,17 @@ extends Form {
     private FormLabelEdit activeOwnerInput = null;
     private int activeDropdownZoneID = -1;
 
-    // Debounce timers for slider updates (200ms delay)
+    // Debounce timers for slider updates
     private Map<Integer, Long> sliderDebounceTimers = new HashMap<>();
     private Map<Integer, Runnable> pendingSliderUpdates = new HashMap<>();
-    private static final long SLIDER_DEBOUNCE_MS = 200L;
 
     private static final FontOptions WHITE_TEXT_20 = new FontOptions(20).color(Color.WHITE);
     private static final FontOptions WHITE_TEXT_16 = new FontOptions(16).color(Color.WHITE);
     private static final FontOptions WHITE_TEXT_14 = new FontOptions(14).color(Color.WHITE);
     private static final FontOptions WHITE_TEXT_11 = new FontOptions(11).color(Color.WHITE);
     private static final FontOptions WHITE_TEXT_10 = new FontOptions(10).color(Color.WHITE);
+    private static final int FORCE_CLEAN_BUTTON_WIDTH = 180;
+    private static final long SLIDER_DEBOUNCE_MILLIS = 200L;
 
     public AdminToolsHudForm(Client client) {
         super("admintoolshud", getConfiguredHudWidth(), getConfiguredHudHeight());
@@ -403,6 +404,16 @@ extends Form {
 
     public void updateZones(Map<Integer, ProtectedZone> newProtectedZones, Map<Integer, PvPZone> newPvPZones) {
         ModLogger.debug("Updating local zone storage - " + newProtectedZones.size() + " protected, " + newPvPZones.size() + " PVP");
+
+        // Clean up debounce timers for zones that no longer exist
+        Set<Integer> allCurrentZoneIDs = new HashSet<>();
+        allCurrentZoneIDs.addAll(newProtectedZones.keySet());
+        allCurrentZoneIDs.addAll(newPvPZones.keySet());
+
+        // Remove timers for zones that were deleted
+        this.sliderDebounceTimers.keySet().retainAll(allCurrentZoneIDs);
+        this.pendingSliderUpdates.keySet().retainAll(allCurrentZoneIDs);
+
         this.protectedZones = new HashMap<Integer, ProtectedZone>(newProtectedZones);
         this.pvpZones = new HashMap<Integer, PvPZone>(newPvPZones);
 
@@ -450,6 +461,11 @@ extends Form {
         } else {
             this.pvpZones.remove(uniqueID);
         }
+
+        // Clean up debounce timers and pending updates for this zone to prevent memory leak
+        this.sliderDebounceTimers.remove(uniqueID);
+        this.pendingSliderUpdates.remove(uniqueID);
+
         if (isProtectedZone && !this.protectedZonesForm.isHidden()) {
             this.refreshZoneList(true);
         } else if (!isProtectedZone && !this.pvpZonesForm.isHidden()) {
@@ -500,7 +516,7 @@ extends Form {
             // Load saved radius from ModConfig
             int savedRadius = medievalsim.config.ModConfig.Zones.defaultForceCleanRadius;
             // Center the Force Clean button and place the slider on the row below it.
-            int btnWidth = 180; // widen so label fits comfortably
+            int btnWidth = FORCE_CLEAN_BUTTON_WIDTH;
             int btnXCentered = (targetForm.getWidth() - btnWidth) / 2;
             int btnY = controlsY;
             FormTextButton forceCleanAllButton = (FormTextButton)targetForm.addComponent((FormComponent)new FormTextButton("Force Clean Here", btnXCentered, btnY, btnWidth, FormInputSize.SIZE_32, ButtonColor.RED));
@@ -1335,7 +1351,7 @@ extends Form {
      */
     private void scheduleSliderUpdate(int zoneID, Runnable updateAction) {
         long now = System.currentTimeMillis();
-        this.sliderDebounceTimers.put(zoneID, now + SLIDER_DEBOUNCE_MS);
+        this.sliderDebounceTimers.put(zoneID, now + SLIDER_DEBOUNCE_MILLIS);
         this.pendingSliderUpdates.put(zoneID, updateAction);
     }
 

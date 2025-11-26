@@ -377,7 +377,7 @@ public class PvPZoneBarrierManager {
             for (necesse.engine.network.server.ServerClient playerClient : server.getClients()) {
                 if (playerClient == null || playerClient.playerMob == null) continue;
                 PvPZoneTracker.PlayerPvPState state = PvPZoneTracker.getPlayerState(playerClient);
-                boolean previouslyInZone = state.currentZoneID == zone.uniqueID;
+                boolean previouslyInZone = state.getCurrentZoneID() == zone.uniqueID;
                 boolean nowInZone = zone.containsPosition(playerClient.playerMob.x, playerClient.playerMob.y);
 
                 long serverTime = server.world.worldEntity.getTime();

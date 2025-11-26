@@ -32,12 +32,15 @@ public class ServerClientSubmitSpawnPacketPatch {
             }
             
             // Initialize ProtectedZone buff if spawning in a protected zone
-            medievalsim.zones.AdminZonesLevelData zoneData = 
+            medievalsim.zones.AdminZonesLevelData zoneData =
                 medievalsim.zones.AdminZonesLevelData.getZoneData(level, false);
             if (zoneData != null) {
                 medievalsim.zones.ProtectedZone protectedZone = zoneData.getProtectedZoneAt(tileX, tileY);
                 medievalsim.zones.ProtectedZoneTracker.updatePlayerZone(client, protectedZone);
             }
+
+            // Initialize Settlement Protection buff if spawning in a protected settlement
+            medievalsim.zones.SettlementProtectionTracker.updatePlayerSettlement(client, tileX, tileY);
         }
     }
 }

@@ -120,7 +120,13 @@ public final class Constants {
         // Layout Helpers
         public static final int DIALOG_MIN_WIDTH = UNIT_SIZE * 40;  // 320px
         public static final int CONTENT_MAX_WIDTH = UNIT_SIZE * 60; // 480px
-        
+
+        // Slider Debounce (for preventing packet spam during slider adjustments)
+        public static final long SLIDER_DEBOUNCE_MS = 200L;
+
+        // Zone List Entry Dimensions
+        public static final int ZONE_ENTRY_BUTTON_WIDTH = 180; // Width for zone action buttons
+
         private UI() {} // Prevent instantiation
     }
     

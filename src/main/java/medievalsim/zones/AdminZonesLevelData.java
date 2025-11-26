@@ -173,7 +173,11 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
             PvPZone zone = this.pvpZones.get(uniqueID);
             if (zone != null) {
                 // remove placed barriers and queued tasks before removing zone
-                try { zone.removeBarriers(this.level); } catch (Exception ex) { /* best-effort */ }
+                try { zone.removeBarriers(this.level); } catch (Exception ex) {
+                    if (ModConfig.Logging.verboseDebug) {
+                        ModLogger.debug("Failed to remove barriers for zone %d during removal: %s", zone.uniqueID, ex.getMessage());
+                    }
+                }
                 BarrierPlacementWorker.removeQueuedTasksForZone(this.level, uniqueID);
                 zone.remove();
                 this.pvpZones.remove(uniqueID);
@@ -288,14 +292,17 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
                 if (client != null && client.playerMob != null && client.playerMob.getLevel() == this.level) {
                     int tileX = GameMath.getTileCoordinate((int) client.playerMob.x);
                     int tileY = GameMath.getTileCoordinate((int) client.playerMob.y);
-                    
+
                     // Update protected zone buff
                     ProtectedZone protectedZone = this.getProtectedZoneAt(tileX, tileY);
                     ProtectedZoneTracker.updatePlayerZone(client, protectedZone);
-                    
+
                     // Update PvP zone damage reduction buff (use player coordinates, not tiles)
                     PvPZone pvpZone = this.getPvPZoneAt(client.playerMob.x, client.playerMob.y);
                     PvPZoneTracker.updatePlayerZoneBuff(client, pvpZone);
+
+                    // Update settlement protection buff
+                    SettlementProtectionTracker.updatePlayerSettlement(client, tileX, tileY);
                 }
             }
         }
@@ -675,7 +682,11 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
                     if (z instanceof PvPZone) {
                         PvPZone pz = (PvPZone)z;
                         // ensure barriers are removed for losers and queued tasks cleared
-                        try { pz.removeBarriers(level); } catch (Exception ex) { /* best-effort */ }
+                        try { pz.removeBarriers(level); } catch (Exception ex) {
+                            if (ModConfig.Logging.verboseDebug) {
+                                ModLogger.debug("Failed to remove barriers for zone %d during merge cleanup: %s", pz.uniqueID, ex.getMessage());
+                            }
+                        }
                         BarrierPlacementWorker.removeQueuedTasksForZone(level, pz.uniqueID);
                         this.pvpZones.remove(pz.uniqueID);
                         removed.add(pz);

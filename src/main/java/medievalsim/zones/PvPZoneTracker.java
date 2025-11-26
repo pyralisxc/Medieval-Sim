@@ -43,30 +43,31 @@ public class PvPZoneTracker {
 
     public static boolean isInPvPZone(ServerClient client) {
         PlayerPvPState state = playerStates.get(client.authentication);
-        return state != null && state.currentZoneID != -1;
+        return state != null && state.getCurrentZoneID() != -1;
     }
 
     public static PvPZone getCurrentZone(ServerClient client, Level level) {
         PlayerPvPState state = playerStates.get(client.authentication);
-        if (state == null || state.currentZoneID == -1 || level == null) {
+        if (state == null || level == null) {
+            return null;
+        }
+        int zoneID = state.getCurrentZoneID();
+        if (zoneID == -1) {
             return null;
         }
         AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
-        return zoneData != null ? zoneData.getPvPZone(state.currentZoneID) : null;
+        return zoneData != null ? zoneData.getPvPZone(zoneID) : null;
     }
 
     public static void enterZone(ServerClient client, PvPZone zone) {
         PlayerPvPState state = PvPZoneTracker.getPlayerState(client);
-        state.currentZoneID = zone.uniqueID;
+        state.enterZone(zone.uniqueID);
     }
 
     public static void exitZone(ServerClient client, long serverTime) {
         PlayerPvPState state = PvPZoneTracker.getPlayerState(client);
-        state.currentZoneID = -1;
-        state.lastCombatTime = 0L;
-        state.lastExitTime = serverTime;
-        state.hasShownSpawnDialog = false;
-        
+        state.exitZone(serverTime);
+
         // Remove damage reduction buff when exiting zone
         if (client != null && client.playerMob != null && client.playerMob.buffManager != null) {
             int buffID = BuffRegistry.getBuffID("pvpdamagereduction");
@@ -76,30 +77,43 @@ public class PvPZoneTracker {
 
     public static boolean canReEnter(ServerClient client, long serverTime) {
         PlayerPvPState state = playerStates.get(client.authentication);
-        if (state == null || state.lastExitTime == 0L) {
+        if (state == null) {
             return true;
         }
-    return serverTime - state.lastExitTime >= ModConfig.Zones.pvpReentryCooldownMs;
+        long lastExit = state.getLastExitTime();
+        if (lastExit == 0L) {
+            return true;
+        }
+        return serverTime - lastExit >= ModConfig.Zones.pvpReentryCooldownMs;
     }
 
     public static int getRemainingReEntryCooldown(ServerClient client, long serverTime) {
         PlayerPvPState state = playerStates.get(client.authentication);
-        if (state == null || state.lastExitTime == 0L) {
+        if (state == null) {
             return 0;
         }
-        long elapsed = serverTime - state.lastExitTime;
-    long remaining = ModConfig.Zones.pvpReentryCooldownMs - elapsed;
+        long lastExit = state.getLastExitTime();
+        if (lastExit == 0L) {
+            return 0;
+        }
+        long elapsed = serverTime - lastExit;
+        long remaining = ModConfig.Zones.pvpReentryCooldownMs - elapsed;
         return remaining > 0L ? (int)Math.ceil((double)remaining / 1000.0) : 0;
     }
 
     public static void recordCombat(ServerClient client, long serverTime) {
         PlayerPvPState state = PvPZoneTracker.getPlayerState(client);
-        state.lastCombatTime = serverTime;
+        state.setLastCombatTime(serverTime);
     }
 
     public static boolean isInCombat(ServerClient client, Level level, long serverTime) {
         PlayerPvPState state = playerStates.get(client.authentication);
-        if (state == null || state.currentZoneID == -1 || level == null || state.lastCombatTime == 0L) {
+        if (state == null || level == null) {
+            return false;
+        }
+        int zoneID = state.getCurrentZoneID();
+        long lastCombat = state.getLastCombatTime();
+        if (zoneID == -1 || lastCombat == 0L) {
             return false;
         }
         PvPZone zone = PvPZoneTracker.getCurrentZone(client, level);
@@ -107,12 +121,16 @@ public class PvPZoneTracker {
             return false;
         }
         long combatLockMs = (long)zone.combatLockSeconds * 1000L;
-        return serverTime - state.lastCombatTime < combatLockMs;
+        return serverTime - lastCombat < combatLockMs;
     }
 
     public static int getRemainingCombatLockSeconds(ServerClient client, Level level, long serverTime) {
         PlayerPvPState state = playerStates.get(client.authentication);
-        if (state == null || state.currentZoneID == -1 || level == null) {
+        if (state == null || level == null) {
+            return 0;
+        }
+        int zoneID = state.getCurrentZoneID();
+        if (zoneID == -1) {
             return 0;
         }
         PvPZone zone = PvPZoneTracker.getCurrentZone(client, level);
@@ -120,17 +138,18 @@ public class PvPZoneTracker {
             return 0;
         }
         long combatLockMs = (long)zone.combatLockSeconds * 1000L;
-        long elapsed = serverTime - state.lastCombatTime;
+        long lastCombat = state.getLastCombatTime();
+        long elapsed = serverTime - lastCombat;
         long remaining = combatLockMs - elapsed;
         return remaining > 0L ? (int)Math.ceil((double)remaining / 1000.0) : 0;
     }
 
     public static void handleSpawnInZone(ServerClient client, PvPZone zone, Server server, long serverTime) {
         PlayerPvPState state = PvPZoneTracker.getPlayerState(client);
-        if (state.hasShownSpawnDialog) {
+        if (state.hasShownSpawnDialog()) {
             return;
         }
-        state.hasShownSpawnDialog = true;
+        state.setHasShownSpawnDialog(true);
         client.sendPacket((Packet)new PacketPvPZoneSpawnDialog(zone));
     }
 
@@ -244,11 +263,61 @@ public class PvPZoneTracker {
         }
     }
 
+    /**
+     * Thread-safe state container for player PvP zone tracking.
+     * All field access is synchronized to prevent race conditions.
+     */
     public static class PlayerPvPState {
-        public int currentZoneID = -1;
-        public long lastCombatTime = 0L;
-        public long lastExitTime = 0L;
-        public boolean hasShownSpawnDialog = false;
+        private int currentZoneID = -1;
+        private long lastCombatTime = 0L;
+        private long lastExitTime = 0L;
+        private boolean hasShownSpawnDialog = false;
+
+        // Synchronized getters
+        public synchronized int getCurrentZoneID() {
+            return currentZoneID;
+        }
+
+        public synchronized long getLastCombatTime() {
+            return lastCombatTime;
+        }
+
+        public synchronized long getLastExitTime() {
+            return lastExitTime;
+        }
+
+        public synchronized boolean hasShownSpawnDialog() {
+            return hasShownSpawnDialog;
+        }
+
+        // Synchronized setters
+        public synchronized void setCurrentZoneID(int zoneID) {
+            this.currentZoneID = zoneID;
+        }
+
+        public synchronized void setLastCombatTime(long time) {
+            this.lastCombatTime = time;
+        }
+
+        public synchronized void setLastExitTime(long time) {
+            this.lastExitTime = time;
+        }
+
+        public synchronized void setHasShownSpawnDialog(boolean shown) {
+            this.hasShownSpawnDialog = shown;
+        }
+
+        // Compound operations that need to be atomic
+        public synchronized void enterZone(int zoneID) {
+            this.currentZoneID = zoneID;
+        }
+
+        public synchronized void exitZone(long serverTime) {
+            this.currentZoneID = -1;
+            this.lastCombatTime = 0L;
+            this.lastExitTime = serverTime;
+            this.hasShownSpawnDialog = false;
+        }
     }
 }
 

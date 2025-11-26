@@ -55,7 +55,7 @@ extends Packet {
                 long serverTime = server.world.worldEntity.getTime();
                 for (ServerClient playerClient : server.getClients()) {
                     PvPZoneTracker.PlayerPvPState state = PvPZoneTracker.getPlayerState(playerClient);
-                    if (state.currentZoneID != this.zoneID) continue;
+                    if (state.getCurrentZoneID() != this.zoneID) continue;
                     PvPZoneTracker.exitZone(playerClient, serverTime);
                     if (playerClient.pvpEnabled && !server.world.settings.forcedPvP) {
                         playerClient.pvpEnabled = false;
