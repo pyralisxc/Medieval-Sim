@@ -464,42 +464,56 @@ public class GrandExchangeContainerForm<T extends GrandExchangeContainer> extend
             String itemName = getItemDisplayName(offer.itemStringID);
             long totalPrice = Math.max(0L, offer.getTotalPrice());
             boolean canAfford = container.clientCoinCount >= totalPrice && totalPrice > 0;
-            String qtyLine = String.format("Available %d/%d @ %s coins ea", 
+            String qtyLine = String.format("Available %d/%d @ %s coins ea",
                 offer.quantityRemaining,
                 offer.quantityTotal,
                 formatCoins(offer.pricePerItem));
-            String totalLine = String.format("Total %s coins%s", 
+            String totalLine = String.format("Total %s coins%s",
                 formatCoins(totalPrice),
                 canAfford ? "" : " (insufficient funds)");
-            String metaLine = String.format("Seller %s • %s", 
+            String metaLine = String.format("Seller %s • %s",
                 resolveSellerLabel(offer),
                 formatExpiration(offer.expirationTime));
 
-            FormLabel itemLabel = new FormLabel(itemName, NORMAL_FONT, -1, MARGIN + 10, currentY);
+            int entryTop = currentY;
+            int iconX = MARGIN;
+            int textX = iconX + 42;
+            int lineY = entryTop;
+
+            InventoryItem iconItem = buildListingIcon(offer.itemStringID, offer.quantityRemaining);
+            if (iconItem != null) {
+                FormItemIcon iconComponent = new FormItemIcon(iconX, entryTop, iconItem, false);
+                this.addComponent(iconComponent);
+                tabComponents.add(iconComponent);
+            } else {
+                textX = MARGIN + 5;
+            }
+
+            FormLabel itemLabel = new FormLabel(itemName, NORMAL_FONT, -1, textX, lineY);
             this.addComponent(itemLabel);
             tabComponents.add(itemLabel);
-            currentY += 18;
+            lineY += 18;
 
-            FormLabel availabilityLabel = new FormLabel(qtyLine, SMALL_FONT, -1, MARGIN + 20, currentY);
+            FormLabel availabilityLabel = new FormLabel(qtyLine, SMALL_FONT, -1, textX, lineY);
             this.addComponent(availabilityLabel);
             tabComponents.add(availabilityLabel);
-            currentY += 18;
+            lineY += 18;
 
-            FormLabel priceLabel = new FormLabel(totalLine, SMALL_FONT, -1, MARGIN + 20, currentY);
+            FormLabel priceLabel = new FormLabel(totalLine, SMALL_FONT, -1, textX, lineY);
             priceLabel.setColor(canAfford ? new Color(70, 190, 90) : new Color(230, 170, 80));
             this.addComponent(priceLabel);
             tabComponents.add(priceLabel);
-            currentY += 18;
+            lineY += 18;
 
-            FormLabel metaLabel = new FormLabel(metaLine, SMALL_FONT, -1, MARGIN + 20, currentY);
+            FormLabel metaLabel = new FormLabel(metaLine, SMALL_FONT, -1, textX, lineY);
             metaLabel.setColor(new Color(160, 160, 160));
             this.addComponent(metaLabel);
             tabComponents.add(metaLabel);
 
-            // Buy button anchored to block top
+            // Buy button anchored near icon
             FormTextButton buyBtn = new FormTextButton(
                 "Buy",
-                700, (currentY - 40),
+                700, entryTop + 4,
                 80, FormInputSize.SIZE_24,
                 ButtonColor.BASE
             );
@@ -512,7 +526,8 @@ public class GrandExchangeContainerForm<T extends GrandExchangeContainer> extend
             this.addComponent(buyBtn);
             tabComponents.add(buyBtn);
 
-            currentY += 20;
+            int entryHeight = Math.max((lineY + 20) - entryTop, 48);
+            currentY = entryTop + entryHeight + 15;
             
             if (currentY > 600) break; // Don't overflow screen
         }
@@ -1219,6 +1234,15 @@ public class GrandExchangeContainerForm<T extends GrandExchangeContainer> extend
             this.addComponent(adminHeader);
             tabComponents.add(adminHeader);
             currentY += 25;
+
+            FormLabel adminNote = new FormLabel(
+                "Changes are saved on the server and apply after reopening the Grand Exchange.",
+                SMALL_FONT, -1, MARGIN + 10, currentY
+            );
+            adminNote.setColor(new Color(160, 160, 160));
+            this.addComponent(adminNote);
+            tabComponents.add(adminNote);
+            currentY += 25;
             
             // Sell offer slots configuration
             FormLabel slotsLabel = new FormLabel("Sell Offer Slots:", SMALL_FONT, -1, MARGIN + 10, currentY + 5);
@@ -1242,11 +1266,7 @@ public class GrandExchangeContainerForm<T extends GrandExchangeContainer> extend
             applySlotsBtn.onClicked(e -> {
                 try {
                     int newSlots = Integer.parseInt(slotsInput.getText());
-                    if (newSlots >= 5 && newSlots <= 20) {
-                        ModConfig.GrandExchange.geInventorySlots = newSlots;
-                        // Note: Will take effect on next container open
-                        ModLogger.info("Admin updated sell offer slots to: %d", newSlots);
-                    }
+                    container.updateSellSlotConfig.runAndSend(newSlots);
                 } catch (NumberFormatException ex) {
                     // Invalid input, ignore
                 }
@@ -1281,11 +1301,7 @@ public class GrandExchangeContainerForm<T extends GrandExchangeContainer> extend
             applyBuyOrderSlotsBtn.onClicked(e -> {
                 try {
                     int newSlots = Integer.parseInt(buyOrderSlotsInput.getText());
-                    if (newSlots >= 1 && newSlots <= 10) {
-                        ModConfig.GrandExchange.buyOrderSlots = newSlots;
-                        // Note: Will take effect on next container open
-                        ModLogger.info("Admin updated buy order slots to: %d", newSlots);
-                    }
+                    container.updateBuySlotConfig.runAndSend(newSlots);
                 } catch (NumberFormatException ex) {
                     // Invalid input, ignore
                 }
@@ -1505,6 +1521,17 @@ public class GrandExchangeContainerForm<T extends GrandExchangeContainer> extend
             default:
                 return order.getState().name();
         }
+    }
+
+    private InventoryItem buildListingIcon(String itemStringID, int quantity) {
+        Item item = ItemRegistry.getItem(itemStringID);
+        if (item == null) {
+            return null;
+        }
+        int stackAmount = Math.max(1, Math.min(quantity, item.getStackSize()));
+        InventoryItem iconItem = new InventoryItem(item, stackAmount);
+        iconItem.setNew(false);
+        return iconItem;
     }
 
     private String formatSellOfferState(GEOffer offer) {

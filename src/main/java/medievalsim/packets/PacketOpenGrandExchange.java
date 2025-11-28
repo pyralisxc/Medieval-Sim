@@ -78,6 +78,8 @@ public class PacketOpenGrandExchange extends Packet {
         boolean isServerOwner = Settings.serverOwnerAuth != -1L
             && client.authentication == Settings.serverOwnerAuth;
         writer.putNextBoolean(isServerOwner);
+        writer.putNextInt(ModConfig.GrandExchange.geInventorySlots);
+        writer.putNextInt(ModConfig.GrandExchange.buyOrderSlots);
 
         ModLogger.info("[BANK SYNC] Writing coin balance %d (owner=%s) to GE open packet", 
             coinBalance, isServerOwner);

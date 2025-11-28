@@ -712,6 +712,10 @@ public class ModConfig {
             geInventorySlots = validateInt(value, 5, 20, "geInventorySlots");
         }
 
+        public static void setBuyOrderSlots(int value) {
+            buyOrderSlots = validateInt(value, 1, 10, "buyOrderSlots");
+        }
+
         public static void setMaxActiveOffersPerPlayer(int value) {
             maxActiveOffersPerPlayer = validateInt(value, 1, 50, "maxActiveOffersPerPlayer");
         }

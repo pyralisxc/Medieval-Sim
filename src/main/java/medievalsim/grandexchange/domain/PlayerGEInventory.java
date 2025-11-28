@@ -29,10 +29,10 @@ public class PlayerGEInventory {
     
     // ===== SELL SYSTEM =====
     private final Inventory sellInventory;     // 10 slots for items being sold
-    private final GEOffer[] sellOffers;        // Links slot → active sell offer (null if no offer)
+    private GEOffer[] sellOffers;              // Links slot → active sell offer (null if no offer)
     
     // ===== BUY SYSTEM =====
-    private final BuyOrder[] buyOrders;        // 3 buy order slots
+    private BuyOrder[] buyOrders;              // 3 buy order slots
     
     // ===== COLLECTION & NOTIFICATIONS =====
     private final List<CollectionItem> collectionBox;       // Unlimited item storage (not inventory slots)
@@ -115,6 +115,35 @@ public class PlayerGEInventory {
         return sellInventory.getSize();
     }
 
+    public synchronized boolean canApplySellSlotCount(int newSlotCount) {
+        if (newSlotCount >= sellInventory.getSize()) {
+            return true;
+        }
+        for (int i = newSlotCount; i < sellInventory.getSize(); i++) {
+            if (sellInventory.getItem(i) != null) {
+                return false;
+            }
+            if (sellOffers[i] != null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public synchronized void resizeSellSlots(int newSlotCount) {
+        if (newSlotCount == sellInventory.getSize()) {
+            return;
+        }
+        if (newSlotCount < sellInventory.getSize() && !canApplySellSlotCount(newSlotCount)) {
+            ModLogger.warn("Cannot shrink sell slots to %d for auth=%d; extra slots still populated", newSlotCount, ownerAuth);
+            return;
+        }
+        sellInventory.changeSize(newSlotCount);
+        GEOffer[] newOffers = new GEOffer[newSlotCount];
+        System.arraycopy(sellOffers, 0, newOffers, 0, Math.min(sellOffers.length, newSlotCount));
+        sellOffers = newOffers;
+    }
+
     public InventoryItem getSlotItem(int slot) {
         if (!isValidSellSlot(slot)) {
             return null;
@@ -160,6 +189,35 @@ public class PlayerGEInventory {
         buyOrders[slot] = order;
         updateAccessTime();
         return true;
+    }
+
+    public synchronized boolean canApplyBuySlotCount(int newSlotCount) {
+        if (newSlotCount >= buyOrders.length) {
+            return true;
+        }
+        for (int i = newSlotCount; i < buyOrders.length; i++) {
+            if (buyOrders[i] != null) {
+                if (!buyOrders[i].isCancelled() && !buyOrders[i].isCompleted()) {
+                    return false;
+                }
+                // Even completed/cancelled orders are kept to avoid silent data loss.
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public synchronized void resizeBuySlots(int newSlotCount) {
+        if (newSlotCount == buyOrders.length) {
+            return;
+        }
+        if (newSlotCount < buyOrders.length && !canApplyBuySlotCount(newSlotCount)) {
+            ModLogger.warn("Cannot shrink buy slots to %d for auth=%d; trailing slots still contain orders", newSlotCount, ownerAuth);
+            return;
+        }
+        BuyOrder[] newArray = new BuyOrder[newSlotCount];
+        System.arraycopy(buyOrders, 0, newArray, 0, Math.min(buyOrders.length, newSlotCount));
+        buyOrders = newArray;
     }
     
     // Collection box accessors

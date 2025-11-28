@@ -78,7 +78,6 @@ public class GrandExchangeContainer extends Container {
     
     // ===== TAB 2: SELL OFFERS =====
     // 10 inventory slots from playerInventory.sellInventory
-    public static final int SELL_SLOTS_COUNT = 10;
     public int GE_SELL_SLOTS_START = -1;
     public int GE_SELL_SLOTS_END = -1;
 
@@ -112,6 +111,8 @@ public class GrandExchangeContainer extends Container {
     public BooleanCustomAction toggleAutoBank; // Enable/disable auto-bank
     public BooleanCustomAction toggleNotifyPartial; // Enable/disable partial notifications
     public BooleanCustomAction togglePlaySound; // Enable/disable sale sounds
+    public IntCustomAction updateSellSlotConfig; // Admin: update sell slot count
+    public IntCustomAction updateBuySlotConfig; // Admin: update buy slot count
     
     // General
     public IntCustomAction setActiveTab; // Change active tab
@@ -189,8 +190,14 @@ public class GrandExchangeContainer extends Container {
         this.playerAuth = reader.getNextLong();
         this.clientCoinCount = reader.getNextLong(); // Read initial coin count
         boolean ownerFlagFromPacket = reader.getNextBoolean();
+        int sellSlotCountFromServer = reader.getNextInt();
+        int buySlotCountFromServer = reader.getNextInt();
         ModLogger.info("[BANK SYNC] Container constructor read initial coin count: %d (isServer=%s)", 
             clientCoinCount, client.isServer());
+        if (!client.isServer()) {
+            ModConfig.GrandExchange.setGeInventorySlots(sellSlotCountFromServer);
+            ModConfig.GrandExchange.setBuyOrderSlots(buySlotCountFromServer);
+        }
         
         // Get GE data and player inventory
         if (client.isServer()) {
@@ -228,7 +235,8 @@ public class GrandExchangeContainer extends Container {
         }
         
         // Add sell inventory slots (10 slots from playerInventory.sellInventory)
-        for (int i = 0; i < SELL_SLOTS_COUNT; i++) {
+        int configuredSellSlots = playerInventory.getSellInventory().getSize();
+        for (int i = 0; i < configuredSellSlots; i++) {
             int index = this.addSlot(new ContainerSlot(playerInventory.getSellInventory(), i));
             if (GE_SELL_SLOTS_START == -1) {
                 GE_SELL_SLOTS_START = index;
@@ -237,7 +245,7 @@ public class GrandExchangeContainer extends Container {
         }
         
         ModLogger.debug("Added %d GE sell slots (indices %d-%d)",
-            SELL_SLOTS_COUNT, GE_SELL_SLOTS_START, GE_SELL_SLOTS_END);
+            configuredSellSlots, GE_SELL_SLOTS_START, GE_SELL_SLOTS_END);
         
         // Register custom actions
         registerActions();
@@ -461,6 +469,20 @@ public class GrandExchangeContainer extends Container {
                 }
             }
         });
+
+        this.updateSellSlotConfig = this.registerAction(new IntCustomAction() {
+            @Override
+            protected void run(int newSlotCount) {
+                handleUpdateSellSlotConfig(newSlotCount);
+            }
+        });
+
+        this.updateBuySlotConfig = this.registerAction(new IntCustomAction() {
+            @Override
+            protected void run(int newSlotCount) {
+                handleUpdateBuySlotConfig(newSlotCount);
+            }
+        });
         
         // ===== BANKING SYNC =====
         this.syncCoinCount = this.registerAction(new necesse.inventory.container.customAction.LongCustomAction() {
@@ -482,6 +504,80 @@ public class GrandExchangeContainer extends Container {
     private void notifyCoinCountUpdated() {
         if (coinCountUpdateCallback != null) {
             coinCountUpdateCallback.run();
+        }
+    }
+
+    private void handleUpdateSellSlotConfig(int requestedSlots) {
+        if (!client.isServer()) {
+            return;
+        }
+        if (!isWorldOwner) {
+            sendAdminMessage("Only the world owner can change Grand Exchange slots.");
+            return;
+        }
+        int minSlots = 5;
+        int maxSlots = 20;
+        if (requestedSlots < minSlots || requestedSlots > maxSlots) {
+            sendAdminMessage(String.format("Sell slots must be between %d and %d.", minSlots, maxSlots));
+            return;
+        }
+        int current = ModConfig.GrandExchange.geInventorySlots;
+        if (requestedSlots == current) {
+            sendAdminMessage("Sell slot count is already set to that value.");
+            return;
+        }
+        if (requestedSlots < current && geData != null && !geData.canApplySellSlotCount(requestedSlots)) {
+            sendAdminMessage("Cannot reduce sell slots while higher slots still contain items or offers.");
+            return;
+        }
+        ModConfig.GrandExchange.setGeInventorySlots(requestedSlots);
+        if (geData != null) {
+            geData.resizeAllSellInventories(requestedSlots);
+        }
+        Settings.saveServerSettings();
+        ModLogger.info("World owner %d updated GE sell slots to %d", playerAuth, requestedSlots);
+        sendAdminMessage(String.format("Sell slots updated to %d. Reopen the GE to apply changes.", requestedSlots));
+    }
+
+    private void handleUpdateBuySlotConfig(int requestedSlots) {
+        if (!client.isServer()) {
+            return;
+        }
+        if (!isWorldOwner) {
+            sendAdminMessage("Only the world owner can change Grand Exchange slots.");
+            return;
+        }
+        int minSlots = 1;
+        int maxSlots = 10;
+        if (requestedSlots < minSlots || requestedSlots > maxSlots) {
+            sendAdminMessage(String.format("Buy order slots must be between %d and %d.", minSlots, maxSlots));
+            return;
+        }
+        int current = ModConfig.GrandExchange.buyOrderSlots;
+        if (requestedSlots == current) {
+            sendAdminMessage("Buy order slot count is already set to that value.");
+            return;
+        }
+        if (requestedSlots < current && geData != null && !geData.canApplyBuySlotCount(requestedSlots)) {
+            sendAdminMessage("Cannot reduce buy order slots while higher slots still contain orders.");
+            return;
+        }
+        ModConfig.GrandExchange.setBuyOrderSlots(requestedSlots);
+        if (geData != null) {
+            geData.resizeAllBuyInventories(requestedSlots);
+        }
+        Settings.saveServerSettings();
+        ModLogger.info("World owner %d updated GE buy order slots to %d", playerAuth, requestedSlots);
+        sendAdminMessage(String.format("Buy order slots updated to %d. Reopen the GE to apply changes.", requestedSlots));
+    }
+
+    private void sendAdminMessage(String message) {
+        if (!client.isServer()) {
+            return;
+        }
+        ServerClient serverClient = client.getServerClient();
+        if (serverClient != null) {
+            serverClient.sendChatMessage(message);
         }
     }
 

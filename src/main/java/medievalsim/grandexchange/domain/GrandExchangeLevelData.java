@@ -167,6 +167,32 @@ public class GrandExchangeLevelData extends LevelData {
     public java.util.Collection<PlayerGEInventory> getAllInventories() {
         return inventories.values();
     }
+
+    public boolean canApplySellSlotCount(int newSlotCount) {
+        for (PlayerGEInventory inventory : inventories.values()) {
+            if (!inventory.canApplySellSlotCount(newSlotCount)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean canApplyBuySlotCount(int newSlotCount) {
+        for (PlayerGEInventory inventory : inventories.values()) {
+            if (!inventory.canApplyBuySlotCount(newSlotCount)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public void resizeAllSellInventories(int newSlotCount) {
+        inventories.values().forEach(inv -> inv.resizeSellSlots(newSlotCount));
+    }
+
+    public void resizeAllBuyInventories(int newSlotCount) {
+        inventories.values().forEach(inv -> inv.resizeBuySlots(newSlotCount));
+    }
     
     // ===== OFFER MANAGEMENT =====
     
