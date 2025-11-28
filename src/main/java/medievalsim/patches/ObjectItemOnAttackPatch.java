@@ -2,7 +2,7 @@ package medievalsim.patches;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
-import medievalsim.buildmode.ShapeCalculator;
+import medievalsim.buildmode.util.ShapeCalculator;
 import medievalsim.util.ModLogger;
 import necesse.engine.commands.PermissionLevel;
 import necesse.engine.modLoader.annotations.ModMethodPatch;

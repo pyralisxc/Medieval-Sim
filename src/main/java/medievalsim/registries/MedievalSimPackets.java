@@ -1,94 +1,35 @@
 package medievalsim.registries;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
+import medievalsim.packets.core.PacketSpec;
+import medievalsim.packets.registry.AdminPacketRegistrar;
+import medievalsim.packets.registry.BankingPacketRegistrar;
+import medievalsim.packets.registry.CommandPacketRegistrar;
+import medievalsim.packets.registry.GrandExchangePacketRegistrar;
+import medievalsim.packets.registry.ZonePacketRegistrar;
 import medievalsim.util.ModLogger;
-
-import medievalsim.packets.PacketConfigurePvPZone;
-import medievalsim.packets.PacketConfigureProtectedZone;
-import medievalsim.packets.PacketConfigureSettlementProtection;
-import medievalsim.packets.PacketCreateZone;
-import medievalsim.packets.PacketDeleteZone;
-import medievalsim.packets.PacketExpandZone;
-import medievalsim.packets.PacketPvPZoneEntryDialog;
-import medievalsim.packets.PacketPvPZoneEntryResponse;
-import medievalsim.packets.PacketPvPZoneExitDialog;
-import medievalsim.packets.PacketPvPZoneExitResponse;
-import medievalsim.packets.PacketPvPZoneSpawnDialog;
-import medievalsim.packets.PacketPvPZoneSpawnResponse;
-import medievalsim.packets.PacketRenameZone;
-import medievalsim.packets.PacketRequestPlayerList;
-import medievalsim.packets.PacketRequestZoneSync;
-import medievalsim.packets.PacketShrinkZone;
-import medievalsim.packets.PacketZoneChanged;
-import medievalsim.packets.PacketZoneRemoved;
-import medievalsim.packets.PacketZoneSync;
-import medievalsim.packets.PacketForceClean;
-import medievalsim.packets.PacketExecuteCommand;
-import medievalsim.packets.PacketCommandResult;
-import medievalsim.packets.PacketOpenBank;
-import medievalsim.packets.PacketSetBankPIN;
-import medievalsim.packets.PacketBankSync;
-import medievalsim.packets.PacketBankInventoryUpdate;
-import medievalsim.packets.PacketBankOpenResponse;
-import medievalsim.packets.PacketOpenGrandExchange;
-import medievalsim.packets.PacketGESync;
-
-import necesse.engine.network.Packet;
 import necesse.engine.registries.PacketRegistry;
 
 public class MedievalSimPackets {
-    
-    // Centralized packet list for automatic counting
-    private static final List<Class<? extends Packet>> PACKETS = Arrays.asList(
-        // Zone management packets
-        PacketCreateZone.class,
-        PacketExpandZone.class,
-        PacketShrinkZone.class,
-        PacketDeleteZone.class,
-        PacketRenameZone.class,
-        PacketConfigurePvPZone.class,
-        PacketConfigureProtectedZone.class,  // NEW: Protected zone configuration
-        PacketConfigureSettlementProtection.class,  // NEW: Settlement protection configuration
 
-        // Zone synchronization packets
-        PacketZoneSync.class,
-        PacketRequestZoneSync.class,
-        PacketZoneChanged.class,
-        PacketZoneRemoved.class,
-        
-        // PvP zone interaction packets
-        PacketPvPZoneEntryDialog.class,
-        PacketPvPZoneEntryResponse.class,
-        PacketPvPZoneExitDialog.class,
-        PacketPvPZoneExitResponse.class,
-        PacketPvPZoneSpawnDialog.class,
-        PacketPvPZoneSpawnResponse.class,
-        
-        // Admin tools packets
-        PacketForceClean.class,
-        PacketRequestPlayerList.class,
-        
-        // Command Center packets
-        PacketExecuteCommand.class,
-        PacketCommandResult.class,
-
-        // Banking packets
-        PacketOpenBank.class,
-        PacketSetBankPIN.class,
-        PacketBankOpenResponse.class,
-        PacketBankSync.class,
-        PacketBankInventoryUpdate.class,
-
-        // Grand Exchange packets
-        PacketOpenGrandExchange.class,
-        PacketGESync.class
+    private static final List<Supplier<List<PacketSpec>>> REGISTRARS = List.of(
+        ZonePacketRegistrar::getSpecs,
+        AdminPacketRegistrar::getSpecs,
+        CommandPacketRegistrar::getSpecs,
+        BankingPacketRegistrar::getSpecs,
+        GrandExchangePacketRegistrar::getSpecs
     );
-    
+
     public static void registerCore() {
-        PACKETS.forEach(PacketRegistry::registerPacket);
-        ModLogger.debug("Registered %d network packets", PACKETS.size());
+        List<PacketSpec> specs = new ArrayList<>();
+        for (Supplier<List<PacketSpec>> registrar : REGISTRARS) {
+            specs.addAll(registrar.get());
+        }
+        specs.forEach(spec -> PacketRegistry.registerPacket(spec.type()));
+        ModLogger.debug("Registered %d network packets across %d domains", specs.size(), REGISTRARS.size());
     }
 }
 

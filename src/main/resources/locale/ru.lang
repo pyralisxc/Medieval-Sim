@@ -2,9 +2,11 @@
 # Пока нет кастомных тайлов
 
 [object]
-# Пока нет кастомных объектов (барьер внутренний)
+pvpzonebarrier=Барьер зоны PvP
 
 [item]
+ancestorsword=Меч предков
+ancestorwand=Посох предков
 # Пока нет кастомных предметов
 
 [itemtooltip]
@@ -212,6 +214,10 @@ reentrycooldownmessage=Нельзя войти - кулдаун ещё <seconds>
 zone.protected.nobreak=У тебя нет прав ломать тайлы в этой защищённой зоне
 zone.protected.nobreakobjects=У тебя нет прав ломать объекты в этой защищённой зоне
 zone.protected.ownernotfound=Игрок '<player>' не найден. Он должен быть онлайн чтобы стать владельцем.
+
+# Ограничения на перемещение
+broomdisabledzone=Полёты на мётле запрещены в этой защищённой зоне
+broomdisabledsettlement=Полёты на мётле запрещены в этом поселении
 
 # Сообщения ПвП зоны
 zone.pvp.removed=Тебя вынесло из ПвП зоны из-за изменений зоны

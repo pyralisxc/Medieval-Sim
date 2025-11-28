@@ -3,9 +3,9 @@ package medievalsim.util;
 import necesse.engine.network.server.ServerClient;
 import necesse.engine.util.GameMath;
 import necesse.level.maps.Level;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.ProtectedZone;
-import medievalsim.zones.SettlementProtectionHelper;
+import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.ProtectedZone;
+import medievalsim.zones.settlement.SettlementProtectionHelper;
 
 /**
  * Centralized validator for zone protection checks across all patches.

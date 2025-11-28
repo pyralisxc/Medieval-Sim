@@ -1,8 +1,8 @@
 package medievalsim.registries;
-import medievalsim.banking.BankingLevelData;
+import medievalsim.banking.domain.BankingLevelData;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.SettlementProtectionLevelData;
+import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.settlement.SettlementProtectionLevelData;
 import necesse.engine.registries.LevelDataRegistry;
 
 public class MedievalSimLevelData {
@@ -10,7 +10,8 @@ public class MedievalSimLevelData {
         LevelDataRegistry.registerLevelData((String)"adminzonesdata", AdminZonesLevelData.class);
         LevelDataRegistry.registerLevelData((String)"settlementprotectiondata", SettlementProtectionLevelData.class);
         LevelDataRegistry.registerLevelData((String)"bankingdata", BankingLevelData.class);
-        ModLogger.debug("Registered LevelData classes");
+        LevelDataRegistry.registerLevelData((String)"grandexchangedata", medievalsim.grandexchange.domain.GrandExchangeLevelData.class);
+        ModLogger.debug("Registered %d LevelData classes", 4);
     }
 }
 

@@ -1,9 +1,9 @@
 package medievalsim.packets;
 
-import medievalsim.banking.PlayerBank;
+import medievalsim.banking.domain.PlayerBank;
+import medievalsim.packets.core.AbstractPayloadPacket;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.NetworkPacket;
-import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.network.client.Client;
@@ -15,7 +15,7 @@ import necesse.engine.network.server.ServerClient;
  * Server -> Client: Send updated bank data
  * Used after upgrades or other bank modifications.
  */
-public class PacketBankSync extends Packet {
+public class PacketBankSync extends AbstractPayloadPacket {
     
     public long ownerAuth;
     public int upgradeLevel;
@@ -87,9 +87,9 @@ public class PacketBankSync extends Packet {
             ModLogger.debug("Received bank sync for auth=%d (upgrade level: %d, PIN set: %b)",
                 this.ownerAuth, this.upgradeLevel, this.pinSet);
             
-            // If this is the current player's bank and they have the container open,
-            // we might want to refresh the UI here
-            // TODO: Implement UI refresh if container is open
+            // NOTE: UI refresh is handled automatically by the BankContainer's
+            // custom actions system. This packet is primarily for background sync
+            // of bank metadata (upgrade level, PIN status) when container is closed.
             
         } catch (Exception e) {
             ModLogger.error("Exception in PacketBankSync.processClient", e);

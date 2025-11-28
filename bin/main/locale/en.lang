@@ -3,8 +3,11 @@
 
 [object]
 plotflag=Plot Flag
+pvpzonebarrier=PvP Zone Barrier
 
 [item]
+ancestorsword=Ancestor Sword
+ancestorwand=Ancestor Wand
 # No custom items yet
 
 [itemtooltip]
@@ -231,6 +234,10 @@ reentrycooldownmessage=Cannot enter - cooldown for <seconds>s
 zone.protected.nobreak=You don't have permission to break tiles in this protected zone
 zone.protected.nobreakobjects=You don't have permission to break objects in this protected zone
 zone.protected.ownernotfound=Player '<player>' not found. They must be online to set as owner.
+
+# Movement Restriction Messages
+broomdisabledzone=Broom riding is disabled inside this protected zone
+broomdisabledsettlement=Broom riding is disabled inside this settlement
 
 # Interaction Permission Messages (moved from [ui])
 nopermissiondoors=You don't have permission to use doors in this protected zone

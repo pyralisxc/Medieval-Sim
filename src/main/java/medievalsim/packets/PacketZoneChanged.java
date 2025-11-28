@@ -1,10 +1,10 @@
 package medievalsim.packets;
 import medievalsim.ui.AdminToolsHudForm;
 import medievalsim.ui.AdminToolsHudManager;
-import medievalsim.zones.AdminZone;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.ProtectedZone;
-import medievalsim.zones.PvPZone;
+import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.ProtectedZone;
+import medievalsim.zones.domain.PvPZone;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;

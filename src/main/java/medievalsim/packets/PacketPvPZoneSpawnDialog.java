@@ -1,6 +1,6 @@
 package medievalsim.packets;
 import medievalsim.ui.dialogs.PvPZoneSpawnDialog;
-import medievalsim.zones.PvPZone;
+import medievalsim.zones.domain.PvPZone;
 import necesse.engine.GlobalData;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.client.Client;

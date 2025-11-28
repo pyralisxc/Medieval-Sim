@@ -72,6 +72,15 @@ dependencies {
 //    libDepends files("path/to/library/jar.jar")
 }
 
+// Add JUnit 5 for unit testing
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'
+}
+
+test {
+    useJUnitPlatform()
+}
+
 task createAppID {
     group "necesse"
     description "Creates steam_appid.txt file"

@@ -96,7 +96,7 @@ public class CheckboxWidget extends ParameterWidget {
             checkbox.setText(checkbox.getText());
         } catch (Exception e) {
             // Silent fail - checkbox will just use default color
-            System.err.println("CheckboxWidget: Could not set text color: " + e.getMessage());
+            medievalsim.util.ModLogger.warn("CheckboxWidget: Could not set text color: %s", e.getMessage());
         }
     }
     

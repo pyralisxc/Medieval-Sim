@@ -9,10 +9,10 @@ import necesse.entity.mobs.buffs.staticBuffs.Buff;
 
 public class MedievalSimBuffs {
     public static void registerCore() {
-        BuffRegistry.registerBuff((String)"pvpimmunity", (Buff)new PvPImmunityBuff());
-        BuffRegistry.registerBuff((String)"pvpdamagereduction", (Buff)new PvPDamageReductionBuff());
-        BuffRegistry.registerBuff((String)"protectedzone", (Buff)new ProtectedZoneBuff());
-        BuffRegistry.registerBuff((String)"settlementprotection", (Buff)new SettlementProtectionBuff());
+        BuffRegistry.registerBuff("pvpimmunity", new PvPImmunityBuff());
+        BuffRegistry.registerBuff("pvpdamagereduction", new PvPDamageReductionBuff());
+        BuffRegistry.registerBuff("protectedzone", new ProtectedZoneBuff());
+        BuffRegistry.registerBuff("settlementprotection", new SettlementProtectionBuff());
         ModLogger.debug("Registered %d buffs", 4);
     }
 }

@@ -4,7 +4,7 @@ import necesse.engine.commands.CmdParameter;
 import necesse.engine.commands.ModularChatCommand;
 import necesse.engine.commands.PermissionLevel;
 import necesse.engine.commands.ParsedCommand;
-import medievalsim.commandcenter.CommandCategory;
+import medievalsim.commandcenter.domain.CommandCategory;
 import medievalsim.util.ModLogger;
 
 import java.lang.reflect.Field;

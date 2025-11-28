@@ -67,8 +67,9 @@ public class SearchableDropdown<T> {
         // Filter on submit (when user presses Enter)
         this.searchInput.onSubmit(e -> filterItems(this.searchInput.getText()));
         
-        // Results box (scrollable list) - will be added/removed dynamically
-        this.resultsBox = new FormContentBox(x, y + 40, width, dropdownHeight);
+        // Results box (scrollable list) with opaque background - will be added/removed dynamically
+        this.resultsBox = new FormContentBox(x, y + 40, width, dropdownHeight, 
+            necesse.gfx.GameBackground.textBox);
         buildResultsList();
     }
     

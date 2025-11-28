@@ -4,7 +4,7 @@
  */
 package medievalsim.patches;
 
-import medievalsim.zones.SettlementProtectionButtonHelper;
+import medievalsim.zones.settlement.SettlementProtectionButtonHelper;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.client.Client;
 import necesse.gfx.forms.presets.containerComponent.settlement.SettlementSettingsForm;

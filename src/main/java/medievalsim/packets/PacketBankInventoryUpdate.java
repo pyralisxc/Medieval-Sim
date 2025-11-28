@@ -1,5 +1,8 @@
 package medievalsim.packets;
 
+import medievalsim.banking.ui.BankContainer;
+import medievalsim.packets.core.AbstractPayloadPacket;
+import medievalsim.util.ModLogger;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
@@ -7,14 +10,12 @@ import necesse.engine.network.client.Client;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
 import necesse.inventory.InventoryItem;
-import medievalsim.banking.BankContainer;
-import medievalsim.util.ModLogger;
 
 /**
  * Packet to sync a single bank inventory slot from server to client.
  * Similar to PacketOEInventoryUpdate but for bank inventories.
  */
-public class PacketBankInventoryUpdate extends Packet {
+public class PacketBankInventoryUpdate extends AbstractPayloadPacket {
     public final long ownerAuth;
     public final int inventorySlot;
     public final Packet itemContent;

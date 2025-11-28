@@ -3,10 +3,10 @@ package medievalsim.util;
 import java.awt.Point;
 
 import medievalsim.config.ModConfig;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.PvPZone;
-import medievalsim.zones.PvPZoneTracker;
-import medievalsim.zones.ProtectedZone;
+import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.PvPZone;
+import medievalsim.zones.service.PvPZoneTracker;
+import medievalsim.zones.domain.ProtectedZone;
 import necesse.engine.localization.Localization;
 import necesse.engine.network.Packet;
 import necesse.engine.network.packet.PacketPlayerMovement;
@@ -326,7 +326,7 @@ public class ZoneAPI {
          * 
          * @return The zone as an AdminZone, or null if neither type was validated
          */
-        public medievalsim.zones.AdminZone getAdminZone() {
+        public medievalsim.zones.domain.AdminZone getAdminZone() {
             if (pvpZone != null) return pvpZone;
             if (protectedZone != null) return protectedZone;
             return null;
@@ -425,5 +425,37 @@ public class ZoneAPI {
             if (!valid) return;
             PvPZoneTracker.exitZone(client, serverTime);
         }
+    }
+    
+    // ===== STATIC UTILITY METHODS =====
+    
+    /**
+     * Check if a client is on the same team as the zone owner.
+     * Uses Necesse's native Team API for reliable team membership checking.
+     * 
+     * @param ownerAuth The authentication ID of the zone owner
+     * @param client The client to check
+     * @param level The level containing the teams
+     * @return true if the client is on the owner's team, false otherwise
+     */
+    public static boolean isOnOwnerTeam(long ownerAuth, ServerClient client, Level level) {
+        if (ownerAuth == -1L || client == null || level == null || level.getServer() == null) {
+            return false;
+        }
+        
+        // Use Necesse's Team API to get the owner's team
+        int ownerTeamID = level.getServer().world.getTeams().getPlayerTeamID(ownerAuth);
+        if (ownerTeamID == -1) {
+            return false; // Owner has no team
+        }
+        
+        // Get the PlayerTeam object for richer API access
+        necesse.engine.team.PlayerTeam ownerTeam = level.getServer().world.getTeams().getTeam(ownerTeamID);
+        if (ownerTeam == null) {
+            return false; // Team doesn't exist (shouldn't happen)
+        }
+        
+        // Use native API to check membership - more reliable than manual ID comparison
+        return ownerTeam.isMember(client.authentication);
     }
 }

@@ -2,7 +2,7 @@ package medievalsim.patches;
 
 import medievalsim.config.ModConfig;
 import medievalsim.packets.PacketOpenBank;
-import medievalsim.banking.PinDialog;
+import medievalsim.banking.ui.PinDialog;
 import necesse.gfx.forms.ContinueComponentManager;
 import medievalsim.util.ModLogger;
 import necesse.engine.localization.message.LocalMessage;

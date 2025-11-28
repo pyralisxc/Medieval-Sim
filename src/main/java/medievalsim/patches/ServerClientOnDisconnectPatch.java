@@ -1,7 +1,7 @@
 package medievalsim.patches;
-import medievalsim.zones.ProtectedZoneTracker;
-import medievalsim.zones.PvPZoneTracker;
-import medievalsim.zones.SettlementProtectionTracker;
+import medievalsim.zones.service.ProtectedZoneTracker;
+import medievalsim.zones.service.PvPZoneTracker;
+import medievalsim.zones.settlement.SettlementProtectionTracker;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.server.ServerClient;
 import net.bytebuddy.asm.Advice;

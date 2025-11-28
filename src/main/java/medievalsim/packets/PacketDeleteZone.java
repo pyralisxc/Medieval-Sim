@@ -1,10 +1,10 @@
 package medievalsim.packets;
 
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZone;
-import medievalsim.zones.PvPZone;
-import medievalsim.zones.PvPZoneTracker;
-import medievalsim.zones.ZoneManager;
+import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.PvPZone;
+import medievalsim.zones.service.PvPZoneTracker;
+import medievalsim.zones.service.ZoneManager;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;

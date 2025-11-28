@@ -8,7 +8,7 @@ import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
 import necesse.level.maps.Level;
-import medievalsim.zones.AdminZonesLevelData;
+import medievalsim.zones.domain.AdminZonesLevelData;
 
 public class PacketForceClean extends Packet {
     public int centerX;

@@ -46,7 +46,7 @@ extends Buff {
         
         // Get damage multiplier and format percentage
         float damageMultiplier = buff.getGndData().getFloat("damageMultiplier", 1.0f);
-        String damagePercent = medievalsim.zones.PvPZone.formatDamagePercent(damageMultiplier);
+        String damagePercent = medievalsim.zones.domain.PvPZone.formatDamagePercent(damageMultiplier);
         tooltips.add("§cPvP Damage: §f" + damagePercent);
         
         return tooltips;

@@ -1,6 +1,6 @@
 package medievalsim.packets;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.PvPZone;
+import medievalsim.zones.domain.PvPZone;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;

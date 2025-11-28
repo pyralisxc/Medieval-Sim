@@ -1,7 +1,7 @@
 package medievalsim.packets;
 
 import medievalsim.util.ModLogger;
-import medievalsim.zones.ProtectedZone;
+import medievalsim.zones.domain.ProtectedZone;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
@@ -23,6 +23,7 @@ public class PacketConfigureProtectedZone extends Packet {
     public final boolean canInteractSigns;
     public final boolean canInteractSwitches;
     public final boolean canInteractFurniture;
+    public final boolean disableBrooms;
     
     // Receiving constructor
     public PacketConfigureProtectedZone(byte[] data) {
@@ -41,6 +42,7 @@ public class PacketConfigureProtectedZone extends Packet {
         this.canInteractSigns = reader.getNextBoolean();
         this.canInteractSwitches = reader.getNextBoolean();
         this.canInteractFurniture = reader.getNextBoolean();
+        this.disableBrooms = reader.getNextBoolean();
     }
     
     // Sending constructor
@@ -48,7 +50,8 @@ public class PacketConfigureProtectedZone extends Packet {
                                        boolean canBreak, boolean canPlace,
                                        boolean canInteractDoors, boolean canInteractContainers,
                                        boolean canInteractStations, boolean canInteractSigns,
-                                       boolean canInteractSwitches, boolean canInteractFurniture) {
+                                       boolean canInteractSwitches, boolean canInteractFurniture,
+                                       boolean disableBrooms) {
         this.zoneID = zoneID;
         this.ownerName = ownerName != null ? ownerName : "";
         this.allowOwnerTeam = allowOwnerTeam;
@@ -62,6 +65,7 @@ public class PacketConfigureProtectedZone extends Packet {
         this.canInteractSigns = canInteractSigns;
         this.canInteractSwitches = canInteractSwitches;
         this.canInteractFurniture = canInteractFurniture;
+        this.disableBrooms = disableBrooms;
         
         PacketWriter writer = new PacketWriter(this);
         writer.putNextInt(zoneID);
@@ -77,6 +81,7 @@ public class PacketConfigureProtectedZone extends Packet {
         writer.putNextBoolean(canInteractSigns);
         writer.putNextBoolean(canInteractSwitches);
         writer.putNextBoolean(canInteractFurniture);
+        writer.putNextBoolean(disableBrooms);
     }
     
     @Override
@@ -160,6 +165,7 @@ public class PacketConfigureProtectedZone extends Packet {
             zone.setCanInteractSigns(canInteractSigns);
             zone.setCanInteractSwitches(canInteractSwitches);
             zone.setCanInteractFurniture(canInteractFurniture);
+            zone.setDisableBrooms(disableBrooms);
 
             // Sync to all clients (with name refresh)
             if (ctx.getZoneData() != null) {
@@ -176,7 +182,7 @@ public class PacketConfigureProtectedZone extends Packet {
                     ProtectedZone playerZone = ctx.getZoneData().getProtectedZoneAt(tileX, tileY);
                     if (playerZone != null && playerZone.uniqueID == zone.uniqueID) {
                         // Player is in this zone - refresh their buff with new permissions
-                        medievalsim.zones.ProtectedZoneTracker.updatePlayerZone(otherClient, zone);
+                        medievalsim.zones.service.ProtectedZoneTracker.updatePlayerZone(otherClient, zone);
                     }
                 }
             }
@@ -184,7 +190,8 @@ public class PacketConfigureProtectedZone extends Packet {
             ModLogger.info("Zone " + zoneID + " configured: owner=" + (resolvedOwnerName.isEmpty() ? "auth:" + ownerAuth : resolvedOwnerName) + 
                           " (auth=" + ownerAuth + "), allowTeam=" + allowOwnerTeam + ", break=" + canBreak + ", place=" + canPlace + 
                           ", doors=" + canInteractDoors + ", containers=" + canInteractContainers + ", stations=" + canInteractStations + 
-                          ", signs=" + canInteractSigns + ", switches=" + canInteractSwitches + ", furniture=" + canInteractFurniture);
+                          ", signs=" + canInteractSigns + ", switches=" + canInteractSwitches + ", furniture=" + canInteractFurniture +
+                          ", disableBrooms=" + disableBrooms);
             
         } catch (Exception ex) {
             ModLogger.error("Error configuring protected zone", ex);

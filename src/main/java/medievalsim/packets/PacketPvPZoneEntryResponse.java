@@ -1,6 +1,6 @@
 package medievalsim.packets;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.PvPZone;
+import medievalsim.zones.domain.PvPZone;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
@@ -53,7 +53,7 @@ extends Packet {
                 
                 // Send confirmation message
                 PvPZone zone = ctx.getPvPZone();
-                String damagePercentStr = medievalsim.zones.PvPZone.formatDamagePercent(zone.damageMultiplier);
+                String damagePercentStr = medievalsim.zones.domain.PvPZone.formatDamagePercent(zone.damageMultiplier);
                 client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.entereddetails", "name", zone.name, "damage", damagePercentStr, "lock", zone.combatLockSeconds));
                 ModLogger.info("Player " + client.getName() + " entered PvP zone " + this.zoneID + " (" + zone.name + ")");
             } else {

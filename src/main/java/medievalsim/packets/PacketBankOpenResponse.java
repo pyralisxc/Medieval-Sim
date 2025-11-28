@@ -1,9 +1,9 @@
 package medievalsim.packets;
 
-import medievalsim.banking.PinDialog;
+import medievalsim.banking.ui.PinDialog;
+import medievalsim.packets.core.AbstractPayloadPacket;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.NetworkPacket;
-import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.network.client.Client;
@@ -17,7 +17,7 @@ import necesse.engine.localization.Localization;
  * 1 - PIN required (client should prompt for PIN)
  * 2 - Invalid PIN (client should display error and/or prompt again)
  */
-public class PacketBankOpenResponse extends Packet {
+public class PacketBankOpenResponse extends AbstractPayloadPacket {
 
     public final int code;
     public final String message;

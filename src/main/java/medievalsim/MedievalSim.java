@@ -2,6 +2,7 @@ package medievalsim;
 
 import medievalsim.config.UnifiedMedievalSimSettings;
 import medievalsim.registries.MedievalSimBuffs;
+import medievalsim.registries.MedievalSimAdminCommands;
 import medievalsim.registries.MedievalSimContainers;
 import medievalsim.registries.MedievalSimControls;
 import medievalsim.registries.MedievalSimLevelData;
@@ -33,6 +34,8 @@ public class MedievalSim {
     public void postInit() {
         // Initialize command center wrapper system
         medievalsim.commandcenter.wrapper.NecesseCommandRegistry.initialize();
+        // Register admin commands such as order-book debug commands
+        MedievalSimAdminCommands.registerCore();
     }
 
     public ModSettings initSettings() {

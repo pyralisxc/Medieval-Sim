@@ -4,8 +4,8 @@
  */
 package medievalsim.patches;
 
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.ProtectedZone;
+import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.ProtectedZone;
 import necesse.engine.localization.Localization;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.util.GameMath;

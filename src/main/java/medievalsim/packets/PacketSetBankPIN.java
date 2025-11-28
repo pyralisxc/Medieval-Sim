@@ -1,11 +1,11 @@
 package medievalsim.packets;
 
-import medievalsim.banking.BankingLevelData;
-import medievalsim.banking.PlayerBank;
+import medievalsim.banking.domain.BankingLevelData;
+import medievalsim.banking.domain.PlayerBank;
 import medievalsim.config.ModConfig;
+import medievalsim.packets.core.AbstractLevelPacket;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.NetworkPacket;
-import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.network.server.Server;
@@ -17,7 +17,7 @@ import necesse.level.maps.Level;
  * Client -> Server: Request to set/change PIN
  * Server validates and updates PIN.
  */
-public class PacketSetBankPIN extends Packet {
+public class PacketSetBankPIN extends AbstractLevelPacket {
     
     public String oldPin;  // Current PIN (for verification when changing)
     public String newPin;  // New PIN to set
@@ -53,23 +53,13 @@ public class PacketSetBankPIN extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Validate client
-            if (client == null || client.playerMob == null) {
-                ModLogger.warn("PacketSetBankPIN: Invalid client or player mob");
-                return;
-            }
-            
-            Level level = client.playerMob.getLevel();
+            Level level = requireLevel(client);
             if (level == null) {
-                ModLogger.warn("PacketSetBankPIN: Player has null level");
                 return;
             }
             
             // Validate new PIN length
-            if (ModConfig.Banking.requirePIN && this.newPin.length() != ModConfig.Banking.pinLength) {
-                ModLogger.warn("PacketSetBankPIN: Invalid PIN length for auth=%d (expected %d, got %d)",
-                    client.authentication, ModConfig.Banking.pinLength, this.newPin.length());
-                // TODO: Send error message to client
+            if (ModConfig.Banking.requirePIN && !validateString(this.newPin, ModConfig.Banking.pinLength, ModConfig.Banking.pinLength, "newPin")) {
                 return;
             }
             
@@ -91,25 +81,30 @@ public class PacketSetBankPIN extends Packet {
             if (bank.isPinSet()) {
                 if (this.oldPin == null || this.oldPin.isEmpty()) {
                     ModLogger.debug("PacketSetBankPIN: Old PIN required but not provided for auth=%d", client.authentication);
-                    // TODO: Send error message to client
+                    client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "banking.pin.oldrequired"));
                     return;
                 }
-                
+                if (!validateString(this.oldPin, ModConfig.Banking.pinLength, ModConfig.Banking.pinLength, "oldPin")) {
+                    return;
+                }
+
                 if (!bank.validatePin(this.oldPin)) {
                     ModLogger.debug("PacketSetBankPIN: Invalid old PIN for auth=%d", client.authentication);
-                    // TODO: Send error message to client
+                    client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "banking.pin.invalid"));
                     return;
                 }
             }
             
             // Set new PIN
+            boolean wasSet = bank.isPinSet();
             if (bank.setPin(this.newPin)) {
                 ModLogger.info("PIN %s for player auth=%d", 
-                    bank.isPinSet() ? "changed" : "set", client.authentication);
-                // TODO: Send success message to client
+                    wasSet ? "changed" : "set", client.authentication);
+                String messageKey = wasSet ? "banking.pin.changed" : "banking.pin.set";
+                client.sendChatMessage(necesse.engine.localization.Localization.translate("message", messageKey));
             } else {
                 ModLogger.error("PacketSetBankPIN: Failed to set PIN for auth=%d", client.authentication);
-                // TODO: Send error message to client
+                client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "banking.pin.error"));
             }
             
         } catch (Exception e) {

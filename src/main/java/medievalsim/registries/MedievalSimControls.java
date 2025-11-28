@@ -1,6 +1,6 @@
 package medievalsim.registries;
-import medievalsim.admintools.AdminToolsManager;
-import medievalsim.buildmode.BuildModeManager;
+import medievalsim.admintools.service.AdminToolsManager;
+import medievalsim.buildmode.service.BuildModeManager;
 import necesse.engine.GlobalData;
 import necesse.engine.input.Control;
 import necesse.engine.input.InputEvent;

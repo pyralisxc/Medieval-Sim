@@ -5,8 +5,8 @@
 package medievalsim.ui;
 
 import medievalsim.packets.PacketConfigureSettlementProtection;
-import medievalsim.zones.SettlementProtectionData;
-import medievalsim.zones.SettlementProtectionLevelData;
+import medievalsim.zones.settlement.SettlementProtectionData;
+import medievalsim.zones.settlement.SettlementProtectionLevelData;
 import necesse.engine.GlobalData;
 import necesse.engine.localization.Localization;
 import necesse.engine.network.Packet;
@@ -42,6 +42,7 @@ public class SettlementProtectionDialog extends ContinueForm {
     private FormCheckBox canInteractSignsCheckbox;
     private FormCheckBox canInteractSwitchesCheckbox;
     private FormCheckBox canInteractFurnitureCheckbox;
+    private FormCheckBox disableBroomsCheckbox;
     
     public SettlementProtectionDialog(Client client, int settlementTileX, int settlementTileY) {
         super("settlementprotection", 400, 500);
@@ -155,6 +156,15 @@ public class SettlementProtectionDialog extends ContinueForm {
             40, flow.next(22), this.getWidth() - 60, protectionData.getCanInteractFurniture()));
         canInteractFurnitureCheckbox.onClicked(e -> updateProtectionState());
 
+        // Movement restrictions
+        this.addComponent(flow.nextY(new FormLocalLabel("ui", "movementrestrictions",
+            new FontOptions(16), -1, 20, flow.next(10), this.getWidth() - 40), 5));
+
+        disableBroomsCheckbox = this.addComponent(new FormCheckBox(
+            Localization.translate("ui", "disablebrooms"),
+            40, flow.next(22), this.getWidth() - 60, protectionData.isBroomRidingDisabled()));
+        disableBroomsCheckbox.onClicked(e -> updateProtectionState());
+
         flow.next(15);
 
         // Buttons
@@ -186,6 +196,7 @@ public class SettlementProtectionDialog extends ContinueForm {
         protectionData.setCanInteractSigns(canInteractSignsCheckbox.checked);
         protectionData.setCanInteractSwitches(canInteractSwitchesCheckbox.checked);
         protectionData.setCanInteractFurniture(canInteractFurnitureCheckbox.checked);
+        protectionData.setDisableBrooms(disableBroomsCheckbox.checked);
     }
 
     private void sendProtectionPacket() {
@@ -202,7 +213,8 @@ public class SettlementProtectionDialog extends ContinueForm {
             protectionData.getCanInteractStations(),
             protectionData.getCanInteractSigns(),
             protectionData.getCanInteractSwitches(),
-            protectionData.getCanInteractFurniture()
+            protectionData.getCanInteractFurniture(),
+            protectionData.isBroomRidingDisabled()
         ));
     }
 

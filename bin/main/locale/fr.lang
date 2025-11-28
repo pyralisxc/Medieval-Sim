@@ -2,9 +2,11 @@
 # Pas encore de tuiles personnalisées
 
 [object]
-# Pas encore d'objets personnalisés (la barrière est interne)
+pvpzonebarrier=Barrière de zone PvP
 
 [item]
+ancestorsword=Épée des Ancêtres
+ancestorwand=Bâton des Ancêtres
 # Pas encore d'objets personnalisés
 
 [itemtooltip]
@@ -212,6 +214,10 @@ reentrycooldownmessage=Impossible d'entrer - temps d'attente de <seconds>s
 zone.protected.nobreak=Vous n'avez pas la permission de casser des tuiles dans cette zone protégée
 zone.protected.nobreakobjects=Vous n'avez pas la permission de casser des objets dans cette zone protégée
 zone.protected.ownernotfound=Joueur '<player>' introuvable. Il doit être en ligne pour être défini comme propriétaire.
+
+# Restrictions de mouvement
+broomdisabledzone=Le vol en balai est désactivé dans cette zone protégée
+broomdisabledsettlement=Le vol en balai est désactivé dans cet établissement
 
 # Messages de Zone PvP
 zone.pvp.removed=Vous avez été déplacé hors d'une zone PVP en raison de changements de zone

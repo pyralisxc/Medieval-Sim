@@ -55,12 +55,12 @@ public class PacketExecuteCommand extends Packet {
         if (client == null) return;
         
         // Permission check using centralized system
-        if (!medievalsim.commandcenter.CommandPermissions.canAccessCommandCenter(client)) {
+        if (!medievalsim.commandcenter.service.CommandPermissions.canAccessCommandCenter(client)) {
             ModLogger.warn("PacketExecuteCommand: permission denied for client: %s", client.getName());
             server.network.sendPacket(new PacketCommandResult(
                 requestId,
                 false,
-                medievalsim.commandcenter.CommandPermissions.getPermissionDeniedMessage(necesse.engine.commands.PermissionLevel.ADMIN),
+                medievalsim.commandcenter.service.CommandPermissions.getPermissionDeniedMessage(necesse.engine.commands.PermissionLevel.ADMIN),
                 commandString
             ), client);
             return;

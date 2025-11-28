@@ -1,7 +1,7 @@
 package medievalsim.patches;
-import medievalsim.zones.PvPZone;
-import medievalsim.zones.PvPZoneTracker;
-import medievalsim.zones.ZoneManager;
+import medievalsim.zones.domain.PvPZone;
+import medievalsim.zones.service.PvPZoneTracker;
+import medievalsim.zones.service.ZoneManager;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.packet.PacketSpawnPlayer;
 import necesse.engine.network.server.Server;
@@ -32,15 +32,15 @@ public class ServerClientSubmitSpawnPacketPatch {
             }
             
             // Initialize ProtectedZone buff if spawning in a protected zone
-            medievalsim.zones.AdminZonesLevelData zoneData =
-                medievalsim.zones.AdminZonesLevelData.getZoneData(level, false);
+            medievalsim.zones.domain.AdminZonesLevelData zoneData =
+                medievalsim.zones.domain.AdminZonesLevelData.getZoneData(level, false);
             if (zoneData != null) {
-                medievalsim.zones.ProtectedZone protectedZone = zoneData.getProtectedZoneAt(tileX, tileY);
-                medievalsim.zones.ProtectedZoneTracker.updatePlayerZone(client, protectedZone);
+                medievalsim.zones.domain.ProtectedZone protectedZone = zoneData.getProtectedZoneAt(tileX, tileY);
+                medievalsim.zones.service.ProtectedZoneTracker.updatePlayerZone(client, protectedZone);
             }
 
             // Initialize Settlement Protection buff if spawning in a protected settlement
-            medievalsim.zones.SettlementProtectionTracker.updatePlayerSettlement(client, tileX, tileY);
+            medievalsim.zones.settlement.SettlementProtectionTracker.updatePlayerSettlement(client, tileX, tileY);
         }
     }
 }

@@ -39,7 +39,7 @@ public class PlotFlagRecipe extends Recipe {
             return false;
         }
 
-        // Check if player is admin (use isServer() instead of deprecated isServerLevel())
+        // Check if player is admin
         if (level != null && level.isServer()) {
             necesse.engine.network.server.ServerClient serverClient = player.getServerClient();
             if (serverClient != null && serverClient.getPermissionLevel().getLevel() >= PermissionLevel.ADMIN.getLevel()) {

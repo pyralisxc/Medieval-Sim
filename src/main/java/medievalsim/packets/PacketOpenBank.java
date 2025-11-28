@@ -1,9 +1,10 @@
 package medievalsim.packets;
 
-import medievalsim.banking.BankContainer;
-import medievalsim.banking.BankingLevelData;
-import medievalsim.banking.PlayerBank;
+import medievalsim.banking.domain.BankingLevelData;
+import medievalsim.banking.domain.PlayerBank;
+import medievalsim.banking.ui.BankContainer;
 import medievalsim.config.ModConfig;
+import medievalsim.packets.core.AbstractLevelPacket;
 import medievalsim.registries.MedievalSimContainers;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.NetworkPacket;
@@ -21,7 +22,7 @@ import necesse.level.maps.Level;
  * Client -> Server: Request to open bank with optional PIN
  * Server validates PIN and opens container if valid.
  */
-public class PacketOpenBank extends Packet {
+public class PacketOpenBank extends AbstractLevelPacket {
     
     public String pin;  // Optional PIN for validation
     
@@ -53,15 +54,8 @@ public class PacketOpenBank extends Packet {
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         try {
-            // Validate client
-            if (client == null || client.playerMob == null) {
-                ModLogger.warn("PacketOpenBank: Invalid client or player mob");
-                return;
-            }
-            
-            Level level = client.playerMob.getLevel();
+            Level level = requireLevel(client);
             if (level == null) {
-                ModLogger.warn("PacketOpenBank: Player has null level");
                 return;
             }
             
@@ -103,6 +97,8 @@ public class PacketOpenBank extends Packet {
                     PacketBankOpenResponse response = new PacketBankOpenResponse(1, "Please enter your bank PIN.");
                     server.network.sendPacket(response, client);
                     return;
+                } else if (!validateString(this.pin, ModConfig.Banking.pinLength, ModConfig.Banking.pinLength, "pin")) {
+                    return;
                 } else if (!bank.validatePin(this.pin)) {
                     // Invalid PIN: record failed attempt and possibly lock
                     boolean locked = bank.recordFailedPinAttempt(MAX_ATTEMPTS, COOLDOWN_MS);
@@ -125,7 +121,6 @@ public class PacketOpenBank extends Packet {
             // Open bank container
             Packet containerPacket = BankContainer.getOpenPacketContent(
                 client.authentication,
-                bank.getUpgradeLevel(),
                 pinValidated,
                 bank
             );

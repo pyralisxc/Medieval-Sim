@@ -2,9 +2,11 @@
 # Todavía no hay bloques personalizados
 
 [object]
-# Todavía no hay objetos personalizados (la barrera es interna)
+pvpzonebarrier=Barrera de Zona PvP
 
 [item]
+ancestorsword=Espada de los Ancestros
+ancestorwand=Vara de los Ancestros
 # Todavía no hay objetos personalizados
 
 [itemtooltip]
@@ -212,6 +214,10 @@ reentrycooldownmessage=No puedes entrar - tiempo de espera por <seconds>s
 zone.protected.nobreak=No tienes permiso para romper bloques en esta zona protegida
 zone.protected.nobreakobjects=No tienes permiso para romper objetos en esta zona protegida
 zone.protected.ownernotfound=Jugador '<player>' no encontrado. Debe estar en línea para establecerlo como dueño.
+
+# Restricciones de movimiento
+broomdisabledzone=Montar escobas está deshabilitado en esta zona protegida
+broomdisabledsettlement=Montar escobas está deshabilitado en este asentamiento
 
 # Mensajes de Zona PvP
 zone.pvp.removed=Has sido movido fuera de una zona PVP debido a cambios en la zona

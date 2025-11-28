@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import medievalsim.buildmode.BuildModeManager;
+import medievalsim.buildmode.service.BuildModeManager;
 import medievalsim.config.ModConfig;
 import medievalsim.packets.PacketConfigurePvPZone;
 import medievalsim.ui.helpers.PlayerDropdownEntry;
@@ -17,11 +17,11 @@ import medievalsim.packets.PacketRenameZone;
 import medievalsim.packets.PacketRequestPlayerList;
 import medievalsim.util.Constants;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZone;
-import medievalsim.zones.CreateOrExpandZoneTool;
-import medievalsim.zones.ProtectedZone;
-import medievalsim.zones.PvPZone;
-import medievalsim.zones.ZoneVisualizationHud;
+import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.ui.CreateOrExpandZoneTool;
+import medievalsim.zones.domain.ProtectedZone;
+import medievalsim.zones.domain.PvPZone;
+import medievalsim.zones.ui.ZoneVisualizationHud;
 import necesse.engine.GlobalData;
 import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.gameTool.GameTool;
@@ -636,9 +636,9 @@ extends Form {
                     });
                 });
 
-                // DoT: damage multiplier slider
-                FormSlider dotDamageSlider = (FormSlider)entryBox.addComponent((FormComponent)new FormSlider("DoT Damage Mult: " + String.format("%.2fx", Float.valueOf(pvpZone.dotDamageMultiplier)), xPos, configY += combatLockSliderRef[0].getTotalHeight() + 6, (int)(pvpZone.dotDamageMultiplier * 100.0f), 1, 200, sliderWidth, WHITE_TEXT_10));
-                dotDamageSlider.drawValueInPercent = false;
+                // DoT damage slider expressed as 0-100% for clarity
+                FormSlider dotDamageSlider = (FormSlider)entryBox.addComponent((FormComponent)new FormSlider("DoT Damage (%)", xPos, configY += combatLockSliderRef[0].getTotalHeight() + 6, (int)Math.round(pvpZone.dotDamageMultiplier * 100.0f), 0, 100, sliderWidth, WHITE_TEXT_10));
+                dotDamageSlider.drawValueInPercent = true;
                 dotDamageSlider.onChanged(e -> {
                     float v = (float)dotDamageSlider.getValue() / 100.0f;
                     pvpZone.dotDamageMultiplier = v;
@@ -796,6 +796,17 @@ extends Form {
                     protectedZone.setCanInteractFurniture(canInteractFurnitureCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
                 });
+                configY += 20;
+
+                // Movement restrictions label + checkbox
+                FormLabel movementLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"movementrestrictions"), WHITE_TEXT_10, 0, labelX + 20, configY));
+                configY += movementLabel.getHeight() + 4;
+
+                FormCheckBox disableBroomsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"disablebrooms"), labelX + 20, configY, inputWidth - 20, protectedZone.isBroomRidingDisabled(), WHITE_TEXT_10));
+                disableBroomsCheckbox.onClicked(e -> {
+                    protectedZone.setDisableBrooms(disableBroomsCheckbox.checked);
+                    this.sendProtectedZoneConfigPacket(protectedZone, null);
+                });
             }
         }
         return yPos + entryHeight + margin;
@@ -815,7 +826,8 @@ extends Form {
             zone.getCanInteractStations(),
             zone.getCanInteractSigns(),
             zone.getCanInteractSwitches(),
-            zone.getCanInteractFurniture()
+            zone.getCanInteractFurniture(),
+            zone.isBroomRidingDisabled()
         ));
     }
 

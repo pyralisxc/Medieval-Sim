@@ -1,5 +1,5 @@
 package medievalsim.ui;
-import medievalsim.admintools.AdminToolsManager;
+import medievalsim.admintools.service.AdminToolsManager;
 import medievalsim.packets.PacketRequestZoneSync;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.Packet;

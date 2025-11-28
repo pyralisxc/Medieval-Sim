@@ -1,6 +1,6 @@
 package medievalsim.commandcenter.wrapper;
 
-import medievalsim.commandcenter.CommandCategory;
+import medievalsim.commandcenter.domain.CommandCategory;
 import medievalsim.commandcenter.cache.CommandMetadataCache;
 import medievalsim.util.ModLogger;
 import necesse.engine.commands.ChatCommand;

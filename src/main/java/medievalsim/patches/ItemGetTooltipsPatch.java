@@ -1,6 +1,6 @@
 package medievalsim.patches;
-import medievalsim.buildmode.BlockCountCalculator;
-import medievalsim.buildmode.BuildModeManager;
+import medievalsim.buildmode.util.BlockCountCalculator;
+import medievalsim.buildmode.service.BuildModeManager;
 import medievalsim.util.ModLogger;
 import necesse.engine.localization.Localization;
 import necesse.engine.modLoader.annotations.ModMethodPatch;

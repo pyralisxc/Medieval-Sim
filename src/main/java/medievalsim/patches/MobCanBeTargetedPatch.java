@@ -1,5 +1,5 @@
 package medievalsim.patches;
-import medievalsim.zones.AdminZonesLevelData;
+import medievalsim.zones.domain.AdminZonesLevelData;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.NetworkClient;
 import necesse.entity.mobs.Mob;

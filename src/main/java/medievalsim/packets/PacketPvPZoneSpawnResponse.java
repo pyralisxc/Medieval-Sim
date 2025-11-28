@@ -3,9 +3,9 @@ import medievalsim.config.ModConfig;
 import medievalsim.util.ModLogger;
 
 import java.awt.Point;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.PvPZone;
-import medievalsim.zones.PvPZoneTracker;
+import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.PvPZone;
+import medievalsim.zones.service.PvPZoneTracker;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
@@ -92,7 +92,7 @@ extends Packet {
                 client.playerMob.addBuff(new ActiveBuff("pvpimmunity", (Mob)client.playerMob, ModConfig.Zones.pvpSpawnImmunitySeconds, null), true);
             }
             
-            String damagePercentStr = medievalsim.zones.PvPZone.formatDamagePercent(zone.damageMultiplier);
+            String damagePercentStr = medievalsim.zones.domain.PvPZone.formatDamagePercent(zone.damageMultiplier);
             client.sendChatMessage(necesse.engine.localization.Localization.translate("message", "zone.pvp.staying", "name", zone.name, "damage", damagePercentStr, "lock", zone.combatLockSeconds));
             ModLogger.info("Player " + client.getName() + " chose to stay in PvP zone " + this.zoneID + " (" + zone.name + ") after spawn");
             

@@ -500,98 +500,240 @@ public class ModConfig {
     }
 
     // ===== GRAND EXCHANGE CONFIGURATION =====
-    @ConfigSection(value = "GRAND_EXCHANGE", description = "Player marketplace and trading system configuration")
+    @ConfigSection(value = "GRAND_EXCHANGE", description = "Player marketplace and trading system configuration (RuneScape-style)")
     public static class GrandExchange {
 
+        // === CORE SYSTEM ===
+        
         @ConfigValue(
             defaultValue = "true",
             description = "Enable Grand Exchange system (adds GE option to Trader NPC)"
         )
         public static boolean enabled = true;
 
+        // === INVENTORY SETTINGS ===
+        
         @ConfigValue(
             defaultValue = "10",
-            description = "Maximum active listings per player",
+            description = "Number of GE sell slots per player (Sell tab)",
+            min = 5, max = 20
+        )
+        public static int geInventorySlots = 10;
+        
+        @ConfigValue(
+            defaultValue = "3",
+            description = "Number of buy order slots per player (Buy Orders tab)",
+            min = 1, max = 10
+        )
+        public static int buyOrderSlots = 3;
+
+        @ConfigValue(
+            defaultValue = "10",
+            description = "Maximum active sell offers per player (total across all slots)",
             min = 1, max = 50
         )
-        public static int maxListingsPerPlayer = 10;
+        public static int maxActiveOffersPerPlayer = 10;
+        
+        /** @deprecated Use maxActiveOffersPerPlayer instead. Compatibility alias for Phase 6. */
+        @Deprecated
+        public static int maxListingsPerPlayer = maxActiveOffersPerPlayer;
+
+        // === PRICING & FEES ===
+        
+        @ConfigValue(
+            defaultValue = "1",
+            description = "Minimum price per item (anti-abuse)",
+            min = 0, max = 100
+        )
+        public static int minPricePerItem = 1;
+
+        @ConfigValue(
+            defaultValue = "1000000",
+            description = "Maximum price per item (anti-abuse)",
+            min = 100, max = 2147483647
+        )
+        public static int maxPricePerItem = 1000000;
 
         @ConfigValue(
             defaultValue = "0.05",
-            description = "Listing fee as percentage of total value (0.05 = 5%)",
+            description = "Sales tax percentage (0.05 = 5% tax on completed sales)",
             min = 0.0, max = 0.25
         )
-        public static float listingFeePercent = 0.05f;
+        public static float salesTaxPercent = 0.05f;
+
+        @ConfigValue(
+            defaultValue = "0.0",
+            description = "Listing fee percentage (0.02 = 2% upfront fee to create offer)",
+            min = 0.0, max = 0.25
+        )
+        public static float listingFeePercent = 0.0f;
+
+        // === OFFER EXPIRATION ===
+        
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Enable automatic offer expiration (offers cancel after duration)"
+        )
+        public static boolean enableOfferExpiration = true;
 
         @ConfigValue(
             defaultValue = "168",
-            description = "Maximum listing duration in hours (168 = 1 week)",
-            min = 1, max = 720
+            description = "Offer expiration duration in hours (168 = 1 week, 0 = never expires)",
+            min = 0, max = 720
         )
-        public static int maxListingDurationHours = 168;
+        public static int offerExpirationHours = 168;
 
         @ConfigValue(
+            defaultValue = "true",
+            description = "Return expired items to seller's bank (false = return to inventory)"
+        )
+        public static boolean returnExpiredToBank = true;
+
+        // === TRADING FEATURES ===
+        
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Enable instant trade matching (auto-match buy/sell offers at compatible prices)"
+        )
+        public static boolean enableInstantTrades = true;
+
+        @ConfigValue(
+            defaultValue = "false",
+            description = "Enable buy offers (Phase 10 feature: bid for items you want to buy)"
+        )
+        public static boolean enableBuyOffers = false;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Allow purchasing items directly to bank (false = only to inventory)"
+        )
+        public static boolean allowPurchaseToBank = true;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Send sale proceeds to seller's bank (false = to inventory)"
+        )
+        public static boolean saleProceedsToBank = true;
+
+        // === PRICE HISTORY ===
+        
+        @ConfigValue(
             defaultValue = "50",
-            description = "Number of recent sales to track for price history",
+            description = "Number of recent sales to track for price history per item",
             min = 10, max = 200
         )
         public static int priceHistorySize = 50;
 
         @ConfigValue(
             defaultValue = "true",
-            description = "Allow purchasing items directly to bank"
+            description = "Track average prices for market analytics"
         )
-        public static boolean allowPurchaseToBank = true;
+        public static boolean enablePriceTracking = true;
 
-        @ConfigValue(
-            defaultValue = "true",
-            description = "Send sale proceeds to seller's bank"
-        )
-        public static boolean saleProceedsToBank = true;
-
-        @ConfigValue(
-            defaultValue = "true",
-            description = "Return unsold items to seller's bank when listing expires"
-        )
-        public static boolean returnExpiredToBank = true;
-
+        // === UI & UX ===
+        
         @ConfigValue(
             defaultValue = "30",
-            description = "Auto-refresh interval for market data (seconds)",
-            min = 5, max = 300
+            description = "Auto-refresh interval for market data (seconds, 0 = manual only)",
+            min = 0, max = 300
         )
         public static int autoRefreshSeconds = 30;
 
         @ConfigValue(
             defaultValue = "100",
-            description = "Maximum listings to display per page",
+            description = "Maximum listings to display per page in market browser",
             min = 10, max = 500
         )
         public static int maxListingsPerPage = 100;
 
         @ConfigValue(
             defaultValue = "true",
-            description = "Enable automatic listing expiration"
+            description = "Show offer status badges on slot icons (SELLING/SOLD/PARTIAL)"
         )
-        public static boolean enableListingExpiration = true;
+        public static boolean showOfferStatusBadges = true;
+
+        // === STATISTICS ===
+        
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Track GE statistics (total trades, volume, etc.)"
+        )
+        public static boolean enableStatistics = true;
+
+        // === RATE LIMITING ===
+        
+        @ConfigValue(
+            defaultValue = "5000",
+            description = "Cooldown in milliseconds between creating offers/orders (5000 = 5 seconds)",
+            min = 0, max = 60000
+        )
+        public static int offerCreationCooldown = 5000;
+
+        // === AUDIT & MONITORING ===
+        
+        @ConfigValue(
+            defaultValue = "1000",
+            description = "Number of trades to keep in audit log per category",
+            min = 100, max = 10000
+        )
+        public static int auditLogSize = 1000;
 
         @ConfigValue(
             defaultValue = "true",
-            description = "Return unsold items to seller's bank on expiration"
+            description = "Enable fraud detection (detects self-trading and suspicious patterns)"
         )
-        public static boolean returnItemsToBank = true;
+        public static boolean enableFraudDetection = true;
 
-        // Setters with validation
-        public static void setMaxListingsPerPlayer(int value) {
-            maxListingsPerPlayer = validateInt(value, 1, 50, "maxListingsPerPlayer");
+        @ConfigValue(
+            defaultValue = "2.0",
+            description = "Price outlier threshold multiplier for fraud detection (2.0 = 2x standard deviation)",
+            min = 1.0, max = 5.0
+        )
+        public static float priceOutlierThreshold = 2.0f;
+
+        // === PERFORMANCE ===
+        
+        @ConfigValue(
+            defaultValue = "60",
+            description = "Performance metrics sliding window in seconds",
+            min = 10, max = 300
+        )
+        public static int metricsWindowSeconds = 60;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Enable performance monitoring (tracks trades/min, execution time, market health)"
+        )
+        public static boolean enablePerformanceMetrics = true;
+
+        // ===== SETTERS WITH VALIDATION =====
+        
+        public static void setGeInventorySlots(int value) {
+            geInventorySlots = validateInt(value, 5, 20, "geInventorySlots");
+        }
+
+        public static void setMaxActiveOffersPerPlayer(int value) {
+            maxActiveOffersPerPlayer = validateInt(value, 1, 50, "maxActiveOffersPerPlayer");
+        }
+
+        public static void setMinPricePerItem(int value) {
+            minPricePerItem = validateInt(value, 0, 100, "minPricePerItem");
+        }
+
+        public static void setMaxPricePerItem(int value) {
+            maxPricePerItem = validateInt(value, 100, Integer.MAX_VALUE, "maxPricePerItem");
+        }
+
+        public static void setSalesTaxPercent(float value) {
+            salesTaxPercent = validateFloat(value, 0.0f, 0.25f, "salesTaxPercent");
         }
 
         public static void setListingFeePercent(float value) {
             listingFeePercent = validateFloat(value, 0.0f, 0.25f, "listingFeePercent");
         }
 
-        public static void setMaxListingDurationHours(int value) {
-            maxListingDurationHours = validateInt(value, 1, 720, "maxListingDurationHours");
+        public static void setOfferExpirationHours(int value) {
+            offerExpirationHours = validateInt(value, 0, 720, "offerExpirationHours");
         }
 
         public static void setPriceHistorySize(int value) {
@@ -599,21 +741,61 @@ public class ModConfig {
         }
 
         public static void setAutoRefreshSeconds(int value) {
-            autoRefreshSeconds = validateInt(value, 5, 300, "autoRefreshSeconds");
+            autoRefreshSeconds = validateInt(value, 0, 300, "autoRefreshSeconds");
+        }
+
+        public static void setOfferCreationCooldown(int value) {
+            offerCreationCooldown = validateInt(value, 0, 60000, "offerCreationCooldown");
+        }
+
+        public static void setAuditLogSize(int value) {
+            auditLogSize = validateInt(value, 100, 10000, "auditLogSize");
+        }
+
+        public static void setPriceOutlierThreshold(float value) {
+            priceOutlierThreshold = validateFloat(value, 1.0f, 5.0f, "priceOutlierThreshold");
+        }
+
+        public static void setMetricsWindowSeconds(int value) {
+            metricsWindowSeconds = validateInt(value, 10, 300, "metricsWindowSeconds");
         }
 
         public static void setMaxListingsPerPage(int value) {
             maxListingsPerPage = validateInt(value, 10, 500, "maxListingsPerPage");
         }
 
-        /** Calculate listing fee for a given total value */
+        // ===== HELPER METHODS =====
+        
+        /** Calculate sales tax for a completed trade */
+        public static int getSalesTax(int totalValue) {
+            return (int)(totalValue * salesTaxPercent);
+        }
+
+        /** Calculate seller's proceeds after tax */
+        public static int getSellerProceeds(int totalValue) {
+            return totalValue - getSalesTax(totalValue);
+        }
+
+        /** Calculate listing fee for creating an offer */
         public static int getListingFee(int totalValue) {
+            if (listingFeePercent == 0.0f) return 0;
             return Math.max(1, (int)(totalValue * listingFeePercent));
         }
 
-        /** Calculate listing expiration time in milliseconds */
-        public static long getListingExpirationMs() {
-            return maxListingDurationHours * 60L * 60L * 1000L;
+        /** Calculate offer expiration time in milliseconds */
+        public static long getOfferExpirationMs() {
+            if (offerExpirationHours == 0) return 0L;  // Never expires
+            return offerExpirationHours * 60L * 60L * 1000L;
+        }
+
+        /** Check if price is within valid range */
+        public static boolean isValidPrice(int price) {
+            return price >= minPricePerItem && price <= maxPricePerItem;
+        }
+
+        /** Get player's total GE slot count (uses geInventorySlots setting) */
+        public static int getPlayerSlotCount() {
+            return geInventorySlots;
         }
     }
 

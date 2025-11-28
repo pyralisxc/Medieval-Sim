@@ -1,7 +1,7 @@
 package medievalsim.packets;
 
 import medievalsim.util.ModLogger;
-import medievalsim.zones.PvPZone;
+import medievalsim.zones.domain.PvPZone;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
@@ -56,7 +56,8 @@ extends Packet {
             // Apply validated settings with clamping
             zone.damageMultiplier = Math.max(0.001f, Math.min(0.1f, this.damageMultiplier));
             zone.combatLockSeconds = Math.max(0, Math.min(10, this.combatLockSeconds));
-            zone.dotDamageMultiplier = Math.max(0.01f, Math.min(2.0f, this.dotDamageMultiplier));
+            // DoT damage multiplier now maps directly to a 0-100% slider value
+            zone.dotDamageMultiplier = Math.max(0.0f, Math.min(1.0f, this.dotDamageMultiplier));
             zone.dotIntervalMultiplier = Math.max(0.25f, Math.min(4.0f, this.dotIntervalMultiplier));
             
             // Silent update - logging removed to prevent spam during slider adjustments

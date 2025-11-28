@@ -1,5 +1,5 @@
 package medievalsim.patches;
-import medievalsim.buildmode.BuildModeManager;
+import medievalsim.buildmode.service.BuildModeManager;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.gameNetworkData.GNDItemMap;
 import necesse.entity.mobs.itemAttacker.ItemAttackerMob;

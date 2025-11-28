@@ -1,6 +1,6 @@
 package medievalsim.packets;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZone;
+import medievalsim.zones.domain.AdminZone;
 import necesse.engine.localization.message.GameMessage;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;

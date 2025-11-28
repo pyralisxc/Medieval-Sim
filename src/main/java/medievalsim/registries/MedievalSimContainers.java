@@ -1,9 +1,9 @@
 package medievalsim.registries;
 
-import medievalsim.banking.BankContainer;
-import medievalsim.banking.BankContainerForm;
-import medievalsim.grandexchange.GrandExchangeContainer;
-import medievalsim.grandexchange.GrandExchangeContainerForm;
+import medievalsim.banking.ui.BankContainer;
+import medievalsim.banking.ui.BankContainerForm;
+import medievalsim.grandexchange.ui.GrandExchangeContainer;
+import medievalsim.grandexchange.ui.GrandExchangeContainerForm;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.NetworkClient;
 import necesse.engine.registries.ContainerRegistry;

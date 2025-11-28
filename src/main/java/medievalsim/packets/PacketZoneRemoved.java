@@ -1,7 +1,7 @@
 package medievalsim.packets;
 import medievalsim.ui.AdminToolsHudForm;
 import medievalsim.ui.AdminToolsHudManager;
-import medievalsim.zones.AdminZonesLevelData;
+import medievalsim.zones.domain.AdminZonesLevelData;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;

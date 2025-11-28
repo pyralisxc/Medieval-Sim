@@ -5,8 +5,8 @@ package medievalsim.packets;
 
 import medievalsim.config.ModConfig;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.SettlementProtectionData;
-import medievalsim.zones.SettlementProtectionLevelData;
+import medievalsim.zones.settlement.SettlementProtectionData;
+import medievalsim.zones.settlement.SettlementProtectionLevelData;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
@@ -34,6 +34,7 @@ public class PacketConfigureSettlementProtection extends Packet {
     public final boolean canInteractSigns;
     public final boolean canInteractSwitches;
     public final boolean canInteractFurniture;
+    public final boolean disableBrooms;
     
     // Receiving constructor
     public PacketConfigureSettlementProtection(byte[] data) {
@@ -52,6 +53,7 @@ public class PacketConfigureSettlementProtection extends Packet {
         this.canInteractSigns = reader.getNextBoolean();
         this.canInteractSwitches = reader.getNextBoolean();
         this.canInteractFurniture = reader.getNextBoolean();
+        this.disableBrooms = reader.getNextBoolean();
     }
     
     // Sending constructor
@@ -60,7 +62,8 @@ public class PacketConfigureSettlementProtection extends Packet {
                                               boolean canBreak, boolean canPlace,
                                               boolean canInteractDoors, boolean canInteractContainers,
                                               boolean canInteractStations, boolean canInteractSigns,
-                                              boolean canInteractSwitches, boolean canInteractFurniture) {
+                                              boolean canInteractSwitches, boolean canInteractFurniture,
+                                              boolean disableBrooms) {
         this.settlementTileX = settlementTileX;
         this.settlementTileY = settlementTileY;
         this.enabled = enabled;
@@ -74,6 +77,7 @@ public class PacketConfigureSettlementProtection extends Packet {
         this.canInteractSigns = canInteractSigns;
         this.canInteractSwitches = canInteractSwitches;
         this.canInteractFurniture = canInteractFurniture;
+        this.disableBrooms = disableBrooms;
         
         PacketWriter writer = new PacketWriter(this);
         writer.putNextInt(settlementTileX);
@@ -89,6 +93,7 @@ public class PacketConfigureSettlementProtection extends Packet {
         writer.putNextBoolean(canInteractSigns);
         writer.putNextBoolean(canInteractSwitches);
         writer.putNextBoolean(canInteractFurniture);
+        writer.putNextBoolean(disableBrooms);
     }
     
     @Override
@@ -162,6 +167,7 @@ public class PacketConfigureSettlementProtection extends Packet {
         protection.setCanInteractSigns(canInteractSigns);
         protection.setCanInteractSwitches(canInteractSwitches);
         protection.setCanInteractFurniture(canInteractFurniture);
+        protection.setDisableBrooms(disableBrooms);
         
         ModLogger.info("Updated settlement protection at (%d, %d) - enabled=%b", 
             settlementTileX, settlementTileY, enabled);

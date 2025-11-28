@@ -1,6 +1,6 @@
 package medievalsim.util;
 
-import medievalsim.zones.AdminZonesLevelData;
+import medievalsim.zones.domain.AdminZonesLevelData;
 import necesse.engine.commands.PermissionLevel;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;

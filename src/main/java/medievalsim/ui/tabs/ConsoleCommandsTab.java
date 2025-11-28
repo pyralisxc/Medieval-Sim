@@ -1,10 +1,17 @@
 package medievalsim.ui.tabs;
 
-import medievalsim.commandcenter.CommandCategory;
+import medievalsim.commandcenter.domain.CommandCategory;
 import medievalsim.commandcenter.wrapper.NecesseCommandMetadata;
 import medievalsim.commandcenter.wrapper.NecesseCommandRegistry;
 import medievalsim.commandcenter.wrapper.ParameterMetadata;
-import medievalsim.commandcenter.wrapper.widgets.*;
+import medievalsim.commandcenter.wrapper.widgets.CheckboxWidget;
+import medievalsim.commandcenter.wrapper.widgets.DropdownWidget;
+import medievalsim.commandcenter.wrapper.widgets.MultiChoiceWidget;
+import medievalsim.commandcenter.wrapper.widgets.NumberInputWidget;
+import medievalsim.commandcenter.wrapper.widgets.ParameterWidget;
+import medievalsim.commandcenter.wrapper.widgets.PlayerDropdownWidget;
+import medievalsim.commandcenter.wrapper.widgets.RelativeIntInputWidget;
+import medievalsim.commandcenter.wrapper.widgets.TextInputWidget;
 import medievalsim.config.ModConfig;
 import medievalsim.config.SettingsManager;
 import medievalsim.packets.PacketExecuteCommand;
@@ -16,13 +23,26 @@ import necesse.engine.Settings;
 import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.network.client.Client;
 import necesse.gfx.forms.Form;
-import necesse.gfx.forms.components.*;
+import necesse.gfx.forms.components.FormButton;
+import necesse.gfx.forms.components.FormComponent;
+import necesse.gfx.forms.components.FormContentBox;
+import necesse.gfx.forms.components.FormDropdownSelectionButton;
+import necesse.gfx.forms.components.FormFlow;
+import necesse.gfx.forms.components.FormInputSize;
+import necesse.gfx.forms.components.FormLabel;
+import necesse.gfx.forms.components.FormTextButton;
 import necesse.gfx.gameFont.FontOptions;
 import necesse.gfx.ui.ButtonColor;
 
 import java.awt.Color;
 import java.awt.Rectangle;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Console Commands tab - handles command selection, parameter forms, and execution.

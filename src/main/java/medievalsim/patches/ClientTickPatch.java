@@ -1,5 +1,5 @@
 package medievalsim.patches;
-import medievalsim.buildmode.BuildModeManager;
+import medievalsim.buildmode.service.BuildModeManager;
 import medievalsim.commandcenter.worldclick.WorldClickIntegration;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.client.Client;

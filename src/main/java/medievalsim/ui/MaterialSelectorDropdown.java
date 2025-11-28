@@ -1,5 +1,6 @@
 package medievalsim.ui;
 
+import necesse.engine.localization.Localization;
 import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.registries.ItemRegistry;
 import necesse.gfx.forms.components.FormDropdownSelectionButton;
@@ -7,7 +8,10 @@ import necesse.gfx.forms.components.FormInputSize;
 import necesse.gfx.ui.ButtonColor;
 import necesse.inventory.item.Item;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -65,7 +69,7 @@ public class MaterialSelectorDropdown {
         if (initialValue != null && !initialValue.isEmpty()) {
             Item item = ItemRegistry.getItem(initialValue);
             if (item != null) {
-                dropdown.setSelected(initialValue, new StaticMessage(item.getDisplayName(item.getDefaultItem(null, 1))));
+                dropdown.setSelected(initialValue, new StaticMessage(getDisplayName(item)));
             }
         }
         
@@ -94,7 +98,7 @@ public class MaterialSelectorDropdown {
             if (item == null) continue;
             
             String stringId = item.getStringID();
-            String displayName = item.getDisplayName(item.getDefaultItem(null, 1)).toLowerCase();
+            String displayName = getDisplayName(item).toLowerCase();
             
             // Add to ALL category
             categories.get(MaterialCategory.ALL.name()).add(stringId);
@@ -119,8 +123,9 @@ public class MaterialSelectorDropdown {
                 Item itemA = ItemRegistry.getItem(a);
                 Item itemB = ItemRegistry.getItem(b);
                 if (itemA == null || itemB == null) return 0;
-                return itemA.getDisplayName(itemA.getDefaultItem(null, 1))
-                    .compareToIgnoreCase(itemB.getDisplayName(itemB.getDefaultItem(null, 1)));
+                String nameA = getDisplayName(itemA);
+                String nameB = getDisplayName(itemB);
+                return nameA.compareToIgnoreCase(nameB);
             });
         }
         
@@ -184,7 +189,8 @@ public class MaterialSelectorDropdown {
                 .filter(stringId -> {
                     Item item = ItemRegistry.getItem(stringId);
                     if (item == null) return false;
-                    return item.getDisplayName(item.getDefaultItem(null, 1)).toLowerCase().contains(filterLower) ||
+                          String displayName = getDisplayName(item);
+                          return displayName.toLowerCase().contains(filterLower) ||
                            stringId.toLowerCase().contains(filterLower);
                 })
                 .collect(Collectors.toList());
@@ -197,7 +203,7 @@ public class MaterialSelectorDropdown {
             
             Item item = ItemRegistry.getItem(stringId);
             if (item != null) {
-                dropdown.options.add(stringId, new StaticMessage(item.getDisplayName(item.getDefaultItem(null, 1))));
+                dropdown.options.add(stringId, new StaticMessage(getDisplayName(item)));
             }
         }
         
@@ -237,7 +243,7 @@ public class MaterialSelectorDropdown {
         if (stringId != null && !stringId.isEmpty()) {
             Item item = ItemRegistry.getItem(stringId);
             if (item != null) {
-                dropdown.setSelected(stringId, new StaticMessage(item.getDisplayName(item.getDefaultItem(null, 1))));
+                dropdown.setSelected(stringId, new StaticMessage(getDisplayName(item)));
             }
         }
     }
@@ -247,5 +253,41 @@ public class MaterialSelectorDropdown {
      */
     public FormDropdownSelectionButton<String> getComponent() {
         return dropdown;
+    }
+
+    private static String getDisplayName(Item item) {
+        if (item == null) {
+            return "Unknown Item";
+        }
+
+        String stringId = item.getStringID();
+        String localized = Localization.translate("item", stringId, false);
+        if (localized == null || localized.equals("item." + stringId)) {
+            return formatStringId(stringId);
+        }
+        return localized;
+    }
+
+    private static String formatStringId(String stringId) {
+        if (stringId == null || stringId.isEmpty()) {
+            return "Unnamed Item";
+        }
+
+        String[] parts = stringId.split("[._]");
+        StringBuilder builder = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(Character.toUpperCase(part.charAt(0)));
+            if (part.length() > 1) {
+                builder.append(part.substring(1).toLowerCase());
+            }
+        }
+
+        return builder.length() > 0 ? builder.toString() : stringId;
     }
 }

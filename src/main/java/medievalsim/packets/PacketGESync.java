@@ -1,102 +1,197 @@
 package medievalsim.packets;
 
-import medievalsim.grandexchange.GrandExchangeLevelData;
-import medievalsim.grandexchange.MarketListing;
+import java.util.ArrayList;
+import java.util.List;
+
+import medievalsim.grandexchange.domain.GEOffer;
+import medievalsim.grandexchange.domain.MarketSnapshot;
+import medievalsim.grandexchange.ui.GrandExchangeContainer;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.NetworkPacket;
-import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.network.client.Client;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
-
-import java.util.List;
+import necesse.inventory.container.Container;
 
 /**
- * Packet to sync Grand Exchange data from server to clients.
- * Sent when listings change (create, purchase, expire).
- *
- * For Phase 8, this is a simplified version that just logs on client side.
- * Phase 10 will implement full client-side sync with UI updates.
+ * Server -> client packet carrying the paginated Grand Exchange market snapshot.
  */
-public class PacketGESync extends Packet {
+public class PacketGESync extends medievalsim.packets.core.AbstractPayloadPacket {
 
-    private List<MarketListing> listings;
+    public final long viewerAuth;
+    public final int page;
+    public final int totalPages;
+    public final int totalResults;
+    public final int pageSize;
+    public final String filter;
+    public final String category;
+    public final int sortMode;
+    public final List<EntryPayload> entries;
 
     /**
-     * Receiving constructor (client-side).
+     * Client-side constructor.
      */
     public PacketGESync(byte[] data) {
         super(data);
-        PacketReader reader = new PacketReader(new Packet(data));
+        PacketReader reader = new PacketReader(this);
+        this.viewerAuth = reader.getNextLong();
+        this.page = reader.getNextInt();
+        this.totalPages = reader.getNextInt();
+        this.totalResults = reader.getNextInt();
+        this.pageSize = reader.getNextInt();
+        this.filter = reader.getNextString();
+        this.category = reader.getNextString();
+        this.sortMode = reader.getNextInt();
 
-        // Read listings count
-        int count = reader.getNextInt();
-        this.listings = new java.util.ArrayList<>(count);
-
-        // Read each listing (simplified - just read fields directly)
-        for (int i = 0; i < count; i++) {
-            long listingID = reader.getNextLong();
+        int listingCount = reader.getNextInt();
+        this.entries = new ArrayList<>(listingCount);
+        for (int i = 0; i < listingCount; i++) {
+            long offerId = reader.getNextLong();
+            String itemStringID = reader.getNextString();
+            int quantityTotal = reader.getNextInt();
+            int quantityRemaining = reader.getNextInt();
+            int pricePerItem = reader.getNextInt();
             long sellerAuth = reader.getNextLong();
             String sellerName = reader.getNextString();
-            String itemStringID = reader.getNextString();
-            int quantity = reader.getNextInt();
-            int pricePerItem = reader.getNextInt();
-            long createdTime = reader.getNextLong();
             long expirationTime = reader.getNextLong();
-            boolean active = reader.getNextBoolean();
-
-            MarketListing listing = MarketListing.fromSyncData(listingID, sellerAuth, sellerName,
-                itemStringID, quantity, pricePerItem, createdTime, expirationTime, active);
-            this.listings.add(listing);
+            long createdTime = reader.getNextLong();
+            int stateOrdinal = reader.getNextByteUnsigned();
+            entries.add(new EntryPayload(offerId, itemStringID, quantityTotal, quantityRemaining,
+                pricePerItem, sellerAuth, sellerName, expirationTime, createdTime, stateOrdinal));
         }
-
-        ModLogger.debug("Received GE sync with %d listings", count);
     }
 
     /**
-     * Sending constructor (server-side).
-     * @param geData Grand Exchange data to sync
+     * Server-side constructor from a snapshot.
      */
-    public PacketGESync(GrandExchangeLevelData geData) {
+    public PacketGESync(long viewerAuth, MarketSnapshot snapshot) {
+        this.viewerAuth = viewerAuth;
+        this.page = snapshot.getPage();
+        this.totalPages = snapshot.getTotalPages();
+        this.totalResults = snapshot.getTotalResults();
+        this.pageSize = snapshot.getPageSize();
+        this.filter = snapshot.getFilter();
+        this.category = snapshot.getCategory();
+        this.sortMode = snapshot.getSortMode();
+        this.entries = new ArrayList<>();
+
         PacketWriter writer = new PacketWriter(this);
+        writer.putNextLong(viewerAuth);
+        writer.putNextInt(page);
+        writer.putNextInt(totalPages);
+        writer.putNextInt(totalResults);
+        writer.putNextInt(pageSize);
+        writer.putNextString(filter);
+        writer.putNextString(category);
+        writer.putNextInt(sortMode);
 
-        // Get all active listings
-        List<MarketListing> activeListings = geData.getAllListings();
+        List<MarketSnapshot.Entry> snapshotEntries = snapshot.getEntries();
+        writer.putNextInt(snapshotEntries.size());
+        for (MarketSnapshot.Entry entry : snapshotEntries) {
+            writer.putNextLong(entry.getOfferId());
+            writer.putNextString(entry.getItemStringID());
+            writer.putNextInt(entry.getQuantityTotal());
+            writer.putNextInt(entry.getQuantityRemaining());
+            writer.putNextInt(entry.getPricePerItem());
+            writer.putNextLong(entry.getSellerAuth());
+            writer.putNextString(entry.getSellerName() == null ? "Unknown" : entry.getSellerName());
+            writer.putNextLong(entry.getExpirationTime());
+            writer.putNextLong(entry.getCreatedTime());
+            writer.putNextByteUnsigned(entry.getState().ordinal());
 
-        // Write listings count
-        writer.putNextInt(activeListings.size());
-
-        // Write each listing (simplified - just write fields directly)
-        for (MarketListing listing : activeListings) {
-            writer.putNextLong(listing.getListingID());
-            writer.putNextLong(listing.getSellerAuth());
-            writer.putNextString(listing.getSellerName());
-            writer.putNextString(listing.getItemStringID());
-            writer.putNextInt(listing.getQuantity());
-            writer.putNextInt(listing.getPricePerItem());
-            writer.putNextLong(listing.getCreatedTime());
-            writer.putNextLong(listing.getExpirationTime());
-            writer.putNextBoolean(listing.isActive());
+            entries.add(new EntryPayload(
+                entry.getOfferId(),
+                entry.getItemStringID(),
+                entry.getQuantityTotal(),
+                entry.getQuantityRemaining(),
+                entry.getPricePerItem(),
+                entry.getSellerAuth(),
+                entry.getSellerName(),
+                entry.getExpirationTime(),
+                entry.getCreatedTime(),
+                entry.getState().ordinal()
+            ));
         }
-
-        ModLogger.debug("Sending GE sync with %d listings", activeListings.size());
     }
-    
+
     @Override
     public void processServer(NetworkPacket packet, Server server, ServerClient client) {
-        // Not used - sync is server-to-client only
+        ModLogger.warn("PacketGESync.processServer called - this packet is server -> client only");
     }
-    
+
     @Override
     public void processClient(NetworkPacket packet, Client client) {
-        // Update client-side GE data
-        // For now, just log - full client-side sync will be implemented in Phase 10
-        ModLogger.debug("Client received GE sync with %d listings", this.listings.size());
-        
-        // TODO Phase 10: Update client-side GE container with new listings
-        // This will require accessing the open container and refreshing the UI
+        Container activeContainer = client.getContainer();
+        if (!(activeContainer instanceof GrandExchangeContainer geContainer)) {
+            ModLogger.warn("Received GE sync but container was not GrandExchange");
+            return;
+        }
+
+        if (geContainer.playerAuth != viewerAuth) {
+            ModLogger.warn("GE sync auth mismatch: container=%d packet=%d", geContainer.playerAuth, viewerAuth);
+            return;
+        }
+
+        geContainer.marketPage = page;
+        geContainer.marketTotalPages = totalPages;
+        geContainer.marketTotalResults = totalResults;
+        geContainer.marketPageSize = pageSize;
+        geContainer.marketFilter = filter;
+        geContainer.marketCategory = category;
+        geContainer.marketSort = sortMode;
+
+        geContainer.marketListings.clear();
+        GEOffer.OfferState[] states = GEOffer.OfferState.values();
+        for (EntryPayload payload : entries) {
+            GEOffer.OfferState state = (payload.stateOrdinal >= 0 && payload.stateOrdinal < states.length)
+                ? states[payload.stateOrdinal]
+                : GEOffer.OfferState.DRAFT;
+
+            geContainer.marketListings.add(new GrandExchangeContainer.MarketListingView(
+                payload.offerId,
+                payload.itemStringID,
+                payload.quantityTotal,
+                payload.quantityRemaining,
+                payload.pricePerItem,
+                payload.sellerAuth,
+                payload.sellerName,
+                payload.expirationTime,
+                payload.createdTime,
+                state
+            ));
+        }
+
+        geContainer.onMarketListingsUpdated();
+    }
+
+    public static final class EntryPayload {
+        public final long offerId;
+        public final String itemStringID;
+        public final int quantityTotal;
+        public final int quantityRemaining;
+        public final int pricePerItem;
+        public final long sellerAuth;
+        public final String sellerName;
+        public final long expirationTime;
+        public final long createdTime;
+        public final int stateOrdinal;
+
+        public EntryPayload(long offerId, String itemStringID, int quantityTotal, int quantityRemaining,
+                             int pricePerItem, long sellerAuth, String sellerName,
+                             long expirationTime, long createdTime, int stateOrdinal) {
+            this.offerId = offerId;
+            this.itemStringID = itemStringID;
+            this.quantityTotal = quantityTotal;
+            this.quantityRemaining = quantityRemaining;
+            this.pricePerItem = pricePerItem;
+            this.sellerAuth = sellerAuth;
+            this.sellerName = sellerName;
+            this.expirationTime = expirationTime;
+            this.createdTime = createdTime;
+            this.stateOrdinal = stateOrdinal;
+        }
     }
 }
 

@@ -1,9 +1,10 @@
 package medievalsim.packets;
 
 import medievalsim.config.ModConfig;
-import medievalsim.grandexchange.GrandExchangeLevelData;
+import medievalsim.grandexchange.domain.GrandExchangeLevelData;
 import medievalsim.registries.MedievalSimContainers;
 import medievalsim.util.ModLogger;
+import necesse.engine.Settings;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketWriter;
@@ -48,10 +49,38 @@ public class PacketOpenGrandExchange extends Packet {
             return;
         }
         
-        // Create packet content with player auth
+        // Create packet content with player auth, balance, and privilege flag
         Packet content = new Packet();
         PacketWriter writer = new PacketWriter(content);
         writer.putNextLong(client.authentication);
+        
+        // Add player's bank coin balance to opening packet
+        long coinBalance = 0;
+        try {
+            medievalsim.banking.domain.BankingLevelData bankingData = medievalsim.banking.domain.BankingLevelData.getBankingData(client.getLevel());
+            if (bankingData != null) {
+                medievalsim.banking.domain.PlayerBank bank = bankingData.getBank(client.authentication);
+                if (bank != null) {
+                    coinBalance = bank.getCoins();
+                    ModLogger.info("[BANK SYNC] Fetched bank balance for GE open: auth=%d, balance=%d", 
+                        client.authentication, coinBalance);
+                } else {
+                    ModLogger.warn("[BANK SYNC] No bank found for player auth=%d", client.authentication);
+                }
+            } else {
+                ModLogger.warn("[BANK SYNC] No banking data found in level");
+            }
+        } catch (Exception e) {
+            ModLogger.error("[BANK SYNC] Failed to get bank balance for GE: %s", e.getMessage());
+        }
+        writer.putNextLong(coinBalance);
+
+        boolean isServerOwner = Settings.serverOwnerAuth != -1L
+            && client.authentication == Settings.serverOwnerAuth;
+        writer.putNextBoolean(isServerOwner);
+
+        ModLogger.info("[BANK SYNC] Writing coin balance %d (owner=%s) to GE open packet", 
+            coinBalance, isServerOwner);
 
         // Open GE container for the client
         PacketOpenContainer openPacket = new PacketOpenContainer(

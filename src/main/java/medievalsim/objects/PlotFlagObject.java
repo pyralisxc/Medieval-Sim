@@ -29,7 +29,8 @@ import necesse.level.gameObject.ObjectDamagedTextureArray;
 import necesse.level.maps.Level;
 import necesse.level.maps.levelData.settlementData.ServerSettlementData;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Rectangle;
 
 /**
  * Plot flag that can be purchased by players to create a settlement.
@@ -200,11 +201,11 @@ public class PlotFlagObject extends GameObject {
 
         // Send coins to world owner's bank (if banking is enabled and world has an owner)
         if (ModConfig.Banking.enabled && necesse.engine.Settings.serverOwnerAuth != -1L) {
-            medievalsim.banking.BankingLevelData bankingData =
-                medievalsim.banking.BankingLevelData.getBankingData(level);
+            medievalsim.banking.domain.BankingLevelData bankingData =
+                medievalsim.banking.domain.BankingLevelData.getBankingData(level);
 
             if (bankingData != null) {
-                medievalsim.banking.PlayerBank worldOwnerBank =
+                medievalsim.banking.domain.PlayerBank worldOwnerBank =
                     bankingData.getOrCreateBank(necesse.engine.Settings.serverOwnerAuth);
 
                 // Add coins to world owner's bank (always succeeds - unlimited storage)

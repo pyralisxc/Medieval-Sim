@@ -12,7 +12,18 @@ import necesse.engine.modLoader.LoadedMod;
 import necesse.engine.modLoader.ModLoader;
 import necesse.entity.mobs.PlayerMob;
 import necesse.gfx.forms.Form;
-import necesse.gfx.forms.components.*;
+import necesse.gfx.forms.components.FormBreakLine;
+import necesse.gfx.forms.components.FormButton;
+import necesse.gfx.forms.components.FormCheckBox;
+import necesse.gfx.forms.components.FormComponent;
+import necesse.gfx.forms.components.FormContentBox;
+import necesse.gfx.forms.components.FormDropdownSelectionButton;
+import necesse.gfx.forms.components.FormFlow;
+import necesse.gfx.forms.components.FormInputSize;
+import necesse.gfx.forms.components.FormLabel;
+import necesse.gfx.forms.components.FormMouseHover;
+import necesse.gfx.forms.components.FormTextButton;
+import necesse.gfx.forms.components.FormTextInput;
 import necesse.gfx.gameFont.FontOptions;
 import necesse.gfx.gameTooltips.GameTooltips;
 import necesse.gfx.gameTooltips.StringTooltips;
@@ -20,7 +31,10 @@ import necesse.gfx.ui.ButtonColor;
 
 import java.awt.Color;
 import java.awt.Rectangle;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Mod Settings tab - universal in-game editor for ModConfig classes.

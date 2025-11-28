@@ -7,10 +7,10 @@ import java.util.Map;
 import medievalsim.ui.AdminToolsHudForm;
 import medievalsim.ui.AdminToolsHudManager;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZone;
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.ProtectedZone;
-import medievalsim.zones.PvPZone;
+import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.ProtectedZone;
+import medievalsim.zones.domain.PvPZone;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
@@ -152,6 +152,7 @@ extends Packet {
                 pz.setCanInteractSigns(data.canInteractSigns);
                 pz.setCanInteractSwitches(data.canInteractSwitches);
                 pz.setCanInteractFurniture(data.canInteractFurniture);
+                pz.setDisableBrooms(data.disableBrooms);
             }
             zoneData.putProtectedZone((ProtectedZone)zone);
         }
@@ -233,6 +234,7 @@ extends Packet {
         public boolean canInteractSigns;
         public boolean canInteractSwitches;
         public boolean canInteractFurniture;
+        public boolean disableBrooms;
 
         public ZoneData() {
         }
@@ -268,6 +270,7 @@ extends Packet {
                 this.canInteractSigns = protectedZone.getCanInteractSigns();
                 this.canInteractSwitches = protectedZone.getCanInteractSwitches();
                 this.canInteractFurniture = protectedZone.getCanInteractFurniture();
+                this.disableBrooms = protectedZone.isBroomRidingDisabled();
             }
             if (zone instanceof PvPZone) {
                 PvPZone pvpZone = (PvPZone)zone;
@@ -309,6 +312,7 @@ extends Packet {
                 writer.putNextBoolean(this.canInteractSigns);
                 writer.putNextBoolean(this.canInteractSwitches);
                 writer.putNextBoolean(this.canInteractFurniture);
+                writer.putNextBoolean(this.disableBrooms);
             }
         }
 
@@ -344,6 +348,7 @@ extends Packet {
                 this.canInteractSigns = reader.getNextBoolean();
                 this.canInteractSwitches = reader.getNextBoolean();
                 this.canInteractFurniture = reader.getNextBoolean();
+                this.disableBrooms = reader.getNextBoolean();
             }
         }
     }

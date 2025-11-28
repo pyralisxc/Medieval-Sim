@@ -4,9 +4,9 @@
  */
 package medievalsim.patches;
 
-import medievalsim.zones.AdminZonesLevelData;
-import medievalsim.zones.PvPZone;
-import medievalsim.zones.PvPZoneTracker;
+import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.PvPZone;
+import medievalsim.zones.service.PvPZoneTracker;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.server.ServerClient;
 import necesse.entity.mobs.Mob;

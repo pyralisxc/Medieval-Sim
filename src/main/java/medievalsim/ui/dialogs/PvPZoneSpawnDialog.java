@@ -26,7 +26,7 @@ extends Form {
         this.addComponent(new FormLabel("Spawned in PVP Zone", new FontOptions(20), -1, this.getWidth() / 2, currentY));
         this.addComponent(new FormLabel("Zone: " + zoneName, new FontOptions(16), 0, margin, currentY += 40));
         this.addComponent(new FormLabel("You have spawned inside a PVP zone!", new FontOptions(14), 0, margin, currentY += 30));
-        String damagePercentStr = medievalsim.zones.PvPZone.formatDamagePercent(damageMultiplier);
+        String damagePercentStr = medievalsim.zones.domain.PvPZone.formatDamagePercent(damageMultiplier);
         this.addComponent(new FormLabel("Damage: " + damagePercentStr + " | Combat Lock: " + combatLockSeconds + "s", new FontOptions(14), 0, margin, currentY += 25));
         this.addComponent(new FormLabel("Would you like to stay or teleport to world spawn?", new FontOptions(14), 0, margin, currentY += 35));
         int buttonWidth = (contentWidth - 10) / 2;

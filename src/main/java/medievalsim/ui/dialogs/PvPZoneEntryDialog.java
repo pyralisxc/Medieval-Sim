@@ -24,7 +24,7 @@ extends Form {
         int contentWidth = this.getWidth() - margin * 2;
         this.addComponent((FormComponent)new FormLabel("Enter PVP Zone?", new FontOptions(20), -1, this.getWidth() / 3, currentY));
         this.addComponent((FormComponent)new FormLabel(zoneName, new FontOptions(16), -1, this.getWidth() / 3, currentY += 35));
-    String damagePercentStr = medievalsim.zones.PvPZone.formatDamagePercent(damageMultiplier);
+    String damagePercentStr = medievalsim.zones.domain.PvPZone.formatDamagePercent(damageMultiplier);
     this.addComponent((FormComponent)new FormLabel("Damage: " + damagePercentStr + " Combat Lock: " + combatLockSeconds + "s", new FontOptions(13), -1, this.getWidth() / 3, currentY += 30));
         this.addComponent((FormComponent)new FormLabel("PVP will be enabled when you enter", new FontOptions(13), -1, this.getWidth() / 3, currentY += 30));
         this.addComponent((FormComponent)new FormLabel("5 seconds of immunity on entry", new FontOptions(12), -1, this.getWidth() / 3, currentY += 20));

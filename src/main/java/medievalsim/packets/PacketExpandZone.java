@@ -1,8 +1,8 @@
 package medievalsim.packets;
 import java.awt.Rectangle;
 import medievalsim.util.ModLogger;
-import medievalsim.zones.AdminZone;
-import medievalsim.zones.AdminZonesLevelData;
+import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.AdminZonesLevelData;
 
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
