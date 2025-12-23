@@ -4,17 +4,35 @@
 [object]
 plotflag=Plot Flag
 pvpzonebarrier=PvP Zone Barrier
+# Guild objects
+guildchest=Guild Chest
+guildflag=Guild Flag
+guildbanner=Guild Banner
+guildteleportbanner=Guild Teleport Banner
+guildcauldron=Guild Cauldron
 
 [item]
 ancestorsword=Ancestor Sword
 ancestorwand=Ancestor Wand
-# No custom items yet
+# Guild system items
+guildbanner=Guild Banner
+guildcrest=Guild Crest
 
 [itemtooltip]
-# No custom item tooltips yet
+# Guild item tooltips
+guildcrestdesc=Wear your guild's colors with pride
+guildbannerdesc=Displays your guild's crest
+guildflagtip=Place on a settlement flag to claim territory for your guild
+
+[misc]
+# Guild system messages
+guildflagsneedsettlementflag=Guild flags must be placed on settlement flags
+guildbannermustoneguild=Only one guild banner per settlement
+guildbannermustsettlement=Guild banners must be placed in settlements
 
 [mob]
-# No custom mobs yet
+guildartisan=Guild Artisan
+guildartisanname=Guild Artisan
 
 [buff]
 pvpimmunity=PvP Immunity
@@ -30,18 +48,172 @@ pvpzone=You are entering a PvP zone!
 nopermission=You don't have permission to do that
 
 [ui]
+# Common UI strings
+loading=Loading...
+close=Close
+
 # Admin Tools
 admintools=Admin Tools
 admintoolstitle=Admin Tools
 admintoolsmenu=Main Menu
 commandcenter=Command Center
 
+# Guild Artisan NPC UI
+guildartisan.title=Guild Artisan
+guildartisan.notmember=You are not a member of any guild
+guildartisan.inmember=Guild Member
+guildartisan.create=Create Guild
+guildartisan.join=Join Guild
+guildartisan.viewguild=View Guild Info
+guildartisan.editcrest=Edit Crest
+guildartisan.openbank=Open Guild Bank
+guildartisan.leave=Leave Guild
+guildartisan.manageguilds=Manage Guilds
+guildartisan.notifications=Notifications
+guildartisan.createguild.title=Create New Guild
+guildartisan.createguild.name=Guild Name:
+guildartisan.visibility=Visibility:
+guildartisan.toggle=Toggle
+guildartisan.createinfo=Public guilds can be found and joined by anyone.
+guildcrest=Crest:
+crestdefault=Default
+crestcustomized=Customized
+cost=Cost
+gold=gold
+privateguild=Private Guild
+confirm=Confirm
+cancel=Cancel
+close=Close
+
+# Manage Guilds Form (per docs: per-guild leave, buy banner)
+manageguilds.title=Manage Guilds
+manageguilds.noguilds=You are not in any guilds
+manageguilds.leave=Leave
+manageguilds.buybanner=Buy Banner
+
+# Notifications Form (per docs: invites, guild notices, admin messages)
+notifications.title=Notifications
+notifications.empty=No notifications
+notifications.clearall=Clear All
+notifications.accept=Accept
+
+# Buy Banner Modal (per docs: banner purchase with placement/inventory options)
+buybanner.title=Purchase Guild Banner
+buybanner.purchaseplace=Purchase & Place
+buybanner.purchaseinv=To Inventory
+buybanner.atlimit=Maximum banners reached
+
+# Guild Info Panel
+guildinfo.tab.overview=Overview
+guildinfo.tab.members=Members
+guildinfo.tab.banners=Banners
+guildinfo.tab.settings=Settings
+
+# Guild Selection Form
+guildselection.title=Select Guild
+guildselection.view=View
+
+# Guild Quest Offer Form
+guildquestoffer.title=Guild Artisan - Unlock Quest
+guildquestoffer.desc=You must complete the quest to unlock guild features.
+guildquestoffer.requirements=Requirements:
+guildquestoffer.accept=Accept Quest
+guildquestoffer.alreadyunlocked=You have already unlocked guild features!
+guildquestoffer.nobossrequired=Guild features are available - no quest required!
+guildquestoffer.questaccepted=Quest accepted! Defeat %boss% to unlock guild features.
+
+guildinfo.public=Public
+guildinfo.private=Private
+guildinfo.status=Status
+guildinfo.members=Members
+guildinfo.treasury=Treasury
+guildinfo.yourrank=Your Rank
+guildinfo.memberlist=Guild Members
+guildinfo.recentactivity=Recent Activity
+guildinfo.noactivity=No recent activity
+guildinfo.research=Research
+guildinfo.bank=Guild Bank
+guildinfo.banners.title=Guild Teleport Banners
+guildinfo.banners.none=No guild banners placed yet.
+guildinfo.banners.howtobuy=Purchase banners via Manage Guilds menu.
+guildinfo.banners.teleport=Teleport
+guildinfo.banners.rename=Rename
+guildinfo.banners.unclaim=Unclaim
+guildinfo.banners.purchasenote=Note: Purchase new banners via Manage Guilds
+guildinfo.settings.title=Guild Settings
+guildinfo.settings.editcrest=Edit Crest
+guildinfo.settings.makeprivate=Make Private
+guildinfo.settings.makepublic=Make Public
+guildinfo.settings.taxrate=Tax Rate:
+guildinfo.settings.dangerzone=Danger Zone
+guildinfo.settings.disband=Disband Guild
+
+# Guild Research UI
+guildresearchtitle=Guild Research
+guildresearchactive=Active Research:
+guildresearchbrowse=Browse Projects
+guildresearchcompleted=Completed
+guildresearchcancel=Cancel
+guildresearchprojects=Available Projects
+guildresearchstart=Start
+guildresearchcompletedtitle=Completed Research
+guildresearchnone=No completed research yet.
+mageguildresearch=Guild Research
+
+# Guild Teleport UI
+guildteleportheader=Guild Teleport Network
+guildteleportcount=<count> destinations available
+guildteleportnone=No other guild banners found.
+differentisland=Different Island
+
+# Guild Browser
+guildbrowser.title=Guild Browser
+guildbrowser.tab.guilds=Public Guilds
+guildbrowser.tab.invites=Invitations
+guildbrowser.noguilds=No public guilds found
+guildbrowser.members=Members
+guildbrowser.view=View
+guildbrowser.join=Join
+guildbrowser.andmore=and %d more...
+guildbrowser.noinvites=No pending invitations
+guildbrowser.pendinginvites=Pending Invitations
+
+# Crest Designer
+crestdesigner.title=Guild Crest Designer
+crestdesigner.shape=Background Shape
+crestdesigner.primarycolor=Colors
+crestdesigner.primary=Primary
+crestdesigner.secondary=Secondary
+crestdesigner.emblemcolor=Emblem
+crestdesigner.emblem=Emblem
+crestdesigner.border=Border Style
+crestdesigner.preview=Preview
+crestdesigner.reset=Reset
+crestdesigner.open=Open Crest Designer
+crestdesigner.mode.shape=Edit shape color
+crestdesigner.mode.border=Edit border color
+crestdesigner.mode.emblem=Edit emblem color
+crestdesigner.mode.background=Edit background color
+
+# Symbol Creator (Preview buttons)
+symbolcreator.preview=Preview
+symbolcreator.mode.crest=Crest
+symbolcreator.mode.banner=Banner
+symbolcreator.mode.flag=Flag
+# UI-prefixed keys for localization lookup
+ui.symbolcreator.preview=Preview
+ui.symbolcreator.mode.crest=Crest
+ui.symbolcreator.mode.banner=Banner
+ui.symbolcreator.mode.flag=Flag
+reset=Reset
+savebutton=Save
+
 # Build Mode
 buildtools=Build Tools
 buildmode=Build Mode
 buildmodeon=Build Mode: ON
 buildmodeoff=Build Mode: OFF
-buildmodeblockcost={shape}: {count} blocks required
+buildmodeblockcost=<shape>: <count> blocks required
 
 # Shapes
 shape=Shape
@@ -82,8 +254,10 @@ spacingfull=Spacing (All Shapes)
 zonetools=Zone Tools
 protectedzones=Protected Zones
 pvpzones=PVP Zones
+guildzones=Guild Zones
 createprotectedzone=Create Protected Zone
 createpvpzone=Create PVP Zone
+createguildzone=Create Guild Zone
 
 # Zone Properties
 zonename=Zone Name
@@ -105,7 +279,7 @@ renamezoneto=Rename zone to:
 deletezoneconfirm=Delete this zone?
 
 # Zone Protection Tooltip
-zoneprotectiontooltip=Blocked by {zone}'s Protection
+zoneprotectiontooltip=Blocked by <zone>'s Protection
 objecttype.door=door
 objecttype.container=container
 objecttype.station=crafting station
@@ -162,8 +336,8 @@ nopermissionswitches=You don't have permission to use switches in this zone
 nopermissionfurniture=You don't have permission to use furniture in this zone
 nopermissioninteract=You don't have permission to interact in this protected zone
 
-ownernotfound=Player '{name}' not found. They must be online to set as owner.
-ownerset=Zone owner set to: {name}
+ownernotfound=Player '<name>' not found. They must be online to set as owner.
+ownerset=Zone owner set to: <name>
 noneowner=None
 
 # Zone UI
@@ -184,9 +358,9 @@ clickdragtoexpand=Click and drag to expand zone
 clickdragtoshrink=Click and drag to shrink zone
 
 # Zone Feedback Messages  
-zonecreated=Zone created: {name}
+zonecreated=Zone created: <name>
 zonedeleted=Zone deleted
-zonerenamed=Zone renamed to: {name}
+zonerenamed=Zone renamed to: <name>
 zoneexpanded=Zone expanded
 zoneshrunk=Zone shrunk
 teamadded=Team added to zone
@@ -285,6 +459,8 @@ caninteractstations=Can Interact: Stations
 caninteractsigns=Can Interact: Signs
 caninteractswitches=Can Interact: Switches
 caninteractfurniture=Can Interact: Furniture
+movementrestrictions=Movement Restrictions
+disablebrooms=Disable Brooms
 
 # Banking
 medievalsim_openbank=Bank
@@ -320,8 +496,470 @@ insufficientcoins=Insufficient coins
 invalidamount=Invalid amount
 
 # Grand Exchange
+# Tabs & Titles
 grandexchange=Grand Exchange
 grandexchangetitle=Grand Exchange
+grandexchange.tab.market=Market
+grandexchange.tab.buyorders=Buy Orders
+grandexchange.tab.selloffers=Sell
+grandexchange.tab.collection=Collect
+grandexchange.tab.history=History
+grandexchange.tab.history.badge=<base> (<count> new)
+grandexchange.tab.defaults=Defaults
 
+# Relative Time
+grandexchange.time.days=<value>d ago
+grandexchange.time.hours=<value>h ago
+grandexchange.time.minutes=<value>m ago
+grandexchange.time.justnow=Just now
 
+# Error Messages
+grandexchange.error.enablefailed=Failed to enable sell offer
+grandexchange.error.disablefailed=Failed to disable sell offer
 
+# Sell Tab
+grandexchange.sell.header=Sell Offers (<used>/<total>)
+grandexchange.sell.steps=1) Stage an item  2) Set a price  3) Post the listing
+grandexchange.sell.placeitems=Place a single stack into the staging slot
+grandexchange.sell.autoclear=Auto-clear staging slot after posting
+grandexchange.sell.autoclear.tooltip=Instantly moves staged items into GE storage when you post
+grandexchange.sell.autoclear.locked=The server owner controls this preference
+grandexchange.sell.priceperitem=Price per item
+grandexchange.sell.coinsuffix=coins
+grandexchange.sell.guideprice=(Suggested: ~<price>)
+grandexchange.sell.guideprice.nodata=(No price data)
+grandexchange.sell.durationlabel=Listing duration
+grandexchange.sell.postbutton=Post Offer
+grandexchange.sell.offersection=Your Listings
+grandexchange.sell.nooffers=No active listings
+grandexchange.sell.pulse=Sold <qty> for <coins> coins (<remaining> left)
+grandexchange.sell.cancelbutton=Cancel offer
+grandexchange.sell.canceltooltip=Cancel this offer and send remaining items to your collection box
+grandexchange.sell.toggle.label=Offer enabled
+grandexchange.sell.taxinfo=({tax}% tax | Net: {net})
+grandexchange.sell.feedback.needslot=All sell slots are currently in use
+grandexchange.sell.feedback.noitem=Place an item in the staging slot first
+grandexchange.sell.feedback.needprice=Enter a price before posting
+grandexchange.sell.feedback.pricerange=Price must be between <min> and <max> coins
+grandexchange.sell.feedback.pendingaction=Please wait for the previous action to finish
+grandexchange.sell.feedback.posting=Posting offer from slot <slot>...
+grandexchange.sell.feedback.numeric=Only numbers are allowed in the price field
+grandexchange.sell.feedback.statefinalized=This offer can no longer be changed
+grandexchange.sell.item.unknown=Unknown item
+grandexchange.sell.offerheader=Slot <slot> - <state>
+grandexchange.sell.offerprogress=Selling <item> - <sold>/<total> sold @ <price> coins
+grandexchange.sell.remainingline=<remaining> remaining - ID #<id>
+grandexchange.sell.offerstate.pending=Pending activation
+grandexchange.sell.offerstate.drafthidden=Draft (hidden)
+grandexchange.sell.offerstate.active=Active
+grandexchange.sell.offerstate.partial=Partially fulfilled
+grandexchange.sell.offerstate.completed=Completed
+grandexchange.sell.offerstate.expired=Expired
+grandexchange.sell.offerstate.cancelled=Cancelled
+grandexchange.sell.offerstate.empty=Empty slot
+grandexchange.sell.duration.none=No expiration
+grandexchange.sell.duration.days=<days> day<plural>
+grandexchange.sell.duration.hours=<hours> hour<plural>
+grandexchange.sell.duration.dayshours=<days> day<dayPlural> + <hours> hour<hourPlural>
+grandexchange.sell.tooltips.cooldown=You can toggle again in <seconds>s
+grandexchange.sell.tooltips.pendingglobal=Another action is already running
+grandexchange.sell.tooltips.awaiting=Waiting for server confirmation
+
+# Market Tab
+grandexchange.market.header=Market
+grandexchange.market.hint=Browse wares listed by other players
+grandexchange.market.searchlabel=Search
+grandexchange.market.searchplaceholder=Search items
+grandexchange.market.clearfilter=Clear
+grandexchange.market.categorylabel=Category
+grandexchange.market.category.all=All categories
+grandexchange.market.sortlabel=Sort by
+grandexchange.market.sort.pricelow=Low Price
+grandexchange.market.sort.pricehigh=High Price
+grandexchange.market.sort.qtyhigh=Quantity
+grandexchange.market.sort.timenew=Newest
+grandexchange.market.listingslabel=Showing <shown> of <total> (Page <page>/<pages>)
+grandexchange.market.empty=No wares match your search
+grandexchange.market.pagination.prev=Previous page
+grandexchange.market.pagination.next=Next page
+grandexchange.market.insights.summary=<trades> trades | <volume> volume | <items> items tracked
+grandexchange.market.listing.qty=<remaining>/<total> left @ <price> coins each
+grandexchange.market.listing.total=Total: <coins><suffix>
+grandexchange.market.listing.total.insufficient= (not enough coins)
+grandexchange.market.listing.meta=Seller: <seller> - <expiration>
+grandexchange.market.buybutton=Buy
+grandexchange.market.qty.max=Max
+grandexchange.market.tooltip.nofunds=You do not have enough coins
+grandexchange.market.feedback.pendingpurchase=Finish the current purchase first
+grandexchange.market.feedback.buying=Buying <quantity>x <item>...
+grandexchange.market.feedback.invalidqty=Enter a valid quantity
+grandexchange.market.tooltips.pendingglobal=Another purchase is already pending
+grandexchange.market.tooltips.awaiting=Waiting for purchase confirmation
+
+# Buy Orders Tab
+grandexchange.buy.header=Buy Orders (<used>/<total>)
+grandexchange.buy.steps=Select an item, set quantity and price, then place your order
+grandexchange.buy.itemlabel=Select item
+grandexchange.buy.searchplaceholder=Search items
+grandexchange.buy.quantitylabel=Quantity
+grandexchange.buy.priceperitem=Price per item
+grandexchange.buy.coinsuffix=coins
+grandexchange.buy.createbutton=Create Buy Order
+grandexchange.buy.sectionheader=Your Orders
+grandexchange.buy.empty=No active orders
+grandexchange.buy.cancelbutton=Cancel order
+grandexchange.buy.canceltooltip=Cancel this buy order and refund escrow
+grandexchange.buy.toggle.label=Order enabled
+grandexchange.buy.feedback.pendingaction=Please wait for the previous action to finish
+grandexchange.buy.feedback.selectitem=Select an item before creating a buy order
+grandexchange.buy.feedback.quantityrange=Enter a quantity between 1 and 9999
+grandexchange.buy.feedback.pricerange=Enter a price greater than zero
+grandexchange.buy.feedback.noslots=All buy order slots are full
+grandexchange.buy.feedback.insufficientfunds=Insufficient bank funds. Need <required> coins, have <available>. Deposit more at the Banker.
+grandexchange.buy.feedback.posting=Posting buy order slot <slot>: <quantity>x <item> @ <price> coins
+grandexchange.buy.feedback.numeric=Use whole numbers for quantity and price
+grandexchange.buy.feedback.statefinalized=This buy order can no longer be changed
+grandexchange.buy.slotheader=Slot <slot> - <state>
+grandexchange.buy.quantityline=<item> — <filled>/<total> filled (<remaining> remaining)
+grandexchange.buy.priceinfo=Price <price> coins - <escrow> coins in escrow
+grandexchange.buy.state.empty=Empty slot
+grandexchange.buy.state.draftready=Draft ready
+grandexchange.buy.state.draftneedsitem=Draft (needs item)
+grandexchange.buy.state.active=Active
+grandexchange.buy.state.partial=Partially fulfilled
+grandexchange.buy.state.completed=Completed
+grandexchange.buy.state.expired=Expired
+grandexchange.buy.state.cancelled=Cancelled
+grandexchange.buy.tooltips.pendingglobal=Another buy order action is running
+grandexchange.buy.tooltips.awaiting=Waiting for server confirmation
+
+# Collection Tab
+grandexchange.collection.header=Collection
+grandexchange.collection.pageinfo=Page <current>/<total> - <count> items
+grandexchange.collection.prevbutton=Previous page
+grandexchange.collection.nextbutton=Next page
+grandexchange.collection.tooltip.prevdisabled=Already on the first page
+grandexchange.collection.tooltip.nextdisabled=No more pages
+grandexchange.collection.empty=Nothing to collect
+grandexchange.collection.entry.line=<quantity>x <item>
+grandexchange.collection.entry.meta=Source: <source> - <age>
+grandexchange.collection.source.purchase=Purchase
+grandexchange.collection.source.expired=Expired offer
+grandexchange.collection.source.cancelled=Cancelled offer
+grandexchange.collection.source.partial=Partial sale
+grandexchange.collection.source.unknown=Unknown
+grandexchange.collection.collectbutton=Collect
+grandexchange.collection.collecttooltip.pending=Processing collection...
+grandexchange.collection.collectall=Collect All
+grandexchange.collection.collectall.tooltip.empty=Nothing to collect
+grandexchange.collection.collectall.tooltip.pending=Processing collection request
+grandexchange.collection.depositpref.label=Send collected items to bank
+grandexchange.collection.depositpref.tooltip=Deliver collected items directly to your bank
+grandexchange.collection.depositpref.pending=Please wait; updating preference
+grandexchange.collection.settings.header=Preferences
+grandexchange.collection.settings.autobank=Auto-deposit purchases to bank
+grandexchange.collection.settings.notify=Notify on partial sales
+grandexchange.collection.settings.sound=Play sale sound
+grandexchange.collection.feedback.requestedpage=You are already on that page
+grandexchange.collection.feedback.pendingpage=Please wait; loading the next page
+grandexchange.collection.feedback.loadingpage=Loading page <page>...
+grandexchange.collection.feedback.pendingcollect=Finish the current collection first
+grandexchange.collection.feedback.collecting=Collecting items...
+grandexchange.collection.feedback.depositpref=Updating deposit preference...
+
+# History Tab
+grandexchange.history.header=History
+grandexchange.history.hint=View your trading history
+grandexchange.history.filters.current=Active filter: <filter>
+grandexchange.history.filters.all=All activity
+grandexchange.history.filters.sales=Sales
+grandexchange.history.filters.purchases=Purchases
+grandexchange.history.stats.header=Lifetime totals
+grandexchange.history.stats.itemsbought=Items bought: <value>
+grandexchange.history.stats.itemssold=Items sold: <value>
+grandexchange.history.stats.sellofferscreated=Sell offers created: <value>
+grandexchange.history.stats.sellofferscompleted=Sell offers completed: <value>
+grandexchange.history.stats.buyorderscreated=Buy orders created: <value>
+grandexchange.history.stats.buyorderscompleted=Buy orders completed: <value>
+grandexchange.history.results.header=Results
+grandexchange.history.pageinfo=Page <current>/<total> - Showing <range>
+grandexchange.history.prevbutton=Previous page
+grandexchange.history.nextbutton=Next page
+grandexchange.history.tooltip.begin=Already at the beginning
+grandexchange.history.tooltip.end=Already at the end
+grandexchange.history.entry.summary.sale=Sold <quantity>x <item> for <total> coins
+grandexchange.history.entry.summary.purchase=Bought <quantity>x <item> for <total> coins
+grandexchange.history.entry.meta.sale=Price: <price> - Buyer: <counterparty>
+grandexchange.history.entry.meta.purchase=Price: <price> - Seller: <counterparty>
+grandexchange.history.entry.unknownparty=Unknown
+grandexchange.history.badge.new=NEW
+grandexchange.history.empty.all=No history entries yet
+grandexchange.history.empty.sales=No sales to display
+grandexchange.history.empty.purchases=No purchases to display
+
+# Defaults Tab
+grandexchange.defaults.header=Exchange Settings
+grandexchange.defaults.subtitle=Configure exchange rules (World Owner only)
+grandexchange.defaults.note=Changes apply immediately. Some settings may require players to re-open the GE.
+grandexchange.defaults.sell.label=Sell slots
+grandexchange.defaults.sell.apply=Apply
+grandexchange.defaults.sell.range=Range: 5-20
+grandexchange.defaults.buy.label=Buy order slots
+grandexchange.defaults.buy.apply=Apply
+grandexchange.defaults.buy.range=Range: 1-10
+grandexchange.defaults.feedback.error.numeric=Enter a valid number
+grandexchange.defaults.feedback.error.range=Value must be between <min> and <max>
+grandexchange.defaults.feedback.pending=Applying update...
+grandexchange.defaults.autoclear.label=Auto-clear staging slot
+grandexchange.defaults.autoclear.description=When enabled, staged items move to GE storage after posting
+
+# Sell Tab - Staging Section
+grandexchange.sell.staging.header=Staging Slot
+grandexchange.sell.staging.status.pending=Posting...
+grandexchange.sell.staging.status.empty=Empty - drag an item here
+grandexchange.sell.staging.status.item=<item> x<amount>
+
+# Buy Tab - Cooldown Messages
+grandexchange.buy.cooldown.create=Wait <seconds>s before creating another order
+grandexchange.buy.cooldown.toggle=Wait <seconds>s before toggling again
+
+# Shared UI
+grandexchange.item.unknown=Unknown Item
+grandexchange.bank.balance=Bank: <coins> coins
+grandexchange.expiration.none=No expiration
+grandexchange.expiration.now=Expiring now
+grandexchange.expiration.days=<days> day<plural> left
+grandexchange.expiration.hours=<hours> hour<plural> left
+grandexchange.expiration.minutes=<minutes> min left
+grandexchange.permission.defaultstab=This tab is only available to the world owner
+# Defaults Tab - Collapsible Sections
+grandexchange.defaults.section.inventory=Inventory & Slots
+grandexchange.defaults.section.pricing=Pricing & Fees
+grandexchange.defaults.section.duration=Offer Duration
+grandexchange.defaults.section.trading=Trading Features
+grandexchange.defaults.section.collection=Collection & UI
+grandexchange.defaults.section.advanced=Advanced Settings
+grandexchange.defaults.section.expand=Click to expand
+grandexchange.defaults.section.collapse=Click to collapse
+
+# Defaults - Inventory Section
+grandexchange.defaults.inventory.sellslots=Sell Slots per Player
+grandexchange.defaults.inventory.buyslots=Buy Order Slots per Player
+grandexchange.defaults.inventory.collectionslots=Collection Box Page Size
+grandexchange.defaults.inventory.range=(<min>-<max>)
+
+# Defaults - Pricing Section
+grandexchange.defaults.pricing.minprice=Minimum Price per Item
+grandexchange.defaults.pricing.maxprice=Maximum Price per Item
+grandexchange.defaults.pricing.salestax=Sales Tax (%)
+grandexchange.defaults.pricing.listingfee=Listing Fee (%)
+grandexchange.defaults.pricing.profitrecipient=Profits go to
+grandexchange.defaults.pricing.profithint=(taxes and fees collected)
+grandexchange.defaults.pricing.worldowner=World Owner (default)
+grandexchange.defaults.apply=Apply
+
+# Defaults - Duration Section
+grandexchange.defaults.duration.default=Default Offer Duration
+grandexchange.defaults.duration.min=Minimum Duration
+grandexchange.defaults.duration.max=Maximum Duration
+grandexchange.defaults.duration.days=<days> day<plural>
+
+# Defaults - Trading Section
+grandexchange.defaults.trading.allowbuying=Allow buying from market
+grandexchange.defaults.trading.allowselling=Allow creating sell offers
+grandexchange.defaults.trading.allowbuyorders=Allow creating buy orders
+grandexchange.defaults.trading.crosstrading=Allow cross-player trading
+grandexchange.defaults.trading.anonymoussales=Anonymous seller names
+
+# Defaults - Collection Section
+grandexchange.defaults.collection.autoclear=Auto-clear staging slot after posting
+grandexchange.defaults.collection.autocollect=Auto-collect completed sales
+grandexchange.defaults.collection.bankdeposit=Default to bank deposit
+grandexchange.defaults.collection.shownotifications=Show sale notifications
+
+# Defaults - Advanced Section
+grandexchange.defaults.advanced.ratelimit=Actions per minute limit
+grandexchange.defaults.advanced.cooldown=Action cooldown (seconds)
+grandexchange.defaults.advanced.frauddetection=Enable fraud detection
+grandexchange.defaults.advanced.pricehistory=Track price history
+grandexchange.defaults.advanced.marketstats=Show market statistics
+
+# ============================================
+# GUILD SYSTEM
+# ============================================
+
+# Objects
+guildflag=Guild Flag
+guildchest=Guild Chest
+
+# Items
+guildbanner=Guild Banner
+guildcrest=Guild Crest
+
+# Guild Artisan UI
+guildartisantitle=Guild Artisan
+guildartisan.title=Guild Artisan
+guildartisan.notmember=You are not a member of any guild
+guildartisan.inmember=Guild Member
+guildartisan.create=Create Guild
+guildartisan.join=Join Guild
+guildartisan.viewguild=View Guild Info
+guildartisan.openbank=Open Guild Bank
+guildartisan.leave=Leave Guild
+close=Close
+guildflag_nosettlement=Must be placed on a settlement flag
+guildflag_notowner=You don't own this settlement
+guildflag_nopermission=You don't have permission to claim territory
+guildflag_noguildsystem=Guild system not available
+guildflag_invalidguild=Invalid guild
+guildflag_notreasury=Insufficient treasury (need <cost>, have <treasury>)
+guildflag_claimed=Claimed territory for <guild>! Cost: <cost> coins
+guildflag_interact=<guild> Territory (interact for info)
+guildflag_interact_unknown=Guild Territory
+guildflag_info=<guild> - You are <rank> (Members: <members>)
+guildflag_territory=This territory belongs to <guild>
+guildflag_disbanded=This guild has been disbanded
+
+ui.createguild.title=Create Guild
+ui.createguild.name=Guild Name
+ui.createguild.create=Create
+ui.guild.created=Guild created: <name> (ID: <id>)
+ui.guild.create.error.nameinvalid=Invalid guild name (3-32 chars, letters/numbers and -_' allowed)
+ui.guild.create.error.nametaken=That guild name is already taken
+guildflag_placetip=Click to claim for your guild
+guildflag_needsettlement=Requires a settlement flag
+guildflagrequiressettlementflag=Guild flags must be placed on settlement flags
+guildflagtip=Place on a settlement flag to claim territory
+
+# Guild Flag Tooltips
+guildflagtip1=Place on a settlement flag to claim territory
+guildflagtip2=Costs coins from guild treasury
+guildflagtip3=Territory inherits settlement bounds
+
+# Guild Chest
+guildchest_tip1=Shared storage for guild members
+guildchest_tip2=Must be placed in guild territory
+guildchest_needszone=Must be placed in guild territory
+guildchest_placein=Place in <guild> territory
+guildchest_access=Accessing <guild> storage
+
+# Guild Teleport Banner
+guildteleportbannertip1=Teleport to other guild teleport banners
+guildteleportbannertip2=Only guild members can use
+
+# Guild Cauldron
+guildcauldrontent=Brew potions for guild-wide benefits
+guildcauldrontent2=Requires ingredients from guild storage
+
+# Guild Banner/Crest
+guildbanner_guild=Guild: <guild>
+guildbanner_unbound=Not bound to any guild
+guildbanner_tip=Displays your guild's crest
+guildcrest_guild=Guild: <guild>
+guildcrest_unbound=Not bound to any guild
+guildcrest_tip=Wear your guild's colors with pride
+
+# Guild Flag Placement Messages
+guildflagsneedsettlementflag=Guild flags must be placed on settlement flags
+mustbeinguild=You must be in a guild to place a guild flag
+mustbeguildleader=Only guild leaders can place guild flags
+notyoursettlement=You can only place guild flags on your own settlements
+alreadyhasguildflag=This settlement already has a guild flag
+guildflagplaced=Guild flag placed! Settlement claimed for your guild.
+
+# Guild Management
+guildbanktitle=Guild Bank
+guildbank=Guild Bank
+guild=Guild
+guildid=Guild ID: <id>
+tab=Tab
+createguild=Create Guild
+joinguild=Join Guild
+leaveguild=Leave Guild
+setprimary=Set Primary
+accept=Accept
+decline=Decline
+guildname=Guild Name
+guilddesc=Description
+publicguild=Public Guild
+creationcost=Creation Cost
+search=Search
+
+# Crest Editor
+cresteditor=Crest Editor
+shape=Shape
+emblem=Emblem
+border=Border
+primarycolor=Primary Color
+secondarycolor=Secondary Color
+emblemcolor=Emblem Color
+save=Save
+cancel=Cancel
+
+# Treasury
+deposit=Deposit
+withdraw=Withdraw
+amount=Amount
+treasury=Treasury
+
+# Research Categories
+research.category.infrastructure=Infrastructure
+research.category.military=Military
+research.category.economy=Economy
+research.category.territory=Territory
+research.category.special=Special Unlocks
+
+# Research Projects - Infrastructure
+research.bank_expansion_1.name=Bank Expansion I
+research.bank_expansion_1.desc=Unlock an additional guild bank tab
+research.bank_expansion_2.name=Bank Expansion II
+research.bank_expansion_2.desc=Unlock another guild bank tab
+research.bank_expansion_3.name=Bank Expansion III
+research.bank_expansion_3.desc=Unlock a third additional bank tab
+research.member_capacity_1.name=Guild Growth I
+research.member_capacity_1.desc=Increase maximum members by 10
+research.member_capacity_2.name=Guild Growth II
+research.member_capacity_2.desc=Increase maximum members by 15 more
+
+# Research Projects - Military
+research.combat_training_1.name=Combat Training I
+research.combat_training_1.desc=+5% damage in guild territory
+research.combat_training_2.name=Combat Training II
+research.combat_training_2.desc=+10% additional damage in guild territory
+research.fortification_1.name=Fortification I
+research.fortification_1.desc=+5% defense in guild territory
+research.healing_aura.name=Healing Aura
+research.healing_aura.desc=Passive HP regeneration in guild territory
+
+# Research Projects - Economy
+research.efficient_crafting_1.name=Efficient Crafting I
+research.efficient_crafting_1.desc=+10% crafting speed in guild territory
+research.resource_mastery_1.name=Resource Mastery I
+research.resource_mastery_1.desc=+5% gathering yield in guild territory
+research.treasury_interest.name=Treasury Interest
+research.treasury_interest.desc=Earn 0.1% daily interest on treasury
+research.passive_income.name=Passive Income
+research.passive_income.desc=Generate 500 coins per day
+
+# Research Projects - Territory
+research.territory_expansion_1.name=Territory Expansion I
+research.territory_expansion_1.desc=Increase max territory size by 500 tiles
+research.territory_expansion_2.name=Territory Expansion II
+research.territory_expansion_2.desc=Increase max territory size by 1000 more tiles
+research.additional_plots.name=Additional Plots
+research.additional_plots.desc=Allow 2 more territory plots
+
+# Research Projects - Special
+research.unlock_alliances.name=Diplomatic Relations
+research.unlock_alliances.desc=Unlock guild alliance system
+research.unlock_guild_shop.name=Guild Commerce
+research.unlock_guild_shop.desc=Unlock guild shop feature
+research.unlock_guild_quests.name=Guild Quests
+research.unlock_guild_quests.desc=Unlock guild quest board
+
+# Plot Flag (existing, ensure present)
+plotflagtip1=Purchase this plot to start a settlement
+plotflagtip2=Walk up and interact to buy
+plotflaginteract=Purchase for <coins> coins
+plotflagcannotafford=You need <coins> coins to purchase this plot
+plotflagpurchased=Settlement purchased! Welcome home!

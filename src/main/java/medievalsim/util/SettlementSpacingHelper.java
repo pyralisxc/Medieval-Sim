@@ -6,6 +6,7 @@ import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
 import necesse.engine.world.worldData.SettlementsWorldData;
 import necesse.entity.mobs.PlayerMob;
+import necesse.gfx.GameColor;
 import necesse.level.maps.Level;
 import necesse.level.maps.levelData.settlementData.CachedSettlementData;
 import necesse.level.maps.levelData.settlementData.SettlementBoundsManager;
@@ -27,8 +28,8 @@ public class SettlementSpacingHelper {
         ServerClient client = player.getServerClient();
         
         // Get spacing configuration
-        int customTier = ModConfig.SettlementSpacing.minimumTier;
-        int customPadding = ModConfig.SettlementSpacing.customPadding;
+        int customTier = ModConfig.Settlements.minimumTier;
+        int customPadding = ModConfig.Settlements.customPadding;
         int effectiveTier = Math.max(0, customTier);
         
         // Calculate required spacing based on tier
@@ -77,22 +78,23 @@ public class SettlementSpacingHelper {
             
             // Send comprehensive info messages
             client.sendChatMessage(new StaticMessage(
-                "§9━━━ Settlement Placement Failed ━━━"));
+                GameColor.YELLOW.getColorCode() + "━━━ Settlement Placement Failed ━━━"));
             client.sendChatMessage(new StaticMessage(
-                String.format("§cNearest settlement: §f%d tiles %s", (int)distance, direction)));
+                GameColor.RED.getColorCode() + "Nearest settlement: " + GameColor.WHITE.getColorCode() + (int)distance + " tiles " + direction));
             client.sendChatMessage(new StaticMessage(
-                String.format("§eSpacing requirement: §f%d tiles §7(Tier %d + %d region padding)", 
-                    totalSpacingTiles, effectiveTier, customPadding)));
+                GameColor.YELLOW.getColorCode() + "Spacing requirement: " + GameColor.WHITE.getColorCode() + totalSpacingTiles + " tiles " + 
+                GameColor.GRAY.getColorCode() + "(Tier " + effectiveTier + " + " + customPadding + " region padding)"));
             if (safeDistance > 0) {
                 client.sendChatMessage(new StaticMessage(
-                    String.format("§aMove §f%d tiles %s §afor valid placement", 
-                        safeDistance, oppositeDirection)));
+                    GameColor.GREEN.getColorCode() + "Move " + GameColor.WHITE.getColorCode() + safeDistance + " tiles " + oppositeDirection + 
+                    GameColor.GREEN.getColorCode() + " for valid placement"));
             }
         } else {
             // Fallback if we can't find the settlement
             client.sendChatMessage(new StaticMessage(
-                String.format("§cToo close to another settlement. Required spacing: §f%d tiles §7(Tier %d)", 
-                    totalSpacingTiles, effectiveTier)));
+                GameColor.RED.getColorCode() + "Too close to another settlement. Required spacing: " + 
+                GameColor.WHITE.getColorCode() + totalSpacingTiles + " tiles " + 
+                GameColor.GRAY.getColorCode() + "(Tier " + effectiveTier + ")"));
         }
     }
     

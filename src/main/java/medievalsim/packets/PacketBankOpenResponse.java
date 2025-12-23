@@ -8,6 +8,7 @@ import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.network.client.Client;
 import necesse.engine.localization.Localization;
+import necesse.gfx.GameColor;
 
 /**
  * Server → Client: Response to a bank open request when PIN is required or invalid
@@ -44,7 +45,7 @@ public class PacketBankOpenResponse extends AbstractPayloadPacket {
             if (client.getLevel() != null && client.getLevel().getClient() != null) {
                 String chatMessage = message != null && !message.isEmpty() ? message : (code == 1 ? Localization.translate("ui", "pinrequired") : Localization.translate("ui", "pininvalid"));
                 // Colorize: code 1 = yellow/info, code 2/3 = red/error
-                String colored = (code == 1) ? ("§e" + chatMessage) : ("§c" + chatMessage);
+                String colored = (code == 1) ? (GameColor.YELLOW.getColorCode() + chatMessage) : (GameColor.RED.getColorCode() + chatMessage);
                 client.getLevel().getClient().chat.addMessage(colored);
 
                 // Try to open the PIN dialog so the player can enter their PIN immediately.

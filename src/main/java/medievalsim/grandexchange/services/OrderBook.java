@@ -218,7 +218,9 @@ public class OrderBook {
         int remainingQty = buyOrder.getQuantityRemaining();
         
         // Iterate through sell offers (lowest price first)
-        for (GEOffer sellOffer : sellOffers) {
+        PriorityQueue<GEOffer> sellSnapshot = new PriorityQueue<>(sellOffers);
+        while (!sellSnapshot.isEmpty()) {
+            GEOffer sellOffer = sellSnapshot.poll();
             if (remainingQty <= 0) {
                 break;
             }
@@ -257,7 +259,9 @@ public class OrderBook {
         int remainingQty = sellOffer.getQuantityRemaining();
         
         // Iterate through buy orders (highest price first)
-        for (BuyOrder buyOrder : buyOrders) {
+        PriorityQueue<BuyOrder> buySnapshot = new PriorityQueue<>(buyOrders);
+        while (!buySnapshot.isEmpty()) {
+            BuyOrder buyOrder = buySnapshot.poll();
             if (remainingQty <= 0) {
                 break;
             }

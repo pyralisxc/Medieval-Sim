@@ -97,13 +97,12 @@ public class SearchableDropdown<T> {
         }
         hadFocusLastTick = hasFocus;
         
-        // Check for text changes every 5 ticks (smooth but not too often)
-        if (tickCounter % 5 == 0) {
-            String currentText = searchInput.getText();
-            if (!currentText.equals(lastFilter)) {
-                lastFilter = currentText;
-                filterItems(currentText);
-            }
+        // Check for text changes every tick for instant filtering (more responsive UX)
+        // Changed from tickCounter % 5 for better user experience
+        String currentText = searchInput.getText();
+        if (!currentText.equals(lastFilter)) {
+            lastFilter = currentText;
+            filterItems(currentText);
         }
     }
     
@@ -158,35 +157,49 @@ public class SearchableDropdown<T> {
         int yPos = 5;
         int buttonWidth = resultsBox.getWidth() - 10;
         
-        for (T item : filteredItems) {
-            String displayText = displayFunction.apply(item);
-            
-            FormTextButton itemButton = new FormTextButton(
-                displayText,
-                5, yPos,
-                buttonWidth, FormInputSize.SIZE_20,
-                ButtonColor.BASE
+        // Show "No results" message if filter returns empty list
+        if (filteredItems.isEmpty()) {
+            necesse.gfx.forms.components.FormLabel noResultsLabel = new necesse.gfx.forms.components.FormLabel(
+                "No results found",
+                new necesse.gfx.gameFont.FontOptions(12).color(java.awt.Color.GRAY),
+                -1,
+                resultsBox.getWidth() / 2,
+                yPos + 10
             );
-            
-            itemButton.onClicked(e -> {
-                selectedItem = item;
-                searchInput.setText(displayText);
+            resultsBox.addComponent(noResultsLabel);
+            yPos += 40;
+        } else {
+            // Show filtered results
+            for (T item : filteredItems) {
+                String displayText = displayFunction.apply(item);
                 
-                // Stop typing mode to unfocus the search input
-                searchInput.setTyping(false);
-                hadFocusLastTick = false;
+                FormTextButton itemButton = new FormTextButton(
+                    displayText,
+                    5, yPos,
+                    buttonWidth, FormInputSize.SIZE_20,
+                    ButtonColor.BASE
+                );
                 
-                // Trigger callback BEFORE closing dropdown to ensure proper UI updates
-                if (onSelected != null) {
-                    onSelected.accept(item);
-                }
+                itemButton.onClicked(e -> {
+                    selectedItem = item;
+                    searchInput.setText(displayText);
+                    
+                    // Stop typing mode to unfocus the search input
+                    searchInput.setTyping(false);
+                    hadFocusLastTick = false;
+                    
+                    // Trigger callback BEFORE closing dropdown to ensure proper UI updates
+                    if (onSelected != null) {
+                        onSelected.accept(item);
+                    }
+                    
+                    // Close dropdown after callback completes
+                    closeDropdown();
+                });
                 
-                // Close dropdown after callback completes
-                closeDropdown();
-            });
-            
-            resultsBox.addComponent(itemButton);
-            yPos += 25;
+                resultsBox.addComponent(itemButton);
+                yPos += 25;
+            }
         }
         
         // Update content bounds
@@ -271,7 +284,15 @@ public class SearchableDropdown<T> {
     public void reset() {
         searchInput.setText("");
         lastFilter = "";
+        selectedItem = null;
         filterItems("");
+    }
+
+    /**
+     * Clear the current selection without clearing the search text
+     */
+    public void clearSelection() {
+        this.selectedItem = null;
     }
     
     /**

@@ -20,7 +20,8 @@ public class MedievalSimPackets {
         AdminPacketRegistrar::getSpecs,
         CommandPacketRegistrar::getSpecs,
         BankingPacketRegistrar::getSpecs,
-        GrandExchangePacketRegistrar::getSpecs
+        GrandExchangePacketRegistrar::getSpecs,
+        medievalsim.packets.registry.GuildPacketRegistrar::getSpecs
     );
 
     public static void registerCore() {

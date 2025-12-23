@@ -1,6 +1,7 @@
 package medievalsim.zones.ui;
 
 import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.ZoneType;
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -39,17 +40,26 @@ public class CreateOrExpandZoneTool
 implements GameTool {
     private final Client client;
     private final Level level;
-    private final boolean isProtectedZone;
+    private final ZoneType zoneType;
     private final Supplier<Map<Integer, ? extends AdminZone>> zonesSupplier;
     private HudDrawElement hudElement;
     private Point mouseDownTile;
     private boolean isRemoving;
 
-    public CreateOrExpandZoneTool(Client client, boolean isProtectedZone, Supplier<Map<Integer, ? extends AdminZone>> zonesSupplier) {
+    public CreateOrExpandZoneTool(Client client, ZoneType zoneType, Supplier<Map<Integer, ? extends AdminZone>> zonesSupplier) {
         this.client = client;
         this.level = client.getLevel();
-        this.isProtectedZone = isProtectedZone;
+        this.zoneType = zoneType;
         this.zonesSupplier = zonesSupplier;
+    }
+
+    /**
+     * Legacy constructor for backward compatibility.
+     * @deprecated Use {@link #CreateOrExpandZoneTool(Client, ZoneType, Supplier)} instead
+     */
+    @Deprecated
+    public CreateOrExpandZoneTool(Client client, boolean isProtectedZone, Supplier<Map<Integer, ? extends AdminZone>> zonesSupplier) {
+        this(client, isProtectedZone ? ZoneType.PROTECTED : ZoneType.PVP, zonesSupplier);
     }
 
     public void init() {
@@ -222,15 +232,15 @@ implements GameTool {
     }
 
     private void onCreatedNewZone(Rectangle selection, Point anchor) {
-        this.client.network.sendPacket((Packet)new PacketCreateZone(this.isProtectedZone, "New Zone", selection));
+        this.client.network.sendPacket((Packet)new PacketCreateZone(this.zoneType, "New Zone", selection));
     }
 
     private void onExpandedZone(AdminZone zone, Rectangle selection, Point anchor) {
-        this.client.network.sendPacket((Packet)new PacketExpandZone(zone.uniqueID, this.isProtectedZone, selection));
+        this.client.network.sendPacket((Packet)new PacketExpandZone(zone.uniqueID, this.zoneType, selection));
     }
 
     private void onRemovedZone(AdminZone zone, Rectangle selection) {
-        this.client.network.sendPacket((Packet)new PacketShrinkZone(zone.uniqueID, this.isProtectedZone, selection));
+        this.client.network.sendPacket((Packet)new PacketShrinkZone(zone.uniqueID, this.zoneType, selection));
     }
 
     public GameTooltips getTooltips() {

@@ -19,9 +19,11 @@ public final class MarketSnapshot {
     private final String category;
     private final int sortMode;
     private final List<Entry> entries;
+    private final MarketInsightsSummary insightsSummary;
 
     public MarketSnapshot(int page, int totalPages, int totalResults, int pageSize,
-                          String filter, String category, int sortMode, List<Entry> entries) {
+                          String filter, String category, int sortMode,
+                          List<Entry> entries, MarketInsightsSummary insightsSummary) {
         this.page = page;
         this.totalPages = totalPages;
         this.totalResults = totalResults;
@@ -30,10 +32,11 @@ public final class MarketSnapshot {
         this.category = category == null ? "all" : category;
         this.sortMode = sortMode;
         this.entries = Collections.unmodifiableList(new ArrayList<>(entries));
+        this.insightsSummary = insightsSummary;
     }
 
     public static MarketSnapshot empty(int pageSize, String filter, String category, int sortMode) {
-        return new MarketSnapshot(0, 1, 0, pageSize, filter, category, sortMode, List.of());
+        return new MarketSnapshot(0, 1, 0, pageSize, filter, category, sortMode, List.of(), null);
     }
 
     public int getPage() {
@@ -66,6 +69,10 @@ public final class MarketSnapshot {
 
     public List<Entry> getEntries() {
         return entries;
+    }
+
+    public MarketInsightsSummary getInsightsSummary() {
+        return insightsSummary;
     }
 
     /**

@@ -39,6 +39,10 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         return repository.getPvPZone(uniqueID);
     }
 
+    public GuildZone getGuildZone(int uniqueID) {
+        return repository.getGuildZone(uniqueID);
+    }
+
     public AdminZone getZone(int uniqueID) {
         return repository.getZone(uniqueID);
     }
@@ -57,6 +61,10 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         return repository.copyPvPZones();
     }
 
+    public Map<Integer, GuildZone> getGuildZones() {
+        return repository.copyGuildZones();
+    }
+
     /*
      * WARNING - Removed try catching itself - possible behaviour change.
      */
@@ -71,12 +79,20 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         repository.forEachPvPZone(action);
     }
 
+    public void forEachGuildZone(Consumer<GuildZone> action) {
+        repository.forEachGuildZone(action);
+    }
+
     public Map<Integer, ProtectedZone> getProtectedZonesInternal() {
         return repository.getProtectedZonesInternal();
     }
 
     public Map<Integer, PvPZone> getPvPZonesInternal() {
         return repository.getPvPZonesInternal();
+    }
+
+    public Map<Integer, GuildZone> getGuildZonesInternal() {
+        return repository.getGuildZonesInternal();
     }
 
     /*
@@ -107,6 +123,14 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         repository.putPvPZone(zone);
     }
 
+    public GuildZone addGuildZone(String name, long creatorAuth, int colorHue) {
+        return repository.addGuildZone(name, creatorAuth, colorHue);
+    }
+
+    public void putGuildZone(GuildZone zone) {
+        repository.putGuildZone(zone);
+    }
+
     /*
      * WARNING - Removed try catching itself - possible behaviour change.
      */
@@ -130,6 +154,14 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         }
     }
 
+    public void removeGuildZone(int uniqueID) {
+        GuildZone zone = repository.getGuildZone(uniqueID);
+        if (zone != null) {
+            zone.remove();
+            repository.removeGuildZone(uniqueID);
+        }
+    }
+
     /*
      * WARNING - Removed try catching itself - possible behaviour change.
      */
@@ -142,6 +174,10 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
      */
     public void clearPvPZones() {
         repository.clearPvPZones();
+    }
+
+    public void clearGuildZones() {
+        repository.clearGuildZones();
     }
 
     /*
@@ -158,12 +194,28 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         return repository.getPvPZoneAt(x, y);
     }
 
+    public GuildZone getGuildZoneAt(int tileX, int tileY) {
+        return repository.getGuildZoneAt(tileX, tileY);
+    }
+
+    public GuildZone getGuildZoneAt(float x, float y) {
+        return repository.getGuildZoneAt(x, y);
+    }
+
     public boolean canClientModifyTile(ServerClient client, int tileX, int tileY) {
-        ProtectedZone zone = this.getProtectedZoneAt(tileX, tileY);
-        if (zone == null) {
-            return true;
+        // Check protected zones first
+        ProtectedZone protectedZone = this.getProtectedZoneAt(tileX, tileY);
+        if (protectedZone != null && !protectedZone.canClientModify(client, this.level)) {
+            return false;
         }
-        return zone.canClientModify(client, this.level);
+        
+        // Check guild zones
+        GuildZone guildZone = this.getGuildZoneAt(tileX, tileY);
+        if (guildZone != null && !guildZone.canClientModify(client, this.level)) {
+            return false;
+        }
+        
+        return true;
     }
 
     public boolean areBothInPvPZone(float x1, float y1, float x2, float y2) {
@@ -201,6 +253,7 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         super.addSaveData(save);
         int protectedCount;
         int pvpCount;
+        int guildCount;
         Map<Integer, ProtectedZone> protectedMap = repository.getProtectedZonesInternal();
         synchronized (protectedMap) {
             protectedCount = protectedMap.size();
@@ -209,8 +262,12 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         synchronized (pvpMap) {
             pvpCount = pvpMap.size();
         }
-        ModLogger.debug("Saving AdminZonesLevelData - protected=%d pvp=%d nextID=%d",
-            protectedCount, pvpCount, repository.getNextUniqueIdValue());
+        Map<Integer, GuildZone> guildMap = repository.getGuildZonesInternal();
+        synchronized (guildMap) {
+            guildCount = guildMap.size();
+        }
+        ModLogger.debug("Saving AdminZonesLevelData - protected=%d pvp=%d guild=%d nextID=%d",
+            protectedCount, pvpCount, guildCount, repository.getNextUniqueIdValue());
         save.addInt("nextUniqueID", repository.getNextUniqueIdValue());
         save.addBoolean("hasCreatedInitialBarriers", this.hasCreatedInitialBarriers);
         SaveData protectedSave = new SaveData("PROTECTED_ZONES");
@@ -229,6 +286,14 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
             pvpSave.addSaveData(zoneSave);
         });
         save.addSaveData(pvpSave);
+        SaveData guildSave = new SaveData("GUILD_ZONES");
+        repository.forEachGuildZone(zone -> {
+            if (zone.shouldRemove()) return;
+            SaveData zoneSave = new SaveData("ZONE");
+            zone.addSaveData(zoneSave);
+            guildSave.addSaveData(zoneSave);
+        });
+        save.addSaveData(guildSave);
     }
 
     /*
@@ -260,8 +325,19 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
             }
             repository.overwritePvPZones(loaded);
         }
+        LoadData guildSave = save.getFirstLoadDataByName("GUILD_ZONES");
+        if (guildSave != null) {
+            java.util.List<GuildZone> loaded = new java.util.ArrayList<>();
+            for (LoadData zoneSave : guildSave.getLoadDataByName("ZONE")) {
+                GuildZone zone = new GuildZone();
+                zone.applyLoadData(zoneSave);
+                loaded.add(zone);
+            }
+            repository.overwriteGuildZones(loaded);
+        }
         int protectedCount;
         int pvpCount;
+        int guildCount;
         Map<Integer, ProtectedZone> protectedMap = repository.getProtectedZonesInternal();
         synchronized (protectedMap) {
             protectedCount = protectedMap.size();
@@ -270,8 +346,12 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         synchronized (pvpMap) {
             pvpCount = pvpMap.size();
         }
-        ModLogger.debug("Loaded AdminZonesLevelData - protected=%d pvp=%d nextID=%d",
-            protectedCount, pvpCount, repository.getNextUniqueIdValue());
+        Map<Integer, GuildZone> guildMap = repository.getGuildZonesInternal();
+        synchronized (guildMap) {
+            guildCount = guildMap.size();
+        }
+        ModLogger.debug("Loaded AdminZonesLevelData - protected=%d pvp=%d guild=%d nextID=%d",
+            protectedCount, pvpCount, guildCount, repository.getNextUniqueIdValue());
         int maxID = repository.computeHighestZoneId();
         int originalNextId = repository.getNextUniqueIdValue();
         repository.ensureNextIdAbove(maxID);
@@ -351,8 +431,18 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
      *                          PvP barrier differential updates; may be {@code null}
      * @return list of zones that were modified or created as part of the resolution
      */
+    public java.util.List<AdminZone> resolveAfterZoneChange(AdminZone targetZone, Level level, Server server, ZoneType zoneType, java.util.Map<Integer, java.util.Collection<java.awt.Point>> oldEdgesByZoneID) {
+        return topologyResolver.resolveAfterZoneChange(targetZone, level, server, zoneType, oldEdgesByZoneID);
+    }
+
+    /**
+     * Legacy method for backward compatibility.
+     * @deprecated Use {@link #resolveAfterZoneChange(AdminZone, Level, Server, ZoneType, Map)} instead
+     */
+    @Deprecated
     public java.util.List<AdminZone> resolveAfterZoneChange(AdminZone targetZone, Level level, Server server, boolean isProtectedZone, java.util.Map<Integer, java.util.Collection<java.awt.Point>> oldEdgesByZoneID) {
-        return topologyResolver.resolveAfterZoneChange(targetZone, level, server, isProtectedZone, oldEdgesByZoneID);
+        ZoneType zoneType = isProtectedZone ? ZoneType.PROTECTED : ZoneType.PVP;
+        return resolveAfterZoneChange(targetZone, level, server, zoneType, oldEdgesByZoneID);
     }
 
     /**
@@ -390,6 +480,8 @@ extends LevelData implements necesse.entity.manager.RegionLoadedListenerEntityCo
         synchronized (pmap) { for (ProtectedZone z : pmap.values()) names.add(z.name); }
         Map<Integer, PvPZone> pvmap = repository.getPvPZonesInternal();
         synchronized (pvmap) { for (PvPZone z : pvmap.values()) names.add(z.name); }
+        Map<Integer, GuildZone> gmap = repository.getGuildZonesInternal();
+        synchronized (gmap) { for (GuildZone z : gmap.values()) names.add(z.name); }
         while (names.contains(base + " " + idx)) idx++;
         return base + " " + idx;
     }

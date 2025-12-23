@@ -52,6 +52,8 @@ public class ModConfig {
         double max() default Double.POSITIVE_INFINITY;
         /** Whether this value can be changed at runtime */
         boolean runtime() default true;
+        /** If true, only world owners can edit this setting */
+        boolean ownerOnly() default false;
     }
     
     @Retention(RetentionPolicy.RUNTIME)
@@ -61,11 +63,13 @@ public class ModConfig {
         String value();
         /** Section description */
         String description() default "";
+        /** If true, this section is hidden from the universal ModSettingsTab UI */
+        boolean hidden() default false;
     }
     
     // ===== BUILD MODE CONFIGURATION =====
     
-    @ConfigSection(value = "BUILD_MODE", description = "Advanced construction tools configuration")
+    @ConfigSection(value = "BUILD_MODE", description = "Advanced construction tools configuration", hidden = true)
     public static class BuildMode {
         
         @ConfigValue(
@@ -286,54 +290,91 @@ public class ModConfig {
         }
     }
     
-    // ===== PLOT FLAGS CONFIGURATION =====
+    // ===== BOSS SUMMON CONFIGURATION =====
     
-    @ConfigSection(value = "PLOT_FLAGS", description = "Purchasable plot flags that convert to player settlements")
-    public static class PlotFlags {
+    @ConfigSection(value = "BOSS_SUMMONS", description = "Boss summon item restrictions and permissions")
+    public static class BossSummons {
+        
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Allow boss summons globally (disable to block all boss summons in the world)",
+            runtime = true,
+            ownerOnly = true
+        )
+        public static boolean allowBossSummonsGlobally = true;
         
         @ConfigValue(
             defaultValue = "false",
-            description = "Enable plot flag system (when enabled, normal settlement flags cannot be purchased/placed)"
+            description = "Allow boss summons in Protected Zones by default (individual zones can override)",
+            runtime = true
         )
-        public static boolean enabled = false;
+        public static boolean allowInProtectedZonesByDefault = false;
         
         @ConfigValue(
-            defaultValue = "1000",
-            description = "Coin cost to purchase plot flags",
-            min = 1, max = 1000000
+            defaultValue = "false",
+            description = "Allow boss summons in Settlements by default (individual settlements can override)",
+            runtime = true
         )
-        public static int coinCost = 1000;
+        public static boolean allowInSettlementsByDefault = false;
         
-        // Setters with validation
-        public static void setEnabled(boolean value) {
-            enabled = value;
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Allow boss summons in PvP Zones by default (individual zones can override)",
+            runtime = true
+        )
+        public static boolean allowInPvPZonesByDefault = true;
+        
+        // Setters with validation and edge case handling
+        public static void setAllowBossSummonsGlobally(boolean value) {
+            boolean changed = (allowBossSummonsGlobally != value);
+            allowBossSummonsGlobally = value;
+            
+            if (changed && !value) {
+                // Global boss summons disabled - log warning about zone configs being ignored
+                ModLogger.info("Global boss summons disabled. Individual zone settings will be ignored.");
+            }
         }
         
-        public static void setCoinCost(int value) {
-            coinCost = validateInt(value, 1, 1000000, "coinCost");
+        public static void setAllowInProtectedZonesByDefault(boolean value) {
+            allowInProtectedZonesByDefault = value;
+        }
+        
+        public static void setAllowInSettlementsByDefault(boolean value) {
+            allowInSettlementsByDefault = value;
+        }
+        
+        public static void setAllowInPvPZonesByDefault(boolean value) {
+            allowInPvPZonesByDefault = value;
         }
     }
     
-    // ===== SETTLEMENT SPACING CONFIGURATION =====
+    // ===== SETTLEMENTS CONFIGURATION (Consolidated) =====
     
-    @ConfigSection(value = "SETTLEMENTS", description = "Settlement protection and configuration")
+    @ConfigSection(value = "SETTLEMENTS", description = "Settlement protection, plot flags, and spacing configuration")
     public static class Settlements {
 
+        // === Protection Settings ===
         @ConfigValue(
             defaultValue = "false",
             description = "Enable zone protection for settlements (protects settlement area from non-members)"
         )
         public static boolean protectionEnabled = false;
 
-        // Setter with validation
-        public static void setProtectionEnabled(boolean value) {
-            protectionEnabled = value;
-        }
-    }
+        // === Plot Flags Settings ===
+        @ConfigValue(
+            defaultValue = "false",
+            description = "Enable plot flag system (when enabled, normal settlement flags cannot be purchased/placed)"
+        )
+        public static boolean plotFlagsEnabled = false;
+        
+        @ConfigValue(
+            defaultValue = "1000",
+            description = "Coin cost to purchase plot flags",
+            min = 1, max = 1000000
+        )
+        public static int plotFlagCoinCost = 1000;
 
-    @ConfigSection(value = "SETTLEMENT_SPACING", description = "Minimum distance between settlements")
-    public static class SettlementSpacing {
-
+        // === Settlement Spacing Settings ===
         @ConfigValue(
             defaultValue = "0",
             description = "Minimum settlement tier for spacing calculation (0 = vanilla spacing, 1-6 = enforce tier spacing). Tier sizes: 0=40 tiles, 1=56 tiles, 2=72 tiles, 3=88 tiles, 4=104 tiles, 5=120 tiles, 6=136 tiles",
@@ -349,6 +390,18 @@ public class ModConfig {
         public static int customPadding = 0;
 
         // Setters with validation
+        public static void setProtectionEnabled(boolean value) {
+            protectionEnabled = value;
+        }
+
+        public static void setPlotFlagsEnabled(boolean value) {
+            plotFlagsEnabled = value;
+        }
+        
+        public static void setPlotFlagCoinCost(int value) {
+            plotFlagCoinCost = validateInt(value, 1, 1000000, "plotFlagCoinCost");
+        }
+
         public static void setMinimumTier(int value) {
             minimumTier = validateInt(value, 0, 6, "minimumTier");
         }
@@ -415,6 +468,14 @@ public class ModConfig {
         public static boolean enabled = true;
 
         @ConfigValue(
+            defaultValue = "true",
+            description = "Enable Grand Exchange (marketplace) in the banking system. WARNING: Toggling this OFF and ON will permanently erase all GE data!",
+            ownerOnly = true
+        )
+        public static boolean grandExchangeEnabled = true;
+
+        // Track previous state to detect toggles
+        private static boolean previousGEState = true;        @ConfigValue(
             defaultValue = "20",
             description = "Base number of bank slots (before upgrades)",
             min = 10, max = 100
@@ -488,6 +549,27 @@ public class ModConfig {
             pinLength = validateInt(value, 4, 8, "pinLength");
         }
 
+        /**
+         * Set Grand Exchange enabled state.
+         * When re-enabled after being disabled, all GE data is wiped.
+         * @param value true to enable, false to disable
+         */
+        public static void setGrandExchangeEnabled(boolean value) {
+            boolean wasEnabled = grandExchangeEnabled;
+            grandExchangeEnabled = value;
+            
+            // When toggling ON after being OFF, schedule a data reset
+            if (value && !wasEnabled) {
+                grandExchangeResetPending = true;
+                ModLogger.warn("Grand Exchange re-enabled - data reset will occur on next world load");
+            }
+            
+            previousGEState = value;
+        }
+        
+        // Flag to indicate GE data should be wiped on next access
+        public static boolean grandExchangeResetPending = false;
+
         /** Calculate total slots for a given upgrade level */
         public static int getTotalSlots(int upgradeLevel) {
             return baseSlots + (upgradeLevel * slotsPerUpgrade);
@@ -500,7 +582,8 @@ public class ModConfig {
     }
 
     // ===== GRAND EXCHANGE CONFIGURATION =====
-    @ConfigSection(value = "GRAND_EXCHANGE", description = "Player marketplace and trading system configuration (RuneScape-style)")
+    // Hidden from ModSettingsTab - all settings are managed in the GE Defaults tab (owner-only)
+    @ConfigSection(value = "GRAND_EXCHANGE", description = "Player marketplace and trading system configuration (RuneScape-style)", hidden = true)
     public static class GrandExchange {
 
         // === CORE SYSTEM ===
@@ -533,13 +616,9 @@ public class ModConfig {
             min = 1, max = 50
         )
         public static int maxActiveOffersPerPlayer = 10;
-        
-        /** @deprecated Use maxActiveOffersPerPlayer instead. Compatibility alias for Phase 6. */
-        @Deprecated
-        public static int maxListingsPerPlayer = maxActiveOffersPerPlayer;
 
         // === PRICING & FEES ===
-        
+
         @ConfigValue(
             defaultValue = "1",
             description = "Minimum price per item (anti-abuse)",
@@ -568,6 +647,33 @@ public class ModConfig {
         )
         public static float listingFeePercent = 0.0f;
 
+        @ConfigValue(
+            defaultValue = "10000",
+            description = "Confirmation threshold for large purchases (0 = disabled, shows dialog for purchases over this amount)",
+            min = 0, max = 10000000
+        )
+        public static int largePurchaseThreshold = 10000;
+
+        /**
+         * Authentication ID of the player who receives GE profits (taxes/fees).
+         * -1 means world owner (default behavior).
+         * Can be set to any player's auth ID via the Defaults tab.
+         */
+        public static long profitRecipientAuth = -1L;
+        
+        /**
+         * Display name of the profit recipient (cached for UI display).
+         * Empty string means world owner.
+         */
+        public static String profitRecipientName = "";
+
+        public static void setProfitRecipient(long auth, String name) {
+            profitRecipientAuth = auth;
+            profitRecipientName = name != null ? name : "";
+            ModLogger.info("GE profit recipient set to: %s (auth=%d)", 
+                profitRecipientName.isEmpty() ? "World Owner" : profitRecipientName, auth);
+        }
+
         // === OFFER EXPIRATION ===
         
         @ConfigValue(
@@ -577,11 +683,32 @@ public class ModConfig {
         public static boolean enableOfferExpiration = true;
 
         @ConfigValue(
+            defaultValue = "1",
+            description = "Minimum sell duration exposed to players (days)",
+            min = 1, max = 30
+        )
+        public static int minSellDurationDays = 1;
+
+        @ConfigValue(
+            defaultValue = "14",
+            description = "Maximum sell duration exposed to players (days)",
+            min = 1, max = 60
+        )
+        public static int maxSellDurationDays = 14;
+
+        @ConfigValue(
             defaultValue = "168",
             description = "Offer expiration duration in hours (168 = 1 week, 0 = never expires)",
             min = 0, max = 720
         )
         public static int offerExpirationHours = 168;
+
+        @ConfigValue(
+            defaultValue = "2",
+            description = "Cooldown in seconds before a sell listing can be disabled again",
+            min = 0, max = 60
+        )
+        public static int sellDisableCooldownSeconds = 2;
 
         @ConfigValue(
             defaultValue = "true",
@@ -640,6 +767,26 @@ public class ModConfig {
         public static int autoRefreshSeconds = 30;
 
         @ConfigValue(
+            defaultValue = "250",
+            description = "UI heartbeat interval for dynamic updates like cooldowns (milliseconds)",
+            min = 100, max = 1000
+        )
+        public static int uiHeartbeatIntervalMs = 250;
+
+        @ConfigValue(
+            defaultValue = "15",
+            description = "Collection tab entries per page",
+            min = 5, max = 40
+        )
+        public static int collectionPageSize = 15;
+
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Default preference for depositing collection items to bank"
+        )
+        public static boolean defaultCollectionDepositToBank = true;
+
+        @ConfigValue(
             defaultValue = "100",
             description = "Maximum listings to display per page in market browser",
             min = 10, max = 500
@@ -652,6 +799,12 @@ public class ModConfig {
         )
         public static boolean showOfferStatusBadges = true;
 
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Immediately clear the Sell tab staging slot when a post is submitted"
+        )
+        public static boolean autoClearSellStagingSlot = true;
+
         // === STATISTICS ===
         
         @ConfigValue(
@@ -659,6 +812,13 @@ public class ModConfig {
             description = "Track GE statistics (total trades, volume, etc.)"
         )
         public static boolean enableStatistics = true;
+
+        @ConfigValue(
+            defaultValue = "5",
+            description = "Maximum number of items included in market insight summaries",
+            min = 1, max = 20
+        )
+        public static int marketInsightTopEntries = 5;
 
         // === RATE LIMITING ===
         
@@ -690,6 +850,13 @@ public class ModConfig {
             min = 1.0, max = 5.0
         )
         public static float priceOutlierThreshold = 2.0f;
+
+        @ConfigValue(
+            defaultValue = "20",
+            description = "Diagnostics snapshots to retain for /gediag history",
+            min = 5, max = 100
+        )
+        public static int diagnosticsHistorySize = 20;
 
         // === PERFORMANCE ===
         
@@ -740,6 +907,20 @@ public class ModConfig {
             offerExpirationHours = validateInt(value, 0, 720, "offerExpirationHours");
         }
 
+        public static void setMinSellDurationDays(int value) {
+            minSellDurationDays = validateInt(value, 1, 30, "minSellDurationDays");
+            if (minSellDurationDays > maxSellDurationDays) {
+                maxSellDurationDays = minSellDurationDays;
+            }
+        }
+
+        public static void setMaxSellDurationDays(int value) {
+            maxSellDurationDays = validateInt(value, 1, 60, "maxSellDurationDays");
+            if (maxSellDurationDays < minSellDurationDays) {
+                minSellDurationDays = maxSellDurationDays;
+            }
+        }
+
         public static void setPriceHistorySize(int value) {
             priceHistorySize = validateInt(value, 10, 200, "priceHistorySize");
         }
@@ -748,8 +929,24 @@ public class ModConfig {
             autoRefreshSeconds = validateInt(value, 0, 300, "autoRefreshSeconds");
         }
 
+        public static void setUiHeartbeatIntervalMs(int value) {
+            uiHeartbeatIntervalMs = validateInt(value, 100, 1000, "uiHeartbeatIntervalMs");
+        }
+
+        public static void setCollectionPageSize(int value) {
+            collectionPageSize = validateInt(value, 5, 40, "collectionPageSize");
+        }
+
+        public static void setDefaultCollectionDepositToBank(boolean value) {
+            defaultCollectionDepositToBank = value;
+        }
+
         public static void setOfferCreationCooldown(int value) {
             offerCreationCooldown = validateInt(value, 0, 60000, "offerCreationCooldown");
+        }
+
+        public static void setSellDisableCooldownSeconds(int value) {
+            sellDisableCooldownSeconds = validateInt(value, 0, 60, "sellDisableCooldownSeconds");
         }
 
         public static void setAuditLogSize(int value) {
@@ -764,8 +961,20 @@ public class ModConfig {
             metricsWindowSeconds = validateInt(value, 10, 300, "metricsWindowSeconds");
         }
 
+        public static void setDiagnosticsHistorySize(int value) {
+            diagnosticsHistorySize = validateInt(value, 5, 100, "diagnosticsHistorySize");
+        }
+
         public static void setMaxListingsPerPage(int value) {
             maxListingsPerPage = validateInt(value, 10, 500, "maxListingsPerPage");
+        }
+
+        public static void setMarketInsightTopEntries(int value) {
+            marketInsightTopEntries = validateInt(value, 1, 20, "marketInsightTopEntries");
+        }
+
+        public static void setAutoClearSellStagingSlot(boolean value) {
+            autoClearSellStagingSlot = value;
         }
 
         // ===== HELPER METHODS =====
@@ -801,6 +1010,293 @@ public class ModConfig {
         public static int getPlayerSlotCount() {
             return geInventorySlots;
         }
+
+        public static int getCollectionPageSize() {
+            return collectionPageSize;
+        }
+
+        public static boolean getDefaultCollectionDepositPreference() {
+            return defaultCollectionDepositToBank;
+        }
+
+        /**
+         * Clamp a total duration (in hours) to configured sell duration bounds.
+         * If offer expiration is disabled, returns 0 to signal "no expiration".
+         */
+        public static int normalizeSellDurationHours(int totalHours) {
+            if (!isDurationActive()) {
+                return 0;
+            }
+
+            int minHours = getMinSellDurationHoursInternal();
+            int maxHours = getMaxSellDurationHoursInternal(minHours);
+            int hours = totalHours;
+            if (hours <= 0) {
+                hours = offerExpirationHours;
+            }
+
+            if (hours < minHours) {
+                hours = minHours;
+            } else if (hours > maxHours) {
+                hours = maxHours;
+            }
+
+            return hours;
+        }
+
+        /** Convenience overload that accepts separate day + hour controls. */
+        public static int normalizeSellDurationHours(int requestedDays, int requestedExtraHours) {
+            if (!isDurationActive()) {
+                return 0;
+            }
+
+            long total = (long)Math.max(0, requestedDays) * 24L + Math.max(0, requestedExtraHours);
+            if (total > Integer.MAX_VALUE) {
+                total = Integer.MAX_VALUE;
+            }
+            return normalizeSellDurationHours((int)total);
+        }
+
+        /** Default duration to use when UI does not supply an explicit value. */
+        public static int getDefaultSellDurationHours() {
+            if (!isDurationActive()) {
+                return 0;
+            }
+            return normalizeSellDurationHours(offerExpirationHours);
+        }
+
+        private static boolean isDurationActive() {
+            return enableOfferExpiration && offerExpirationHours != 0;
+        }
+
+        private static int getMinSellDurationHoursInternal() {
+            int minDays = Math.max(1, minSellDurationDays);
+            return Math.max(1, minDays) * 24;
+        }
+
+        private static int getMaxSellDurationHoursInternal(int minHours) {
+            int maxDays = Math.max(minSellDurationDays, maxSellDurationDays);
+            int maxHours = Math.max(minHours, maxDays * 24);
+            return maxHours;
+        }
+    }
+
+    // ===== GUILDS CONFIGURATION =====
+    
+    @ConfigSection(value = "GUILDS", description = "Guild system configuration - player organizations, shared ownership, research")
+    public static class Guilds {
+        
+        // === CORE LIMITS ===
+        
+        @ConfigValue(
+            defaultValue = "3",
+            description = "Maximum guilds a player can join simultaneously",
+            min = 1, max = 10
+        )
+        public static int maxGuildsPerPlayer = 3;
+        
+        @ConfigValue(
+            defaultValue = "50",
+            description = "Maximum members per guild",
+            min = 5, max = 200
+        )
+        public static int maxMembersPerGuild = 50;
+        
+        @ConfigValue(
+            defaultValue = "50000",
+            description = "Gold required to create a new guild",
+            min = 0, max = 1000000
+        )
+        public static int guildCreationCost = 50000;
+        
+        // === BANNER LIMITS (per docs: enforce server-side) ===
+        
+        @ConfigValue(
+            defaultValue = "1",
+            description = "Maximum guild banners a player can own per settlement per guild (per docs)",
+            min = 1, max = 10
+        )
+        public static int maxBannersPerSettlementPerGuild = 1;
+        
+        @ConfigValue(
+            defaultValue = "500",
+            description = "Gold cost to purchase a guild banner",
+            min = 0, max = 100000
+        )
+        public static int bannerCost = 500;
+        
+        // === UNLOCK BOSS ===
+        
+        @ConfigValue(
+            defaultValue = "PIRATE_CAPTAIN",
+            description = "Boss that must be defeated to unlock guild features (NONE = no requirement)"
+        )
+        public static String unlockBoss = "PIRATE_CAPTAIN";
+        
+        // === PLOT PRICING (Leader-adjustable) ===
+        
+        @ConfigValue(
+            defaultValue = "100000",
+            description = "Base price for purchasing a plot",
+            min = 0, max = 10000000
+        )
+        public static int basePlotPrice = 100000;
+        
+        @ConfigValue(
+            defaultValue = "1000",
+            description = "Additional price per settler in the plot",
+            min = 0, max = 100000
+        )
+        public static int perSettlerWeight = 1000;
+        
+        @ConfigValue(
+            defaultValue = "5000",
+            description = "Additional price per quality room score",
+            min = 0, max = 100000
+        )
+        public static int perQualityRoomWeight = 5000;
+        
+        @ConfigValue(
+            defaultValue = "500",
+            description = "Additional price per storage slot",
+            min = 0, max = 10000
+        )
+        public static int perStorageSlotValue = 500;
+        
+        @ConfigValue(
+            defaultValue = "2000",
+            description = "Base value per workstation",
+            min = 0, max = 100000
+        )
+        public static int workstationBaseValue = 2000;
+        
+        // Zone bonuses
+        @ConfigValue(defaultValue = "50000", description = "Bonus value for Husbandry zones", min = 0)
+        public static int husbandryZoneBonus = 50000;
+        
+        @ConfigValue(defaultValue = "30000", description = "Bonus value for Forestry zones", min = 0)
+        public static int forestryZoneBonus = 30000;
+        
+        @ConfigValue(defaultValue = "40000", description = "Bonus value for Farming zones", min = 0)
+        public static int farmingZoneBonus = 40000;
+        
+        // === TAX SETTINGS ===
+        
+        @ConfigValue(
+            defaultValue = "0.03",
+            description = "Default guild tax rate on Grand Exchange sales (0.03 = 3%)",
+            min = 0.0, max = 0.15
+        )
+        public static float defaultTaxRate = 0.03f;
+        
+        @ConfigValue(
+            defaultValue = "0.15",
+            description = "Maximum allowed guild tax rate",
+            min = 0.0, max = 0.25
+        )
+        public static float maxTaxRate = 0.15f;
+        
+        // === TREASURY ===
+        
+        @ConfigValue(
+            defaultValue = "10000",
+            description = "Default minimum treasury balance for scientist automation",
+            min = 0, max = 1000000
+        )
+        public static long defaultTreasuryMinimum = 10000;
+        
+        @ConfigValue(
+            defaultValue = "0",
+            description = "Daily officer withdrawal limit (0 = unlimited)",
+            min = 0, max = 10000000
+        )
+        public static long officerDailyWithdrawLimit = 0;
+        
+        // === RESEARCH / SCIENTIST ===
+        
+        @ConfigValue(
+            defaultValue = "10000",
+            description = "Default scientist pull rate (resources per hour)",
+            min = 1000, max = 50000
+        )
+        public static int scientistPullRate = 10000;
+        
+        @ConfigValue(
+            defaultValue = "false",
+            description = "Require boss kills to unlock research nodes (false = any item counts)"
+        )
+        public static boolean requireResearchGating = false;
+        
+        // === CREST SYSTEM ===
+        
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Use lazy crest generation (generate on first request vs upfront)"
+        )
+        public static boolean lazyCrestGeneration = true;
+        
+        @ConfigValue(
+            defaultValue = "true",
+            description = "Persist crest cache across mod updates"
+        )
+        public static boolean persistCrestCache = true;
+        
+        // === ITEMS ===
+        
+        @ConfigValue(
+            defaultValue = "50",
+            description = "Cost of Guild Teleport Stand item from Artisan",
+            min = 0, max = 100000
+        )
+        public static int teleportStandCost = 50;
+        
+        @ConfigValue(
+            defaultValue = "100",
+            description = "Cost of Plot Survey item from Artisan",
+            min = 0, max = 100000
+        )
+        public static int plotSurveyCost = 100;
+        
+        // ===== SETTERS WITH VALIDATION =====
+        
+        public static void setMaxGuildsPerPlayer(int value) {
+            maxGuildsPerPlayer = validateInt(value, 1, 10, "maxGuildsPerPlayer");
+        }
+        
+        public static void setMaxMembersPerGuild(int value) {
+            maxMembersPerGuild = validateInt(value, 5, 200, "maxMembersPerGuild");
+        }
+        
+        public static void setGuildCreationCost(int value) {
+            guildCreationCost = validateInt(value, 0, 1000000, "guildCreationCost");
+        }
+        
+        public static void setBasePlotPrice(int value) {
+            basePlotPrice = validateInt(value, 0, 10000000, "basePlotPrice");
+        }
+        
+        public static void setDefaultTaxRate(float value) {
+            defaultTaxRate = validateFloat(value, 0.0f, maxTaxRate, "defaultTaxRate");
+        }
+        
+        public static void setMaxTaxRate(float value) {
+            maxTaxRate = validateFloat(value, 0.0f, 0.25f, "maxTaxRate");
+            if (defaultTaxRate > maxTaxRate) {
+                defaultTaxRate = maxTaxRate;
+            }
+        }
+        
+        public static void setScientistPullRate(int value) {
+            scientistPullRate = validateInt(value, 1000, 50000, "scientistPullRate");
+        }
+        
+        public static void setDefaultTreasuryMinimum(long value) {
+            defaultTreasuryMinimum = validateLong(value, 0, 1000000, "defaultTreasuryMinimum");
+        }
+        
+        public static void setOfficerDailyWithdrawLimit(long value) {
+            officerDailyWithdrawLimit = validateLong(value, 0, 10000000, "officerDailyWithdrawLimit");
+        }
     }
 
     // ===== SAVE/LOAD FUNCTIONALITY =====
@@ -821,20 +1317,14 @@ public class ModConfig {
             saveSectionToData(Zones.class, zonesData);
             parentSave.addSaveData(zonesData);
             
-            // Save PlotFlags section
-            SaveData plotFlagsData = new SaveData("PLOT_FLAGS");
-            saveSectionToData(PlotFlags.class, plotFlagsData);
-            parentSave.addSaveData(plotFlagsData);
+            // PlotFlags merged into Settlements section - no longer saved separately
 
             // Save Settlements section
             SaveData settlementsData = new SaveData("SETTLEMENTS");
             saveSectionToData(Settlements.class, settlementsData);
             parentSave.addSaveData(settlementsData);
 
-            // Save SettlementSpacing section
-            SaveData settlementSpacingData = new SaveData("SETTLEMENT_SPACING");
-            saveSectionToData(SettlementSpacing.class, settlementSpacingData);
-            parentSave.addSaveData(settlementSpacingData);
+            // SettlementSpacing merged into Settlements section - no longer saved separately
 
             // Save CommandCenter section
             SaveData commandCenterData = new SaveData("COMMAND_CENTER");
@@ -850,6 +1340,11 @@ public class ModConfig {
             SaveData grandExchangeData = new SaveData("GRAND_EXCHANGE");
             saveSectionToData(GrandExchange.class, grandExchangeData);
             parentSave.addSaveData(grandExchangeData);
+
+            // Save Guilds section
+            SaveData guildsData = new SaveData("GUILDS");
+            saveSectionToData(Guilds.class, guildsData);
+            parentSave.addSaveData(guildsData);
 
             ModLogger.debug("Saved configuration to data");
             
@@ -876,11 +1371,7 @@ public class ModConfig {
                 loadSectionFromData(Zones.class, zonesData);
             }
             
-            // Load PlotFlags section
-            LoadData plotFlagsData = parentLoad.getFirstLoadDataByName("PLOT_FLAGS");
-            if (plotFlagsData != null) {
-                loadSectionFromData(PlotFlags.class, plotFlagsData);
-            }
+            // PlotFlags merged into Settlements - migration handled in Settlements load
 
             // Load Settlements section
             LoadData settlementsData = parentLoad.getFirstLoadDataByName("SETTLEMENTS");
@@ -888,11 +1379,7 @@ public class ModConfig {
                 loadSectionFromData(Settlements.class, settlementsData);
             }
 
-            // Load SettlementSpacing section
-            LoadData settlementSpacingData = parentLoad.getFirstLoadDataByName("SETTLEMENT_SPACING");
-            if (settlementSpacingData != null) {
-                loadSectionFromData(SettlementSpacing.class, settlementSpacingData);
-            }
+            // SettlementSpacing merged into Settlements - migration handled in Settlements load
             
             // Load CommandCenter section
             LoadData commandCenterData = parentLoad.getFirstLoadDataByName("COMMAND_CENTER");
@@ -910,6 +1397,12 @@ public class ModConfig {
             LoadData grandExchangeData = parentLoad.getFirstLoadDataByName("GRAND_EXCHANGE");
             if (grandExchangeData != null) {
                 loadSectionFromData(GrandExchange.class, grandExchangeData);
+            }
+
+            // Load Guilds section
+            LoadData guildsData = parentLoad.getFirstLoadDataByName("GUILDS");
+            if (guildsData != null) {
+                loadSectionFromData(Guilds.class, guildsData);
             }
 
             ModLogger.debug("Loaded configuration from data");
@@ -1000,59 +1493,51 @@ public class ModConfig {
     }
     
     private static void loadSectionFromData(Class<?> sectionClass, LoadData sectionData) {
+        if (sectionData == null) {
+            return;
+        }
         Field[] fields = sectionClass.getDeclaredFields();
-        
         for (Field field : fields) {
             ConfigValue annotation = field.getAnnotation(ConfigValue.class);
             if (annotation == null) continue;
-            
             try {
                 field.setAccessible(true);
                 String fieldName = field.getName();
-                
+                if (!sectionData.hasLoadDataByName(fieldName)) {
+                    // Leave default intact when legacy configs omit the field
+                    continue;
+                }
                 // Load based on type with defaults
                 if (field.getType() == int.class) {
                     int defaultValue = field.getInt(null);
                     int loadedValue = sectionData.getInt(fieldName, defaultValue);
-                    
-                    // Apply validation if specified
                     if (annotation.min() != Double.NEGATIVE_INFINITY || annotation.max() != Double.POSITIVE_INFINITY) {
                         loadedValue = validateInt(loadedValue, (int) annotation.min(), (int) annotation.max(), fieldName);
                     }
-                    
                     field.setInt(null, loadedValue);
-                    
                 } else if (field.getType() == long.class) {
                     long defaultValue = field.getLong(null);
                     long loadedValue = sectionData.getLong(fieldName, defaultValue);
-                    
                     if (annotation.min() != Double.NEGATIVE_INFINITY || annotation.max() != Double.POSITIVE_INFINITY) {
                         loadedValue = validateLong(loadedValue, (long) annotation.min(), (long) annotation.max(), fieldName);
                     }
-                    
                     field.setLong(null, loadedValue);
-                    
                 } else if (field.getType() == float.class) {
                     float defaultValue = field.getFloat(null);
                     float loadedValue = sectionData.getFloat(fieldName, defaultValue);
-                    
                     if (annotation.min() != Double.NEGATIVE_INFINITY || annotation.max() != Double.POSITIVE_INFINITY) {
                         loadedValue = validateFloat(loadedValue, (float) annotation.min(), (float) annotation.max(), fieldName);
                     }
-                    
                     field.setFloat(null, loadedValue);
-                    
                 } else if (field.getType() == boolean.class) {
                     boolean defaultValue = field.getBoolean(null);
-                    boolean loadedValue = sectionData.getBoolean(fieldName, defaultValue);
+                    boolean loadedValue = sectionData.getBoolean(fieldName, defaultValue, false);
                     field.setBoolean(null, loadedValue);
-                    
                 } else if (field.getType() == String.class) {
                     String defaultValue = (String) field.get(null);
                     String loadedValue = sectionData.getUnsafeString(fieldName, defaultValue);
                     field.set(null, loadedValue);
                 }
-                
             } catch (Exception e) {
                 ModLogger.warn("Failed to load config field %s: %s", field.getName(), e.getMessage());
             }

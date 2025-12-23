@@ -1,6 +1,10 @@
 package medievalsim.packets;
 
-import medievalsim.grandexchange.domain.GrandExchangeLevelData;
+import medievalsim.grandexchange.application.GrandExchangeContext;
+import medievalsim.grandexchange.application.GrandExchangeLedger;
+import medievalsim.grandexchange.domain.PlayerGEInventory;
+import medievalsim.grandexchange.services.RateLimitedAction;
+import medievalsim.grandexchange.services.RateLimitStatus;
 import medievalsim.packets.core.AbstractPayloadPacket;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.PacketReader;
@@ -52,17 +56,18 @@ public class PacketGEEnableBuyOrder extends AbstractPayloadPacket {
         }
         
         Level level = client.playerMob.getLevel();
-        GrandExchangeLevelData geData = GrandExchangeLevelData.getGrandExchangeData(level);
-        if (geData == null) {
+        GrandExchangeContext context = GrandExchangeContext.resolve(level);
+        if (context == null) {
             ModLogger.error("GrandExchangeLevelData not available for buy order enable/disable");
             return;
         }
+        GrandExchangeLedger ledger = context.getLedger();
         
         long playerAuth = client.authentication;
         
         if (enable) {
             // Enable buy order (DRAFT → ACTIVE, escrow coins from bank)
-            boolean success = geData.enableBuyOrder(level, playerAuth, slotIndex);
+            boolean success = ledger.enableBuyOrder(level, playerAuth, slotIndex);
             if (success) {
                 ModLogger.info("Player auth=%d enabled buy order in slot %d", playerAuth, slotIndex);
             } else {
@@ -71,15 +76,23 @@ public class PacketGEEnableBuyOrder extends AbstractPayloadPacket {
             }
         } else {
             // Disable buy order (ACTIVE → DRAFT, refund coins to bank)
-            boolean success = geData.disableBuyOrder(level, playerAuth, slotIndex);
+            boolean success = ledger.disableBuyOrder(level, playerAuth, slotIndex);
             ModLogger.info("Player auth=%d disabled buy order in slot %d: %s", 
                 playerAuth, slotIndex, success ? "SUCCESS" : "FAILED");
         }
         
         // Send sync packet back to client to update UI
         try {
-            var playerInventory = geData.getOrCreateInventory(playerAuth);
-            PacketGEBuyOrderSync syncPacket = new PacketGEBuyOrderSync(playerAuth, playerInventory.getBuyOrders());
+            PlayerGEInventory playerInventory = context.getOrCreateInventory(playerAuth);
+            RateLimitStatus creationStatus = ledger.getRateLimitStatus(RateLimitedAction.BUY_CREATE, playerAuth);
+            RateLimitStatus toggleStatus = ledger.getRateLimitStatus(RateLimitedAction.BUY_TOGGLE, playerAuth);
+            PacketGEBuyOrderSync syncPacket = new PacketGEBuyOrderSync(
+                playerAuth,
+                playerInventory.getBuyOrders(),
+                ledger.getAnalyticsService(),
+                playerInventory,
+                creationStatus,
+                toggleStatus);
             client.sendPacket(syncPacket);
             ModLogger.debug("[SERVER SEND] PacketGEBuyOrderSync sent to auth=%d", playerAuth);
         } catch (Exception e) {

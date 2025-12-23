@@ -1,7 +1,7 @@
 package medievalsim.patches;
 import medievalsim.zones.domain.PvPZone;
 import medievalsim.zones.service.PvPZoneTracker;
-import medievalsim.zones.service.ZoneManager;
+import medievalsim.zones.service.ZoneHelper;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.packet.PacketSpawnPlayer;
 import necesse.engine.network.server.Server;
@@ -25,7 +25,7 @@ public class ServerClientSubmitSpawnPacketPatch {
             if (level == null) {
                 return;
             }
-            PvPZone zone = ZoneManager.getPvPZoneAt(level, tileX, tileY);
+            PvPZone zone = ZoneHelper.getPvPZoneAt(level, tileX, tileY);
             if (zone != null) {
                 long serverTime = server.world.worldEntity.getTime();
                 PvPZoneTracker.handleSpawnInZone(client, zone, server, serverTime);

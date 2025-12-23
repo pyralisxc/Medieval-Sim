@@ -4,7 +4,9 @@ import java.awt.Point;
 
 import medievalsim.config.ModConfig;
 import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.GuildZone;
 import medievalsim.zones.domain.PvPZone;
+import medievalsim.zones.domain.ZoneType;
 import medievalsim.zones.service.PvPZoneTracker;
 import medievalsim.zones.domain.ProtectedZone;
 import necesse.engine.localization.Localization;
@@ -42,6 +44,7 @@ public class ZoneAPI {
     private AdminZonesLevelData zoneData;
     private PvPZone pvpZone;
     private ProtectedZone protectedZone;
+    private GuildZone guildZone;
     private boolean valid = true;
     private String packetName = "Packet";
     
@@ -175,12 +178,57 @@ public class ZoneAPI {
      * @param zoneID The zone ID to look up
      * @param isPvP True to look up a PvP zone, false for Protected zone
      * @return This builder for chaining
+     * @deprecated Use {@link #requireZoneByType(int, ZoneType)} instead
      */
+    @Deprecated
     public ZoneAPI requireAnyZone(int zoneID, boolean isPvP) {
         if (isPvP) {
             return requirePvPZone(zoneID);
         } else {
             return requireProtectedZone(zoneID);
+        }
+    }
+    
+    /**
+     * Require a specific Guild zone to exist.
+     * 
+     * @param zoneID The zone ID to look up
+     * @return This builder for chaining
+     */
+    public ZoneAPI requireGuildZone(int zoneID) {
+        if (!valid) return this;
+        
+        if (zoneData == null) {
+            getZoneData();
+            if (!valid) return this;
+        }
+        
+        guildZone = zoneData.getGuildZone(zoneID);
+        if (guildZone == null) {
+            ModLogger.warn("Player " + client.getName() + " attempted to access non-existent Guild zone ID " + zoneID + " in " + packetName);
+            valid = false;
+            return this;
+        }
+        
+        return this;
+    }
+    
+    /**
+     * Require a zone by its type.
+     * This is the preferred method for polymorphic zone operations.
+     * 
+     * @param zoneID The zone ID to look up
+     * @param type The type of zone to look up
+     * @return This builder for chaining
+     */
+    public ZoneAPI requireZoneByType(int zoneID, ZoneType type) {
+        switch (type) {
+            case PVP:
+                return requirePvPZone(zoneID);
+            case GUILD:
+                return requireGuildZone(zoneID);
+            default:
+                return requireProtectedZone(zoneID);
         }
     }
     
@@ -266,7 +314,7 @@ public class ZoneAPI {
      * @return A ZoneContext with all validated data
      */
     public ZoneContext build() {
-        return new ZoneContext(valid, client, level, zoneData, pvpZone, protectedZone);
+        return new ZoneContext(valid, client, level, zoneData, pvpZone, protectedZone, guildZone);
     }
     
     /**
@@ -279,15 +327,17 @@ public class ZoneAPI {
         private final AdminZonesLevelData zoneData;
         private final PvPZone pvpZone;
         private final ProtectedZone protectedZone;
+        private final GuildZone guildZone;
         
         private ZoneContext(boolean valid, ServerClient client, Level level, 
-                          AdminZonesLevelData zoneData, PvPZone pvpZone, ProtectedZone protectedZone) {
+                          AdminZonesLevelData zoneData, PvPZone pvpZone, ProtectedZone protectedZone, GuildZone guildZone) {
             this.valid = valid;
             this.client = client;
             this.level = level;
             this.zoneData = zoneData;
             this.pvpZone = pvpZone;
             this.protectedZone = protectedZone;
+            this.guildZone = guildZone;
         }
         
         /** Returns true if all validations passed */
@@ -320,14 +370,20 @@ public class ZoneAPI {
             return protectedZone;
         }
         
+        /** Get the validated GuildZone (may be null if not requested) */
+        public GuildZone getGuildZone() {
+            return guildZone;
+        }
+        
         /** 
          * Get either zone type as AdminZone for polymorphic operations.
-         * Returns PvP zone if present, otherwise Protected zone.
+         * Returns PvP zone if present, then Guild zone, otherwise Protected zone.
          * 
-         * @return The zone as an AdminZone, or null if neither type was validated
+         * @return The zone as an AdminZone, or null if no type was validated
          */
         public medievalsim.zones.domain.AdminZone getAdminZone() {
             if (pvpZone != null) return pvpZone;
+            if (guildZone != null) return guildZone;
             if (protectedZone != null) return protectedZone;
             return null;
         }

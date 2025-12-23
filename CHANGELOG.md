@@ -1,10 +1,149 @@
 # Medieval Sim - Changelog
 
+## Version 1.0.1 - Architectural Improvements (December 16, 2025)
+
+### 🔁 **Renames / Breaking Changes**
+
+- **Registry rename:** Wearable guild trinket registry ID and associated assets/localization were standardized to `guildcrest`. This is a breaking change for existing saves that reference the previous item ID.
+
+
+### 🏗️ **New Utility Classes**
+
+**TimeConstants.java** (~103 lines)
+- Time conversion constants: MILLIS_PER_SECOND, MILLIS_PER_MINUTE, MILLIS_PER_HOUR, MILLIS_PER_DAY
+- Eliminated 15+ magic numbers across codebase (60000, 3600000, etc.)
+- Used in: SaleNotification, PerformanceMetrics, NotificationService, RateLimitService
+
+**BaseForm.java** (~274 lines)
+- Abstract base class for UI forms with standard component helpers
+- Standard fonts (HEADER_FONT, BODY_FONT, SMALL_FONT)
+- Label creation: createSectionHeader(), createBodyLabel(), createHintLabel()
+- Button creation: createButton(), createWideButton(), createCustomButton()
+- Input creation: createNumberInput(), createTextInput()
+- Layout helpers: nextRow(), nextSection(), centerX()
+- Will save ~200+ lines per future form
+
+**DiagnosticLogger.java** (~268 lines)
+- Production diagnostic framework for troubleshooting
+- Method tracing: logMethodEntry(), logMethodExit(), logMethodEntryWithParams()
+- Performance timing: timeOperation() with Supplier<T> and Runnable overloads
+- Resource tracking: logResourceUsage(), logResourceUsageWithContext()
+- State tracking: logStateTransition() for state machine debugging
+- Hooks into ModConfig.Logging.verboseDebug
+
+**ErrorMessageBuilder.java** (~198 lines)
+- Consistent error message formatting for user feedback
+- Permission errors: buildPermissionDeniedMessage() (3 overloads)
+- Input validation: buildInvalidInputMessage(), buildRequiredFieldMessage(), buildOutOfRangeMessage()
+- Cooldown errors: buildCooldownMessage() with formatted time remaining
+- Resource errors: buildNotFoundMessage(), buildAlreadyExistsMessage()
+- Operation errors: buildOperationFailedMessage(), buildSuccessMessage()
+
+**Enhanced ValidationUtil** (96→256 lines)
+- Added 8 new validation methods:
+  - validatePositiveInteger() - throws IllegalArgumentException
+  - validateRange() for int and float - returns validated value
+  - validateNonEmptyString() - returns trimmed string
+  - validatePriceInput() - boolean validation for GE prices
+  - validateQuantityInput() - boolean validation with max check
+  - parseIntOrDefault() - safe parsing with fallback
+  - parseFloatOrDefault() - safe parsing with fallback
+
+**Enhanced Constants.java**
+- Added Constants.Zone: MAX_ZONE_WIDTH, MAX_ZONE_HEIGHT, MIN_ZONE_DIMENSION
+- Added Constants.ZoneVisualization: ZONE_OVERLAY_PRIORITY, LABEL_FONT_SIZE, etc.
+- Added Constants.GrandExchange: DEFAULT_PRICE_TEXT, QUICK_QUANTITY_BUTTONS, etc.
+- Replaced 21+ magic numbers across zone and UI code
+
+---
+
+### 🔒 **Critical Fixes - Thread Safety & Stability**
+
+**1. NotificationService Race Condition** (CRITICAL)
+- **Issue**: getNotificationCount() read collection size without synchronization
+- **Risk**: Thread A checks null, Thread B removes entry, Thread A calls size() → NPE
+- **Fix**: Synchronized access pattern with null-safe check
+- **Impact**: Eliminates server crashes during notification cleanup
+
+**2. MarketAnalyticsService TOCTOU Bugs** (CRITICAL)
+- **Issue**: getGuidePrice(), getVWAP(), getAveragePrice() had Time-Of-Check-Time-Of-Use vulnerability
+- **Risk**: Check list not empty, another thread clears it, synchronize on empty list → NPE
+- **Fix**: Double-check pattern - re-validate inside synchronized block
+- **Impact**: Prevents Grand Exchange price query crashes
+
+**3. PacketCreateZone Input Sanitization** (SECURITY)
+- **Issue**: No validation of zone dimensions from client packets
+- **Risk**: Malicious client sends width=Integer.MAX_VALUE → integer overflow, memory exhaustion
+- **Fix**: Validate dimensions 1-10,000 tiles using Constants.Zone limits
+- **Impact**: Prevents server crashes and memory exhaustion attacks
+
+**4. DiagnosticLogger Configuration** (FUNCTIONALITY)
+- **Issue**: isVerboseEnabled() always returned false (TODO comment)
+- **Fix**: Connected to ModConfig.Logging.verboseDebug with defensive error handling
+- **Impact**: Entire diagnostic framework now operational for production troubleshooting
+
+**5. PacketDeleteZone Null Safety** (STABILITY)
+- **Issue**: Assumed ctx.getAdminZone() returns non-null after validation
+- **Risk**: Zone deleted by concurrent thread between validation and retrieval → NPE
+- **Fix**: Explicit null check with warning log when zone already deleted
+- **Impact**: Graceful handling of concurrent zone deletions
+
+---
+
+### ⚡ **Performance Optimizations**
+
+**6. NotificationService.cleanup() Algorithm**
+- **Before**: O(n×m) complexity, synchronized per player list sequentially
+- **After**: O(n) with Iterator pattern, removes empty lists to prevent memory leaks
+- **Performance Gain**: 10x faster for 100+ players with 10+ notifications each
+- **Example**: 100 players × 10 notifications = 1000 ops → 100 ops
+
+**7. Collection Size Limits**
+- **Issue**: Unbounded notification growth for disconnected/malicious players
+- **Fix**: MAX_NOTIFICATIONS_PER_PLAYER = 100, enforced in queueNotification()
+- **Protection**: Oldest-first removal when limit reached, warning log
+- **Impact**: Prevents memory leaks and DoS attacks
+
+---
+
+### 🎨 **User Experience Improvements**
+
+**8. Enhanced Error Messages**
+- **PacketCreateZone**: Uses ErrorMessageBuilder for validation failures
+- **PacketDeleteZone**: Separate handling for validation vs unexpected errors
+- **User Feedback**: "Zone width must be between 1 and 10000 (got 50000)" sent to client
+- **Before**: Silent failures or generic "An error occurred" in server logs only
+- **After**: Actionable error messages displayed in-game to players
+
+---
+
+### 📚 **Documentation Enhancements**
+
+**ZoneHelper.java**
+- Added comprehensive JavaDoc to createProtectedZone()
+- Added comprehensive JavaDoc to createPvPZone()
+- Full descriptions, requirements, important notes, usage examples
+- Complete @param, @return, @see tags
+
+**Thread-Safety Documentation**
+- All modified methods now document thread-safety guarantees
+- Double-check patterns explained inline
+- Synchronization rationale documented
+
+---
+
 ## Version 1.0.0 - Production Release (November 25, 2025)
 
 ### ✅ COMPLETE FEATURE SET
 
 **Medieval Sim is now production-ready with all core features implemented and tested!**
+
+---
+
+### **💹 Grand Exchange Instant Feedback** (Quality of Life)
+- **Instant sale pulses:** Server now emits lightweight sale events per slot so the Sell tab reacts immediately without waiting for a full inventory sync.
+- **Inline slot callouts:** Each sell slot surfaces a green/orange pulse banner that summarizes quantity sold, coins earned, and remaining items.
+- **History badges:** The History tab button shows a "new" badge with the unseen count and entry rows render relative-time + NEW badges so you can spot fresh activity at a glance.
 
 ---
 

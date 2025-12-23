@@ -24,6 +24,7 @@ public class PacketConfigureProtectedZone extends Packet {
     public final boolean canInteractSwitches;
     public final boolean canInteractFurniture;
     public final boolean disableBrooms;
+    public final boolean allowBossSummons;
     
     // Receiving constructor
     public PacketConfigureProtectedZone(byte[] data) {
@@ -43,6 +44,7 @@ public class PacketConfigureProtectedZone extends Packet {
         this.canInteractSwitches = reader.getNextBoolean();
         this.canInteractFurniture = reader.getNextBoolean();
         this.disableBrooms = reader.getNextBoolean();
+        this.allowBossSummons = reader.getNextBoolean();
     }
     
     // Sending constructor
@@ -51,7 +53,7 @@ public class PacketConfigureProtectedZone extends Packet {
                                        boolean canInteractDoors, boolean canInteractContainers,
                                        boolean canInteractStations, boolean canInteractSigns,
                                        boolean canInteractSwitches, boolean canInteractFurniture,
-                                       boolean disableBrooms) {
+                                       boolean disableBrooms, boolean allowBossSummons) {
         this.zoneID = zoneID;
         this.ownerName = ownerName != null ? ownerName : "";
         this.allowOwnerTeam = allowOwnerTeam;
@@ -66,6 +68,7 @@ public class PacketConfigureProtectedZone extends Packet {
         this.canInteractSwitches = canInteractSwitches;
         this.canInteractFurniture = canInteractFurniture;
         this.disableBrooms = disableBrooms;
+        this.allowBossSummons = allowBossSummons;
         
         PacketWriter writer = new PacketWriter(this);
         writer.putNextInt(zoneID);
@@ -82,6 +85,7 @@ public class PacketConfigureProtectedZone extends Packet {
         writer.putNextBoolean(canInteractSwitches);
         writer.putNextBoolean(canInteractFurniture);
         writer.putNextBoolean(disableBrooms);
+        writer.putNextBoolean(allowBossSummons);
     }
     
     @Override
@@ -166,6 +170,7 @@ public class PacketConfigureProtectedZone extends Packet {
             zone.setCanInteractSwitches(canInteractSwitches);
             zone.setCanInteractFurniture(canInteractFurniture);
             zone.setDisableBrooms(disableBrooms);
+            zone.setAllowBossSummons(allowBossSummons);
 
             // Sync to all clients (with name refresh)
             if (ctx.getZoneData() != null) {
@@ -191,7 +196,7 @@ public class PacketConfigureProtectedZone extends Packet {
                           " (auth=" + ownerAuth + "), allowTeam=" + allowOwnerTeam + ", break=" + canBreak + ", place=" + canPlace + 
                           ", doors=" + canInteractDoors + ", containers=" + canInteractContainers + ", stations=" + canInteractStations + 
                           ", signs=" + canInteractSigns + ", switches=" + canInteractSwitches + ", furniture=" + canInteractFurniture +
-                          ", disableBrooms=" + disableBrooms);
+                          ", disableBrooms=" + disableBrooms + ", allowBossSummons=" + allowBossSummons);
             
         } catch (Exception ex) {
             ModLogger.error("Error configuring protected zone", ex);

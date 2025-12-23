@@ -71,7 +71,8 @@ public final class BroomRestrictionHelper {
     }
 
     private static RestrictionSource getRestrictionSource(ServerClient client, Level level, int tileX, int tileY) {
-        AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
+        boolean shouldCreateZoneData = level != null && level.isServer();
+        AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, shouldCreateZoneData);
         if (zoneData != null) {
             ProtectedZone zone = zoneData.getProtectedZoneAt(tileX, tileY);
             if (zone != null && zone.shouldDisableBrooms(client, level)) {
@@ -111,6 +112,10 @@ public final class BroomRestrictionHelper {
         return message;
     }
 
+    /**
+     * Enforce broom riding restrictions by teleporting player to nearest safe edge and dismounting.
+     * Provides better UX than instant dismount - player is moved to zone boundary first.
+     */
     public static void enforceNoBroomRiding(ServerClient client, RestrictionSource source) {
         if (client == null || client.playerMob == null || client.getServer() == null) {
             return;
@@ -120,16 +125,75 @@ public final class BroomRestrictionHelper {
             return;
         }
 
-        float previousX = client.playerMob.x;
-        float previousY = client.playerMob.y;
-        client.playerMob.dismount();
-        client.playerMob.setPos(previousX, previousY, true);
+        Level level = client.playerMob.getLevel();
+        if (level == null) {
+            return;
+        }
 
+        // Find nearest safe position (outside restricted zone)
+        java.awt.geom.Point2D.Float safePos = findNearestSafePosition(client, level);
+        
+        // Teleport player to safe position BEFORE dismounting (prevents fall damage)
+        if (safePos != null) {
+            client.playerMob.setPos(safePos.x, safePos.y, true);
+        }
+
+        // Now dismount at safe location
+        client.playerMob.dismount();
+
+        // Sync dismount with all clients
         Server server = client.getServer();
+        float finalX = safePos != null ? safePos.x : client.playerMob.x;
+        float finalY = safePos != null ? safePos.y : client.playerMob.y;
+        
         server.network.sendToClientsWithEntity(
-            new PacketMobMount(client.playerMob.getUniqueID(), -1, false, previousX, previousY),
+            new PacketMobMount(client.playerMob.getUniqueID(), -1, false, finalX, finalY),
             client.playerMob);
 
-        client.sendChatMessage(Localization.translate("message", source.getMessageKey()));
+        // Send clear message explaining what happened
+        String message = Localization.translate("message", source.getMessageKey());
+        client.sendChatMessage(message);
+    }
+
+    /**
+     * Find nearest position outside restricted zones using expanding square search.
+     * Max radius: 20 tiles (640 pixels).
+     * @return Safe position in world coordinates (tile center), or null if not found
+     */
+    private static java.awt.geom.Point2D.Float findNearestSafePosition(ServerClient client, Level level) {
+        if (client == null || client.playerMob == null || level == null) {
+            return null;
+        }
+
+        int currentTileX = client.playerMob.getTileX();
+        int currentTileY = client.playerMob.getTileY();
+
+        // Search in expanding square pattern
+        for (int radius = 1; radius <= 20; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dy = -radius; dy <= radius; dy++) {
+                    // Only check perimeter tiles
+                    if (Math.abs(dx) != radius && Math.abs(dy) != radius) {
+                        continue;
+                    }
+
+                    int checkTileX = currentTileX + dx;
+                    int checkTileY = currentTileY + dy;
+
+                    // Check if this position is safe (no restrictions)
+                    RestrictionSource restriction = getRestrictionSource(client, level, checkTileX, checkTileY);
+                    if (restriction == null) {
+                        // Found safe spot! Convert to world coords (tile center)
+                        float worldX = checkTileX * 32.0f + 16.0f;
+                        float worldY = checkTileY * 32.0f + 16.0f;
+                        return new java.awt.geom.Point2D.Float(worldX, worldY);
+                    }
+                }
+            }
+        }
+
+        // Couldn't find safe position - log warning
+        ModLogger.warn("Could not find safe position for player %s within 20 tiles", client.getName());
+        return null;
     }
 }

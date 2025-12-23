@@ -141,6 +141,10 @@ public class CollectionItem {
         String source = load.getUnsafeString("source", "unknown");
         return new CollectionItem(itemStringID, quantity, timestamp, source);
     }
+
+    public static CollectionItem fromNetworkSnapshot(String itemStringID, int quantity, long timestamp, String source) {
+        return new CollectionItem(itemStringID, quantity, timestamp, source != null ? source : "unknown");
+    }
     
     // ===== UTILITY =====
     

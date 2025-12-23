@@ -1,7 +1,11 @@
 package medievalsim.packets;
 
+import medievalsim.grandexchange.application.GrandExchangeContext;
+import medievalsim.grandexchange.application.GrandExchangeLedger;
 import medievalsim.grandexchange.domain.BuyOrder;
-import medievalsim.grandexchange.domain.GrandExchangeLevelData;
+import medievalsim.grandexchange.domain.PlayerGEInventory;
+import medievalsim.grandexchange.services.RateLimitedAction;
+import medievalsim.grandexchange.services.RateLimitStatus;
 import medievalsim.packets.core.AbstractPayloadPacket;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.PacketReader;
@@ -66,26 +70,42 @@ public class PacketGECreateBuyOrder extends AbstractPayloadPacket {
         }
         
         Level level = client.playerMob.getLevel();
-        GrandExchangeLevelData geData = GrandExchangeLevelData.getGrandExchangeData(level);
-        if (geData == null) {
+        GrandExchangeContext context = GrandExchangeContext.resolve(level);
+        if (context == null) {
             ModLogger.error("GrandExchangeLevelData not available for create buy order");
             return;
         }
+        GrandExchangeLedger ledger = context.getLedger();
         
         long playerAuth = client.authentication;
-        
+            String playerName = client.getName();
+
         // Create buy order (DRAFT state)
-        BuyOrder order = geData.createBuyOrder(playerAuth, slotIndex, itemStringID, 
-            quantity, pricePerItem, durationDays);
+            BuyOrder order = ledger.createBuyOrder(
+                playerAuth,
+                playerName,
+                slotIndex,
+                itemStringID,
+                quantity,
+                pricePerItem,
+                durationDays
+            );
         
         if (order != null) {
             ModLogger.info("Player auth=%d created buy order in slot %d: %d x %s @ %d coins/ea",
                 playerAuth, slotIndex, quantity, itemStringID, pricePerItem);
             
             // Send sync packet back to client to update UI
-            var playerInventory = geData.getOrCreateInventory(playerAuth);
+                PlayerGEInventory playerInventory = context.getOrCreateInventory(playerAuth);
+                RateLimitStatus creationStatus = ledger.getRateLimitStatus(RateLimitedAction.BUY_CREATE, playerAuth);
+                RateLimitStatus toggleStatus = ledger.getRateLimitStatus(RateLimitedAction.BUY_TOGGLE, playerAuth);
             PacketGEBuyOrderSync syncPacket = new PacketGEBuyOrderSync(
-                playerAuth, playerInventory.getBuyOrders());
+                playerAuth,
+                playerInventory.getBuyOrders(),
+                    ledger.getAnalyticsService(),
+                playerInventory,
+                creationStatus,
+                toggleStatus);
             ModLogger.info("[SERVER SEND] About to send PacketGEBuyOrderSync to client auth=%d", playerAuth);
             client.sendPacket(syncPacket);
             ModLogger.info("[SERVER SEND] PacketGEBuyOrderSync sent successfully to client auth=%d", playerAuth);

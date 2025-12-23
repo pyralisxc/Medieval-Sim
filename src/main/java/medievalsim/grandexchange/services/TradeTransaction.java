@@ -170,6 +170,7 @@ public class TradeTransaction {
      */
     public TradeResult commit() {
         if (state != State.PREPARED) {
+            failureReason = "Transaction not prepared (state=" + state + ")";
             ModLogger.error("Cannot commit transaction in state: %s", state);
             return null;
         }
@@ -214,6 +215,7 @@ public class TradeTransaction {
             
             // Step 5: Update statistics
             buyerInventory.recordItemPurchased(quantity);
+            buyerInventory.recordPersonalPurchase(sellOffer.getItemStringID(), quantity, executionPrice);
             PlayerGEInventory sellerInventory = getSellerInventory();
             sellerInventory.recordItemSold(quantity);
             
@@ -240,12 +242,13 @@ public class TradeTransaction {
             return result;
             
         } catch (TransactionException e) {
+            failureReason = e.getMessage();
             ModLogger.error("Trade commit failed, rolling back: %s", e.getMessage());
             rollback();
             return null;
         } catch (Exception e) {
-            ModLogger.error("Trade commit exception, rolling back: %s", e.getMessage());
-            e.printStackTrace();
+            failureReason = e.getMessage();
+            ModLogger.error("Trade commit exception, rolling back", e);
             rollback();
             return null;
         }
@@ -277,8 +280,7 @@ public class TradeTransaction {
             
         } catch (Exception e) {
             state = State.FAILED;
-            ModLogger.error("CRITICAL: Rollback failed! Manual intervention required: %s", e.getMessage());
-            e.printStackTrace();
+            ModLogger.error("CRITICAL: Rollback failed! Manual intervention required", e);
         }
     }
     
@@ -301,10 +303,6 @@ public class TradeTransaction {
             ? ((medievalsim.grandexchange.domain.GrandExchangeLevelData) level.getLevelData("grandexchangedata"))
                 .getInventory(sellOffer.getPlayerAuth())
             : null;
-    }
-    
-    private PlayerBank getBuyerBank() {
-        return getBankingData().getOrCreateBank(buyOrder.getPlayerAuth());
     }
     
     private PlayerBank getSellerBank() {

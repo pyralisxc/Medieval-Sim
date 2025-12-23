@@ -1,10 +1,11 @@
 package medievalsim.ui;
-import medievalsim.admintools.service.AdminToolsManager;
+import medievalsim.admintools.service.AdminToolsHelper;
 import medievalsim.packets.PacketRequestZoneSync;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.Packet;
 import necesse.engine.network.client.Client;
 import necesse.engine.window.GameWindow;
+import necesse.gfx.GameColor;
 import necesse.gfx.forms.ContainerComponent;
 import necesse.gfx.forms.MainGameFormManager;
 import necesse.gfx.forms.components.FormComponent;
@@ -25,8 +26,8 @@ public class AdminToolsHudManager {
         }
         
         // Permission check - only admins can access admin tools
-        if (!AdminToolsManager.hasAdminPermission(client)) {
-            client.chat.addMessage("§cAccess Denied: Admin permission required");
+        if (!AdminToolsHelper.hasAdminPermission(client)) {
+            client.chat.addMessage(GameColor.RED.getColorCode() + "Access Denied: Admin permission required");
             return;
         }
         
@@ -61,8 +62,8 @@ public class AdminToolsHudManager {
         boolean isStale;
         
         // Permission check - only admins can toggle admin tools
-        if (client != null && !AdminToolsManager.hasAdminPermission(client)) {
-            client.chat.addMessage("§cAccess Denied: Admin permission required");
+        if (client != null && !AdminToolsHelper.hasAdminPermission(client)) {
+            client.chat.addMessage(GameColor.RED.getColorCode() + "Access Denied: Admin permission required");
             return;
         }
         

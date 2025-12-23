@@ -309,14 +309,49 @@ public class ModSettingsTab {
     }
 
     /**
+     * Check if current player is the world owner
+     */
+    private boolean isWorldOwner() {
+        if (necesse.engine.GlobalData.getCurrentState() instanceof necesse.engine.state.MainGame) {
+            necesse.engine.state.MainGame mainGame = (necesse.engine.state.MainGame) necesse.engine.GlobalData.getCurrentState();
+            necesse.engine.network.client.Client client = mainGame.getClient();
+            if (client != null) {
+                // Singleplayer is always owner
+                if (client.isSingleplayer()) {
+                    return true;
+                }
+                // Check permission level
+                necesse.engine.commands.PermissionLevel level = client.getPermissionLevel();
+                if (level == necesse.engine.commands.PermissionLevel.OWNER) {
+                    return true;
+                }
+                // Also check serverOwnerAuth for dedicated servers
+                PlayerMob player = client.getPlayer();
+                if (player != null && Settings.serverOwnerAuth != -1L 
+                    && player.getUniqueID() == Settings.serverOwnerAuth) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Build a widget for a single setting
      */
     private int buildSettingWidget(FormContentBox scrollArea, ConfigurableSetting setting,
                                    int x, int y, int width) {
         int currentY = y;
 
+        // Check if this setting is owner-only and player is not the owner
+        boolean isOwnerOnlySetting = setting.isOwnerOnly();
+        boolean canEdit = !isOwnerOnlySetting || isWorldOwner();
+        
         // Setting label
         String labelText = setting.getDisplayName();
+        if (isOwnerOnlySetting && !canEdit) {
+            labelText += " [Owner Only]";
+        }
         String fullDescription = setting.getDescription();
         boolean hasLongDescription = false;
 
@@ -363,7 +398,9 @@ public class ModSettingsTab {
                     inputWidth, 200, 20
                 );
                 intInput.setText(String.valueOf(setting.getValue()));
+                intInput.setActive(canEdit);
                 intInput.onSubmit(e -> {
+                    if (!canEdit) return;
                     try {
                         if (setting.getType() == SettingType.INTEGER) {
                             int value = Integer.parseInt(intInput.getText());
@@ -383,12 +420,14 @@ public class ModSettingsTab {
 
                 FormTextButton resetButton = new FormTextButton(
                     "↺",
-                    "Reset to default: " + setting.getDefaultValue(),
+                    canEdit ? "Reset to default: " + setting.getDefaultValue() : "Owner only",
                     resetButtonX, currentY, resetButtonWidth,
                     FormInputSize.SIZE_16,
                     ButtonColor.BASE
                 );
+                resetButton.setActive(canEdit);
                 resetButton.onClicked(e -> {
+                    if (!canEdit) return;
                     setting.resetToDefault();
                     intInput.setText(String.valueOf(setting.getValue()));
                     Settings.saveClientSettings();
@@ -403,7 +442,9 @@ public class ModSettingsTab {
                     inputWidth, 200, 20
                 );
                 floatInput.setText(String.valueOf(setting.getValue()));
+                floatInput.setActive(canEdit);
                 floatInput.onSubmit(e -> {
+                    if (!canEdit) return;
                     try {
                         float value = Float.parseFloat(floatInput.getText());
                         setting.setFloatValue(value);
@@ -418,12 +459,14 @@ public class ModSettingsTab {
 
                 FormTextButton floatResetButton = new FormTextButton(
                     "↺",
-                    "Reset to default: " + setting.getDefaultValue(),
+                    canEdit ? "Reset to default: " + setting.getDefaultValue() : "Owner only",
                     resetButtonX, currentY, resetButtonWidth,
                     FormInputSize.SIZE_16,
                     ButtonColor.BASE
                 );
+                floatResetButton.setActive(canEdit);
                 floatResetButton.onClicked(e -> {
+                    if (!canEdit) return;
                     setting.resetToDefault();
                     floatInput.setText(String.valueOf(setting.getValue()));
                     Settings.saveClientSettings();
@@ -437,7 +480,9 @@ public class ModSettingsTab {
                     inputX, currentY,
                     inputWidth, setting.getBooleanValue()
                 );
+                checkbox.setActive(canEdit);
                 checkbox.onClicked(e -> {
+                    if (!canEdit) return;
                     setting.setBooleanValue(checkbox.checked);
                     Settings.saveClientSettings();
                     ModLogger.info("Updated %s to %s", setting.getFieldName(), checkbox.checked);
@@ -446,12 +491,14 @@ public class ModSettingsTab {
 
                 FormTextButton boolResetButton = new FormTextButton(
                     "↺",
-                    "Reset to default: " + setting.getDefaultValue(),
+                    canEdit ? "Reset to default: " + setting.getDefaultValue() : "Owner only",
                     resetButtonX, currentY, resetButtonWidth,
                     FormInputSize.SIZE_16,
                     ButtonColor.BASE
                 );
+                boolResetButton.setActive(canEdit);
                 boolResetButton.onClicked(e -> {
+                    if (!canEdit) return;
                     setting.resetToDefault();
                     checkbox.checked = setting.getBooleanValue();
                     Settings.saveClientSettings();
@@ -467,7 +514,9 @@ public class ModSettingsTab {
                     inputWidth, 200, 100
                 );
                 stringInput.setText(setting.getStringValue());
+                stringInput.setActive(canEdit);
                 stringInput.onSubmit(e -> {
+                    if (!canEdit) return;
                     setting.setStringValue(stringInput.getText());
                     Settings.saveClientSettings();
                     ModLogger.info("Updated %s to %s", setting.getFieldName(), stringInput.getText());
@@ -476,12 +525,14 @@ public class ModSettingsTab {
 
                 FormTextButton stringResetButton = new FormTextButton(
                     "↺",
-                    "Reset to default: " + setting.getDefaultValue(),
+                    canEdit ? "Reset to default: " + setting.getDefaultValue() : "Owner only",
                     resetButtonX, currentY, resetButtonWidth,
                     FormInputSize.SIZE_16,
                     ButtonColor.BASE
                 );
+                stringResetButton.setActive(canEdit);
                 stringResetButton.onClicked(e -> {
+                    if (!canEdit) return;
                     setting.resetToDefault();
                     stringInput.setText(setting.getStringValue());
                     Settings.saveClientSettings();

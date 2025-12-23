@@ -43,6 +43,7 @@ public class SettlementProtectionDialog extends ContinueForm {
     private FormCheckBox canInteractSwitchesCheckbox;
     private FormCheckBox canInteractFurnitureCheckbox;
     private FormCheckBox disableBroomsCheckbox;
+    private FormCheckBox allowBossSummonsCheckbox;
     
     public SettlementProtectionDialog(Client client, int settlementTileX, int settlementTileY) {
         super("settlementprotection", 400, 500);
@@ -164,6 +165,15 @@ public class SettlementProtectionDialog extends ContinueForm {
             Localization.translate("ui", "disablebrooms"),
             40, flow.next(22), this.getWidth() - 60, protectionData.isBroomRidingDisabled()));
         disableBroomsCheckbox.onClicked(e -> updateProtectionState());
+        
+        // Boss summon restrictions
+        this.addComponent(flow.nextY(new FormLocalLabel("ui", "bosssummonrestrictions",
+            new FontOptions(16), -1, 20, flow.next(10), this.getWidth() - 40), 5));
+        
+        allowBossSummonsCheckbox = this.addComponent(new FormCheckBox(
+            Localization.translate("ui", "allowbosssummons"),
+            40, flow.next(22), this.getWidth() - 60, protectionData.getAllowBossSummons()));
+        allowBossSummonsCheckbox.onClicked(e -> updateProtectionState());
 
         flow.next(15);
 
@@ -197,6 +207,7 @@ public class SettlementProtectionDialog extends ContinueForm {
         protectionData.setCanInteractSwitches(canInteractSwitchesCheckbox.checked);
         protectionData.setCanInteractFurniture(canInteractFurnitureCheckbox.checked);
         protectionData.setDisableBrooms(disableBroomsCheckbox.checked);
+        protectionData.setAllowBossSummons(allowBossSummonsCheckbox.checked);
     }
 
     private void sendProtectionPacket() {

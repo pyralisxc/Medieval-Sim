@@ -1,6 +1,8 @@
 package medievalsim.packets;
 
-import medievalsim.grandexchange.domain.GrandExchangeLevelData;
+import medievalsim.grandexchange.application.GrandExchangeContext;
+import medievalsim.grandexchange.application.GrandExchangeLedger;
+import medievalsim.grandexchange.net.SellActionResultCode;
 import medievalsim.packets.core.AbstractPayloadPacket;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.PacketReader;
@@ -52,35 +54,41 @@ public class PacketGEEnableSellOffer extends AbstractPayloadPacket {
         }
         
         Level level = client.playerMob.getLevel();
-        GrandExchangeLevelData geData = GrandExchangeLevelData.getGrandExchangeData(level);
-        if (geData == null) {
+        GrandExchangeContext context = GrandExchangeContext.resolve(level);
+        if (context == null) {
             ModLogger.error("GrandExchangeLevelData not available for enable/disable offer");
             return;
         }
+        GrandExchangeLedger ledger = context.getLedger();
         
         long playerAuth = client.authentication;
-        boolean success = false;
+        SellActionResultCode result = SellActionResultCode.UNKNOWN_FAILURE;
         
         if (enable) {
             // Enable offer (DRAFT → ACTIVE, add to market)
-            success = geData.enableSellOffer(level, playerAuth, slotIndex);
+            result = ledger.enableSellOffer(level, playerAuth, slotIndex);
             ModLogger.info("Player auth=%d enabled sell offer in slot %d: %s", 
-                playerAuth, slotIndex, success ? "SUCCESS" : "FAILED");
+                playerAuth, slotIndex, result == SellActionResultCode.SUCCESS ? "SUCCESS" : result);
         } else {
             // Disable offer (ACTIVE → DRAFT, remove from market)
-            success = geData.disableSellOffer(level, playerAuth, slotIndex);
+            result = ledger.disableSellOffer(level, playerAuth, slotIndex);
             ModLogger.info("Player auth=%d disabled sell offer in slot %d: %s", 
-                playerAuth, slotIndex, success ? "SUCCESS" : "FAILED");
+                playerAuth, slotIndex, result == SellActionResultCode.SUCCESS ? "SUCCESS" : result);
         }
         
         // Send sync packet back to client to update UI
-        geData.sendSellInventorySyncToClient(client, playerAuth);
+        context.getLevelData().sendSellInventorySyncToClient(client, playerAuth);
         
-        // If failed, optionally send error notification (future enhancement)
-        if (!success) {
-            // TODO: Send error packet to show notification on client
-            ModLogger.debug("Failed to %s offer in slot %d, sync sent to show current state",
-                enable ? "enable" : "disable", slotIndex);
+        // Send error notification to client if operation failed
+        if (result != SellActionResultCode.SUCCESS) {
+            String errorKey = enable ? "enablefailed" : "disablefailed";
+            client.sendPacket(new medievalsim.packets.PacketGEError(
+                playerAuth, 
+                medievalsim.grandexchange.net.GEFeedbackChannel.SELL, 
+                errorKey
+            ));
+            ModLogger.debug("Failed to %s offer in slot %d: %s - error notification sent",
+                enable ? "enable" : "disable", slotIndex, result);
         }
     }
 }

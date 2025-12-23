@@ -3,6 +3,7 @@ package medievalsim.grandexchange.services;
 import medievalsim.grandexchange.domain.GEOffer;
 import medievalsim.grandexchange.domain.BuyOrder;
 import medievalsim.util.ModLogger;
+import medievalsim.util.TimeConstants;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,6 +25,9 @@ public class NotificationService {
     
     // Player auth -> list of pending notifications
     private final Map<Long, List<Notification>> pendingNotifications = new ConcurrentHashMap<>();
+    
+    // Collection size limits
+    private static final int MAX_NOTIFICATIONS_PER_PLAYER = 100;
     
     // Statistics
     private int totalNotificationsSent = 0;
@@ -140,6 +144,11 @@ public class NotificationService {
         );
         
         synchronized (notifications) {
+            // Enforce size limit to prevent memory leaks
+            if (notifications.size() >= MAX_NOTIFICATIONS_PER_PLAYER) {
+                notifications.remove(0); // Remove oldest
+                ModLogger.warn("Notification queue full for player %d, removing oldest", playerAuth);
+            }
             notifications.add(notification);
             totalNotificationsQueued++;
         }
@@ -169,10 +178,16 @@ public class NotificationService {
     
     /**
      * Get count of pending notifications for player.
+     * Thread-safe: synchronizes on list to prevent race conditions with cleanup/clear.
      */
     public int getNotificationCount(long playerAuth) {
         List<Notification> notifications = pendingNotifications.get(playerAuth);
-        return notifications != null ? notifications.size() : 0;
+        if (notifications == null) {
+            return 0;
+        }
+        synchronized (notifications) {
+            return notifications.size();
+        }
     }
     
     /**
@@ -189,18 +204,28 @@ public class NotificationService {
     /**
      * Cleanup old notifications (called periodically).
      * Removes notifications older than 24 hours.
+     * Optimized: uses iterator for efficient removal without excessive lock contention.
      */
     public void cleanup() {
         long now = System.currentTimeMillis();
-        long cutoff = now - (24 * 60 * 60 * 1000); // 24 hours
+        long cutoff = now - TimeConstants.MILLIS_PER_DAY; // 24 hours
         
         int removed = 0;
-        for (Map.Entry<Long, List<Notification>> entry : pendingNotifications.entrySet()) {
+        // Use iterator to safely remove empty lists
+        java.util.Iterator<Map.Entry<Long, List<Notification>>> mapIterator = pendingNotifications.entrySet().iterator();
+        while (mapIterator.hasNext()) {
+            Map.Entry<Long, List<Notification>> entry = mapIterator.next();
             List<Notification> notifications = entry.getValue();
+            
             synchronized (notifications) {
                 int before = notifications.size();
                 notifications.removeIf(n -> n.getTimestamp() < cutoff);
                 removed += (before - notifications.size());
+                
+                // Remove empty lists to prevent memory leaks
+                if (notifications.isEmpty()) {
+                    mapIterator.remove();
+                }
             }
         }
         

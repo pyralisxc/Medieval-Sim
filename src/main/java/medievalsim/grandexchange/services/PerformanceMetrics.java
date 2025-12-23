@@ -1,6 +1,7 @@
 package medievalsim.grandexchange.services;
 
 import medievalsim.util.ModLogger;
+import medievalsim.util.TimeConstants;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -143,7 +144,7 @@ public class PerformanceMetrics {
      */
     public double getCoinVelocity() {
         long now = System.currentTimeMillis();
-        long oneHourAgo = now - (60 * 60 * 1000);
+        long oneHourAgo = now - TimeConstants.MILLIS_PER_HOUR;
         
         synchronized (recentTrades) {
             long coinsLastHour = recentTrades.stream()
@@ -212,7 +213,7 @@ public class PerformanceMetrics {
      */
     public void cleanup() {
         long now = System.currentTimeMillis();
-        long cutoff = now - (24 * 60 * 60 * 1000); // 24 hours
+        long cutoff = now - TimeConstants.MILLIS_PER_DAY; // 24 hours
         
         synchronized (recentTrades) {
             int before = recentTrades.size();
@@ -369,7 +370,7 @@ public class PerformanceMetrics {
                 "  Uptime: %dh",
                 totalTrades, totalCoins, tradesPerMinute, tradesPerHour,
                 avgExecutionTime, coinVelocity, marketHealth, activeItems,
-                uptime / (1000 * 60 * 60)
+                uptime / TimeConstants.MILLIS_PER_HOUR
             );
         }
     }

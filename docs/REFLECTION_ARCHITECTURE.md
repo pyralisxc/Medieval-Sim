@@ -2,7 +2,9 @@
 
 ## 🎯 **Overview: Two-Layer Reflection System**
 
-The Command Center uses **reflection at TWO distinct layers** to bridge Necesse's private API with our UI:
+The Command Center uses **reflection at TWO distinct layers** to bridge Necesse's private API with our UI.
+
+**Note**: All reflection operations are now centralized in `ReflectionUtils` utility class for consistency and error handling.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

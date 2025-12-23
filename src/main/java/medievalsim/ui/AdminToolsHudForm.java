@@ -12,12 +12,16 @@ import medievalsim.buildmode.service.BuildModeManager;
 import medievalsim.config.ModConfig;
 import medievalsim.packets.PacketConfigurePvPZone;
 import medievalsim.ui.helpers.PlayerDropdownEntry;
+import medievalsim.ui.helpers.SliderDebounceState;
 import medievalsim.packets.PacketDeleteZone;
 import medievalsim.packets.PacketRenameZone;
 import medievalsim.packets.PacketRequestPlayerList;
+import medievalsim.ui.UIStyleConstants;
 import medievalsim.util.Constants;
 import medievalsim.util.ModLogger;
 import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.GuildZone;
+import medievalsim.zones.domain.ZoneType;
 import medievalsim.zones.ui.CreateOrExpandZoneTool;
 import medievalsim.zones.domain.ProtectedZone;
 import medievalsim.zones.domain.PvPZone;
@@ -57,23 +61,14 @@ import medievalsim.util.ResponsiveButtonHelper;
 
 public class AdminToolsHudForm
 extends Form {
-    // Reserved for future UI expansion
-    @SuppressWarnings("unused")
-    private static final int FORM_WIDTH = 300;
-    @SuppressWarnings("unused")
-    private static final int FORM_HEIGHT = 350;
-    @SuppressWarnings("unused")
-    private static final int MINIMIZED_WIDTH = 180;
-    @SuppressWarnings("unused")
-    private static final int TITLE_BAR_HEIGHT = 30;
-    @SuppressWarnings("unused")
-    private static final int BUTTON_SIZE = 20;
+    // Font and spacing constants
     private Client client;
     private Form mainMenuForm;
     private Form buildToolsForm;
     private Form zoneToolsForm;
     private Form protectedZonesForm;
     private Form pvpZonesForm;
+    private Form guildZonesForm;
     private CommandCenterPanel commandCenterPanel;  // Changed from Form to Panel
     private FormContentIconButton minimizeButton;
     private FormLabel minimizedTitleLabel;
@@ -88,15 +83,18 @@ extends Form {
     private boolean wasShowingZoneTools = false;
     private boolean wasShowingProtectedZones = false;
     private boolean wasShowingPvPZones = false;
+    private boolean wasShowingGuildZones = false;
     private boolean wasShowingCommandCenter = false;
     private boolean commandCenterBuilt = false;  // Track if components are built
     private int savedWidth;
     private int savedHeight;
     private Map<Integer, ProtectedZone> protectedZones = new HashMap<Integer, ProtectedZone>();
     private Map<Integer, PvPZone> pvpZones = new HashMap<Integer, PvPZone>();
+    private Map<Integer, GuildZone> guildZones = new HashMap<Integer, GuildZone>();
     private Set<Integer> expandedConfigZones = new HashSet<Integer>();
     private ZoneVisualizationHud protectedZonesHud;
     private ZoneVisualizationHud pvpZonesHud;
+    private ZoneVisualizationHud guildZonesHud;
     private FormCheckBox buildModeToggle;
     private FormCheckBox[] lineTypeCheckboxes;
     private FormCheckBox[] shapeCheckboxes;
@@ -108,15 +106,12 @@ extends Form {
     private FormLabelEdit activeOwnerInput = null;
     private int activeDropdownZoneID = -1;
 
-    // Debounce timers for slider updates
-    private Map<Integer, Long> sliderDebounceTimers = new HashMap<>();
-    private Map<Integer, Runnable> pendingSliderUpdates = new HashMap<>();
+    // Zone name label tracking for direct updates (avoid full refresh on rename)
+    private Map<Integer, FormLabelEdit> zoneNameLabels = new HashMap<>();
 
-    private static final FontOptions WHITE_TEXT_20 = new FontOptions(20).color(Color.WHITE);
-    private static final FontOptions WHITE_TEXT_16 = new FontOptions(16).color(Color.WHITE);
-    private static final FontOptions WHITE_TEXT_14 = new FontOptions(14).color(Color.WHITE);
-    private static final FontOptions WHITE_TEXT_11 = new FontOptions(11).color(Color.WHITE);
-    private static final FontOptions WHITE_TEXT_10 = new FontOptions(10).color(Color.WHITE);
+    // Consolidated debounce state for slider updates
+    private Map<Integer, SliderDebounceState> sliderDebounceStates = new HashMap<>();
+
     private static final int FORCE_CLEAN_BUTTON_WIDTH = 180;
     private static final long SLIDER_DEBOUNCE_MILLIS = 200L;
 
@@ -183,6 +178,7 @@ extends Form {
         this.createZoneToolsMenu();
         this.createProtectedZonesForm();
         this.createPvPZonesForm();
+        this.createGuildZonesForm();
         this.createCommandCenterMenu();
         this.createControlButtons();
         this.showMainMenu();
@@ -208,7 +204,7 @@ extends Form {
         this.mainMenuForm = (Form)this.addComponent((FormComponent)new Form("mainmenu", 360, 350));
         this.mainMenuForm.drawBase = false;
         int currentY = 10;
-        this.mainMenuForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"admintools"), WHITE_TEXT_20, -1, 10, currentY));
+        this.mainMenuForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"admintools"), UIStyleConstants.WHITE_TITLE_FONT, -1, 10, currentY));
 
         // Button layout: fixed, configurable width centered in the HUD
         int margin = Constants.UI.MARGIN;
@@ -260,16 +256,16 @@ extends Form {
         int margin = 10;
         int contentWidth = formWidth - margin * 2;
         int currentY = 10;
-        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"buildtools"), WHITE_TEXT_20, -1, margin, currentY));
+        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"buildtools"), UIStyleConstants.WHITE_TITLE_FONT, -1, margin, currentY));
         BuildModeManager manager = BuildModeManager.getInstance(this.client);
         String buildModeText = manager.buildModeEnabled ? Localization.translate((String)"ui", (String)"buildmodeon") : Localization.translate((String)"ui", (String)"buildmodeoff");
-        this.buildModeToggle = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(buildModeText, margin, currentY += 32, contentWidth, manager.buildModeEnabled, WHITE_TEXT_14));
+        this.buildModeToggle = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(buildModeText, margin, currentY += 32, contentWidth, manager.buildModeEnabled, UIStyleConstants.WHITE_BODY_FONT));
         this.buildModeToggle.onClicked(e -> {
             manager.setBuildModeEnabled(this.buildModeToggle.checked);
             String text = this.buildModeToggle.checked ? Localization.translate((String)"ui", (String)"buildmodeon") : Localization.translate((String)"ui", (String)"buildmodeoff");
             this.buildModeToggle.setText(text, contentWidth);
         });
-        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"linetypes") + ":", WHITE_TEXT_14, -1, margin, currentY += 30));
+        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"linetypes") + ":", UIStyleConstants.WHITE_BODY_FONT, -1, margin, currentY += 30));
         currentY += 22;
         this.lineTypeCheckboxes = new FormCheckBox[5];
         this.shapeCheckboxes = new FormCheckBox[5];
@@ -279,7 +275,7 @@ extends Form {
         int buttonX = margin;
         for (int i = 0; i < lineTypeShapes.length; ++i) {
             int shapeIndex = lineTypeShapes[i];
-            this.lineTypeCheckboxes[i] = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(lineTypeNames[i], buttonX, currentY, buttonWidth, manager.selectedShape == shapeIndex, WHITE_TEXT_10));
+            this.lineTypeCheckboxes[i] = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(lineTypeNames[i], buttonX, currentY, buttonWidth, manager.selectedShape == shapeIndex, UIStyleConstants.TINY_FONT.color(Color.WHITE)));
             this.lineTypeCheckboxes[i].onClicked(e -> {
                 for (FormCheckBox cb : this.lineTypeCheckboxes) {
                     if (cb == null) continue;
@@ -297,7 +293,7 @@ extends Form {
             });
             buttonX += buttonWidth + 4;
         }
-        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"shapes") + ":", WHITE_TEXT_14, -1, margin, currentY += 26));
+        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"shapes") + ":", UIStyleConstants.WHITE_BODY_FONT, -1, margin, currentY += 26));
         currentY += 22;
         int[] shapeTypes = new int[]{5, 6, 7, 8, 9};
         String[] shapeNames = new String[]{Localization.translate((String)"ui", (String)"shapesquare"), Localization.translate((String)"ui", (String)"shapecircle"), Localization.translate((String)"ui", (String)"shapediamond"), Localization.translate((String)"ui", (String)"shapehalfcircle"), Localization.translate((String)"ui", (String)"shapetriangle")};
@@ -305,7 +301,7 @@ extends Form {
         buttonX = margin;
         for (int i = 0; i < shapeTypes.length; ++i) {
             int shapeIndex = shapeTypes[i];
-            this.shapeCheckboxes[i] = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(shapeNames[i], buttonX, currentY, buttonWidth, manager.selectedShape == shapeIndex, WHITE_TEXT_10));
+            this.shapeCheckboxes[i] = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(shapeNames[i], buttonX, currentY, buttonWidth, manager.selectedShape == shapeIndex, UIStyleConstants.TINY_FONT.color(Color.WHITE)));
             this.shapeCheckboxes[i].onClicked(e -> {
                 for (FormCheckBox cb : this.lineTypeCheckboxes) {
                     if (cb == null) continue;
@@ -323,22 +319,22 @@ extends Form {
             });
             buttonX += buttonWidth + 4;
         }
-        this.hollowCheckbox = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"hollow"), margin, currentY += 26, contentWidth, manager.isHollow, WHITE_TEXT_11));
+        this.hollowCheckbox = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"hollow"), margin, currentY += 26, contentWidth, manager.isHollow, UIStyleConstants.WHITE_SMALL_FONT));
         this.hollowCheckbox.onClicked(e -> manager.setHollow(this.hollowCheckbox.checked));
         this.updateHollowCheckbox(this.hollowCheckbox);
-        FormSlider lineLengthSlider = (FormSlider)this.buildToolsForm.addComponent((FormComponent)new FormSlider(Localization.translate((String)"ui", (String)"linelengthfull"), margin, currentY += 30, manager.lineLength, 1, 50, contentWidth, WHITE_TEXT_11));
+        FormSlider lineLengthSlider = (FormSlider)this.buildToolsForm.addComponent((FormComponent)new FormSlider(Localization.translate((String)"ui", (String)"linelengthfull"), margin, currentY += 30, manager.lineLength, 1, 50, contentWidth, UIStyleConstants.WHITE_SMALL_FONT));
         lineLengthSlider.drawValueInPercent = false;
         lineLengthSlider.onChanged(e -> manager.setLineLength(lineLengthSlider.getValue()));
-        FormSlider squareSizeSlider = (FormSlider)this.buildToolsForm.addComponent((FormComponent)new FormSlider(Localization.translate((String)"ui", (String)"squaresizefull"), margin, currentY += lineLengthSlider.getTotalHeight() + 8, manager.squareSize, 1, 25, contentWidth, WHITE_TEXT_11));
+        FormSlider squareSizeSlider = (FormSlider)this.buildToolsForm.addComponent((FormComponent)new FormSlider(Localization.translate((String)"ui", (String)"squaresizefull"), margin, currentY += lineLengthSlider.getTotalHeight() + 8, manager.squareSize, 1, 25, contentWidth, UIStyleConstants.WHITE_SMALL_FONT));
         squareSizeSlider.drawValueInPercent = false;
         squareSizeSlider.onChanged(e -> manager.setSquareSize(squareSizeSlider.getValue()));
-        FormSlider circleRadiusSlider = (FormSlider)this.buildToolsForm.addComponent((FormComponent)new FormSlider(Localization.translate((String)"ui", (String)"circleradiusfull"), margin, currentY += squareSizeSlider.getTotalHeight() + 8, manager.circleRadius, 1, 25, contentWidth, WHITE_TEXT_11));
+        FormSlider circleRadiusSlider = (FormSlider)this.buildToolsForm.addComponent((FormComponent)new FormSlider(Localization.translate((String)"ui", (String)"circleradiusfull"), margin, currentY += squareSizeSlider.getTotalHeight() + 8, manager.circleRadius, 1, 25, contentWidth, UIStyleConstants.WHITE_SMALL_FONT));
         circleRadiusSlider.drawValueInPercent = false;
         circleRadiusSlider.onChanged(e -> manager.setCircleRadius(circleRadiusSlider.getValue()));
-        FormSlider spacingSlider = (FormSlider)this.buildToolsForm.addComponent((FormComponent)new FormSlider(Localization.translate((String)"ui", (String)"spacingfull"), margin, currentY += circleRadiusSlider.getTotalHeight() + 8, manager.spacing, 1, 10, contentWidth, WHITE_TEXT_11));
+        FormSlider spacingSlider = (FormSlider)this.buildToolsForm.addComponent((FormComponent)new FormSlider(Localization.translate((String)"ui", (String)"spacingfull"), margin, currentY += circleRadiusSlider.getTotalHeight() + 8, manager.spacing, 1, 10, contentWidth, UIStyleConstants.WHITE_SMALL_FONT));
         spacingSlider.drawValueInPercent = false;
         spacingSlider.onChanged(e -> manager.setSpacing(spacingSlider.getValue()));
-        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"direction") + ":", WHITE_TEXT_14, -1, margin, currentY += spacingSlider.getTotalHeight() + 8));
+        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"direction") + ":", UIStyleConstants.WHITE_BODY_FONT, -1, margin, currentY += spacingSlider.getTotalHeight() + 8));
         currentY += 22;
         String[] directionNames = new String[]{Localization.translate((String)"ui", (String)"directionup"), Localization.translate((String)"ui", (String)"directiondown"), Localization.translate((String)"ui", (String)"directionleft"), Localization.translate((String)"ui", (String)"directionright")};
         int[] directionValues = new int[]{0, 1, 2, 3};
@@ -347,7 +343,7 @@ extends Form {
         buttonX = margin;
         for (int i = 0; i < directionValues.length; ++i) {
             int dirValue = directionValues[i];
-            directionCheckboxes[i] = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(directionNames[i], buttonX, currentY, buttonWidth, manager.direction == dirValue, WHITE_TEXT_10));
+            directionCheckboxes[i] = (FormCheckBox)this.buildToolsForm.addComponent((FormComponent)new WhiteTextCheckBox(directionNames[i], buttonX, currentY, buttonWidth, manager.direction == dirValue, UIStyleConstants.TINY_FONT.color(Color.WHITE)));
             directionCheckboxes[i].onClicked(e -> {
                 for (FormCheckBox cb : directionCheckboxes) {
                     if (cb == null) continue;
@@ -358,7 +354,7 @@ extends Form {
             });
             buttonX += buttonWidth + 4;
         }
-        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"rotationinfo"), WHITE_TEXT_10, -1, margin, currentY += 26));
+        this.buildToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"rotationinfo"), UIStyleConstants.TINY_FONT.color(Color.WHITE), -1, margin, currentY += 26));
         FormTextButton backButton = (FormTextButton)this.buildToolsForm.addComponent((FormComponent)new FormTextButton(Localization.translate((String)"ui", (String)"backtomenu"), margin, currentY += 22, contentWidth, FormInputSize.SIZE_32, ButtonColor.BASE));
         backButton.onClicked(e -> this.showMainMenu());
     }
@@ -371,11 +367,13 @@ extends Form {
         int margin = 10;
         int contentWidth = formWidth - margin * 2;
         int currentY = 10;
-        this.zoneToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"zonetools"), WHITE_TEXT_20, -1, margin, currentY));
+        this.zoneToolsForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"zonetools"), UIStyleConstants.WHITE_TITLE_FONT, -1, margin, currentY));
         FormTextButton protectedZonesButton = (FormTextButton)this.zoneToolsForm.addComponent((FormComponent)new FormTextButton(Localization.translate((String)"ui", (String)"protectedzones"), margin, currentY += 35, contentWidth, FormInputSize.SIZE_32, ButtonColor.BASE));
         protectedZonesButton.onClicked(e -> this.showProtectedZonesList());
         FormTextButton pvpZonesButton = (FormTextButton)this.zoneToolsForm.addComponent((FormComponent)new FormTextButton(Localization.translate((String)"ui", (String)"pvpzones"), margin, currentY += 40, contentWidth, FormInputSize.SIZE_32, ButtonColor.BASE));
         pvpZonesButton.onClicked(e -> this.showPvPZonesList());
+        FormTextButton guildZonesButton = (FormTextButton)this.zoneToolsForm.addComponent((FormComponent)new FormTextButton(Localization.translate((String)"ui", (String)"guildzones"), margin, currentY += 40, contentWidth, FormInputSize.SIZE_32, ButtonColor.BASE));
+        guildZonesButton.onClicked(e -> this.showGuildZonesList());
         FormTextButton backButton = (FormTextButton)this.zoneToolsForm.addComponent((FormComponent)new FormTextButton(Localization.translate((String)"ui", (String)"backtomenu"), margin, currentY += 60, contentWidth, FormInputSize.SIZE_32, ButtonColor.BASE));
         backButton.onClicked(e -> this.showMainMenu());
     }
@@ -402,17 +400,24 @@ extends Form {
         this.pvpZonesForm.setHidden(true);
     }
 
+    private void createGuildZonesForm() {
+        int formWidth = 600;
+        int formHeight = 500;
+        this.guildZonesForm = (Form)this.addComponent((FormComponent)new Form("guildzones", formWidth, formHeight));
+        this.guildZonesForm.drawBase = false;
+        this.guildZonesForm.setHidden(true);
+    }
+
     public void updateZones(Map<Integer, ProtectedZone> newProtectedZones, Map<Integer, PvPZone> newPvPZones) {
         ModLogger.debug("Updating local zone storage - " + newProtectedZones.size() + " protected, " + newPvPZones.size() + " PVP");
 
-        // Clean up debounce timers for zones that no longer exist
+        // Clean up debounce states for zones that no longer exist
         Set<Integer> allCurrentZoneIDs = new HashSet<>();
         allCurrentZoneIDs.addAll(newProtectedZones.keySet());
         allCurrentZoneIDs.addAll(newPvPZones.keySet());
 
-        // Remove timers for zones that were deleted
-        this.sliderDebounceTimers.keySet().retainAll(allCurrentZoneIDs);
-        this.pendingSliderUpdates.keySet().retainAll(allCurrentZoneIDs);
+        // Remove debounce states for zones that were deleted
+        this.sliderDebounceStates.keySet().retainAll(allCurrentZoneIDs);
 
         this.protectedZones = new HashMap<Integer, ProtectedZone>(newProtectedZones);
         this.pvpZones = new HashMap<Integer, PvPZone>(newPvPZones);
@@ -432,39 +437,74 @@ extends Form {
         }
     }
 
-    public void onZoneChanged(AdminZone zone, boolean isProtectedZone) {
+    public void onZoneChanged(AdminZone zone, ZoneType zoneType) {
+        if (zoneType == ZoneType.GUILD) {
+            this.guildZones.put(zone.uniqueID, (GuildZone)zone);
+            if (!this.guildZonesForm.isHidden()) {
+                this.refreshGuildZoneList();
+            }
+            return;
+        }
+        
+        boolean isProtectedZone = (zoneType == ZoneType.PROTECTED);
+        
         // Check if this is a new zone (not in cache yet)
         boolean isNewZone;
+        AdminZone oldZone = null;
         if (isProtectedZone) {
-            isNewZone = !this.protectedZones.containsKey(zone.uniqueID);
+            oldZone = this.protectedZones.get(zone.uniqueID);
+            isNewZone = oldZone == null;
             this.protectedZones.put(zone.uniqueID, (ProtectedZone)zone);
         } else {
-            isNewZone = !this.pvpZones.containsKey(zone.uniqueID);
+            oldZone = this.pvpZones.get(zone.uniqueID);
+            isNewZone = oldZone == null;
             this.pvpZones.put(zone.uniqueID, (PvPZone)zone);
         }
 
-        // Refresh UI only for new zones, not for config changes
-        // This prevents 16+ refreshes when adjusting sliders, but ensures new zones appear
+        // For new zones, do full refresh
         if (isNewZone) {
             if (isProtectedZone && !this.protectedZonesForm.isHidden()) {
                 this.refreshZoneList(true);
             } else if (!isProtectedZone && !this.pvpZonesForm.isHidden()) {
                 this.refreshZoneList(false);
             }
+        } else {
+            // For existing zones, check if it's just a name change
+            if (oldZone != null && !oldZone.name.equals(zone.name)) {
+                // Direct name label update (avoids expensive full refresh)
+                FormLabelEdit nameLabel = this.zoneNameLabels.get(zone.uniqueID);
+                if (nameLabel != null && !nameLabel.isTyping()) {
+                    nameLabel.setText(zone.name);
+                    ModLogger.debug("Updated zone %d name label to: %s", zone.uniqueID, zone.name);
+                }
+            }
+            // Config changes (damage, combat lock, etc.) don't need UI update
         }
     }
 
-    public void onZoneRemoved(int uniqueID, boolean isProtectedZone) {
+    public void onZoneRemoved(int uniqueID, ZoneType zoneType) {
         ModLogger.info("Zone removed - %d", uniqueID);
+        
+        if (zoneType == ZoneType.GUILD) {
+            this.guildZones.remove(uniqueID);
+            this.zoneNameLabels.remove(uniqueID);
+            if (!this.guildZonesForm.isHidden()) {
+                this.refreshGuildZoneList();
+            }
+            return;
+        }
+        
+        boolean isProtectedZone = (zoneType == ZoneType.PROTECTED);
+        
         if (isProtectedZone) {
             this.protectedZones.remove(uniqueID);
         } else {
             this.pvpZones.remove(uniqueID);
         }
 
-        // Clean up debounce timers and pending updates for this zone to prevent memory leak
-        this.sliderDebounceTimers.remove(uniqueID);
-        this.pendingSliderUpdates.remove(uniqueID);
+        // Clean up debounce state and name labels for this zone to prevent memory leak
+        this.sliderDebounceStates.remove(uniqueID);
+        this.zoneNameLabels.remove(uniqueID);
 
         if (isProtectedZone && !this.protectedZonesForm.isHidden()) {
             this.refreshZoneList(true);
@@ -476,18 +516,30 @@ extends Form {
     private void refreshZoneList(boolean isProtectedZones) {
         Form targetForm = isProtectedZones ? this.protectedZonesForm : this.pvpZonesForm;
         targetForm.clearComponents();
+        
+        // Clear name label tracking for zones in this list (will be repopulated during rebuild)
+        if (isProtectedZones) {
+            for (Integer zoneID : this.protectedZones.keySet()) {
+                this.zoneNameLabels.remove(zoneID);
+            }
+        } else {
+            for (Integer zoneID : this.pvpZones.keySet()) {
+                this.zoneNameLabels.remove(zoneID);
+            }
+        }
+        
         int margin = 10;
         int contentWidth = targetForm.getWidth() - margin * 2;
         int currentY = 10;
         String titleKey = isProtectedZones ? "protectedzones" : "pvpzones";
-        targetForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)titleKey), WHITE_TEXT_20, -1, margin, currentY));
+        targetForm.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)titleKey), UIStyleConstants.WHITE_TITLE_FONT, -1, margin, currentY));
         int scrollHeight = targetForm.getHeight() - (currentY += 35) - 70;
         FormContentBox scrollContentBox = (FormContentBox)targetForm.addComponent((FormComponent)new FormContentBox(margin, currentY, contentWidth, scrollHeight));
         currentY += scrollHeight + 10;
         int yPos = 10;
         if (isProtectedZones) {
             if (this.protectedZones.isEmpty()) {
-                scrollContentBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"nozonescreated"), WHITE_TEXT_16, -1, scrollContentBox.getWidth() / 2, yPos));
+                scrollContentBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"nozonescreated"), UIStyleConstants.WHITE_HEADER_FONT, -1, scrollContentBox.getWidth() / 2, yPos));
             } else {
                 for (ProtectedZone protectedZone : this.protectedZones.values()) {
                     yPos = this.addZoneEntry(scrollContentBox, protectedZone, yPos, isProtectedZones);
@@ -495,7 +547,7 @@ extends Form {
             }
         } else {
             if (this.pvpZones.isEmpty()) {
-                scrollContentBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"nozonescreated"), WHITE_TEXT_16, -1, scrollContentBox.getWidth() / 2, yPos));
+                scrollContentBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"nozonescreated"), UIStyleConstants.WHITE_HEADER_FONT, -1, scrollContentBox.getWidth() / 2, yPos));
             } else {
                 for (PvPZone pvPZone : this.pvpZones.values()) {
                     yPos = this.addZoneEntry(scrollContentBox, pvPZone, yPos, isProtectedZones);
@@ -521,13 +573,13 @@ extends Form {
             int btnY = controlsY;
             FormTextButton forceCleanAllButton = (FormTextButton)targetForm.addComponent((FormComponent)new FormTextButton("Force Clean Here", btnXCentered, btnY, btnWidth, FormInputSize.SIZE_32, ButtonColor.RED));
             // Descriptive label above the button (acts as a tooltip/explanation)
-            targetForm.addComponent((FormComponent)new FormLabel("Removes stray barrier objects within the chosen radius around your current location.  ", WHITE_TEXT_11, -1, targetForm.getWidth() / 5, btnY - 18));
+            targetForm.addComponent((FormComponent)new FormLabel("Removes stray barrier objects within the chosen radius around your current location.  ", UIStyleConstants.WHITE_SMALL_FONT, -1, targetForm.getWidth() / 5, btnY - 18));
 
             // Slider sits centered below the button
             int sliderWidth = btnWidth;
             int sliderX = btnXCentered;
             int sliderY = btnY + 36;
-            FormSlider cleanSlider = (FormSlider)targetForm.addComponent((FormComponent)new FormSlider("Radius: " + savedRadius, sliderX, sliderY, savedRadius, 10, 500, sliderWidth, WHITE_TEXT_10));
+            FormSlider cleanSlider = (FormSlider)targetForm.addComponent((FormComponent)new FormSlider("Radius: " + savedRadius, sliderX, sliderY, savedRadius, 10, 500, sliderWidth, UIStyleConstants.TINY_FONT.color(Color.WHITE)));
             cleanSlider.drawValueInPercent = false;
 
             forceCleanAllButton.onClicked(e -> {
@@ -549,6 +601,169 @@ extends Form {
         backButton.onClicked(e -> this.showZoneTools());
     }
 
+    /**
+     * Refresh the guild zones list UI.
+     * Similar to refreshZoneList but for guild-owned territories.
+     */
+    private void refreshGuildZoneList() {
+        Form targetForm = this.guildZonesForm;
+        targetForm.clearComponents();
+        
+        // Clear name label tracking for guild zones
+        for (Integer zoneID : this.guildZones.keySet()) {
+            this.zoneNameLabels.remove(zoneID);
+        }
+        
+        int margin = 10;
+        int contentWidth = targetForm.getWidth() - margin * 2;
+        int currentY = 10;
+        
+        targetForm.addComponent((FormComponent)new FormLabel(
+            Localization.translate("ui", "guildzones"), 
+            UIStyleConstants.WHITE_TITLE_FONT, -1, margin, currentY));
+        currentY += 35;
+        
+        int scrollHeight = targetForm.getHeight() - currentY - 70;
+        FormContentBox scrollContentBox = (FormContentBox)targetForm.addComponent(
+            (FormComponent)new FormContentBox(margin, currentY, contentWidth, scrollHeight));
+        currentY += scrollHeight + 10;
+        
+        int yPos = 10;
+        if (this.guildZones.isEmpty()) {
+            scrollContentBox.addComponent((FormComponent)new FormLabel(
+                Localization.translate("ui", "nozonescreated"), 
+                UIStyleConstants.WHITE_HEADER_FONT, -1, scrollContentBox.getWidth() / 2, yPos));
+        } else {
+            for (GuildZone guildZone : this.guildZones.values()) {
+                yPos = this.addGuildZoneEntry(scrollContentBox, guildZone, yPos);
+            }
+        }
+        
+        int contentHeight = Math.max(yPos + 10, scrollContentBox.getHeight());
+        scrollContentBox.setContentBox(new Rectangle(0, 0, scrollContentBox.getWidth(), contentHeight));
+        
+        // Create guild zone button
+        String createZoneText = Localization.translate("ui", "createguildzone");
+        FormTextButton createButton = ResponsiveButtonHelper.createButton(
+            createZoneText, margin, currentY, targetForm.getWidth() - (margin * 2));
+        targetForm.addComponent((FormComponent)createButton);
+        createButton.onClicked(e -> this.startGuildZoneCreation());
+        
+        // Back button
+        FormTextButton backButton = ResponsiveButtonHelper.createLocalizedButton(
+            "ui", "back", 
+            targetForm.getWidth() - margin - Constants.UI.STANDARD_BUTTON_WIDTH, 
+            currentY, Constants.UI.STANDARD_BUTTON_WIDTH);
+        targetForm.addComponent((FormComponent)backButton);
+        backButton.onClicked(e -> this.showZoneTools());
+    }
+
+    /**
+     * Add a guild zone entry to the scroll box.
+     */
+    private int addGuildZoneEntry(FormContentBox scrollContentBox, GuildZone zone, int yPos) {
+        int entryHeight = 90;
+        int margin = 5;
+        int xPos = 10;
+        
+        FormContentBox entryBox = (FormContentBox)scrollContentBox.addComponent(
+            (FormComponent)new FormContentBox(margin, yPos, scrollContentBox.getWidth() - margin * 2 - 20, entryHeight));
+        
+        FontOptions labelOptions = new FontOptions(16).color(Color.WHITE);
+        String displayName = zone.name.isEmpty() ? "Unnamed Guild Zone" : zone.name;
+        FormLabelEdit nameLabel = (FormLabelEdit)entryBox.addComponent(
+            (FormComponent)new FormLabelEdit(displayName, labelOptions, Color.WHITE, xPos, 5, entryBox.getWidth() - 80, 24));
+        
+        this.zoneNameLabels.put(zone.uniqueID, nameLabel);
+        
+        // Rename button
+        FormContentIconButton[] renameButton = new FormContentIconButton[]{
+            (FormContentIconButton)entryBox.addComponent((FormComponent)new FormContentIconButton(
+                entryBox.getWidth() - 60, 5, FormInputSize.SIZE_24, ButtonColor.BASE,
+                (ButtonTexture)this.getInterfaceStyle().container_rename,
+                new GameMessage[]{new StaticMessage(Localization.translate("ui", "renamebutton"))}))
+        };
+        
+        Runnable updateRename = () -> {
+            if (nameLabel.isTyping()) {
+                renameButton[0].setIcon(this.getInterfaceStyle().container_rename_save);
+                renameButton[0].setTooltips(new GameMessage[]{new StaticMessage(Localization.translate("ui", "savebutton"))});
+            } else {
+                if (!nameLabel.getText().equals(zone.name)) {
+                    String newName = nameLabel.getText();
+                    this.client.network.sendPacket((Packet)new PacketRenameZone(zone.uniqueID, ZoneType.GUILD, (GameMessage)new StaticMessage(newName)));
+                    ModLogger.info("Sent rename request for guild zone %d to: %s", zone.uniqueID, newName);
+                }
+                renameButton[0].setIcon(this.getInterfaceStyle().container_rename);
+                renameButton[0].setTooltips(new GameMessage[]{new StaticMessage(Localization.translate("ui", "renamebutton"))});
+                nameLabel.setText(zone.name);
+            }
+        };
+        
+        nameLabel.onMouseChangedTyping(e -> updateRename.run());
+        nameLabel.onSubmit(e -> updateRename.run());
+        renameButton[0].onClicked(e -> {
+            if (nameLabel.isTyping()) {
+                nameLabel.setTyping(false);
+            } else {
+                nameLabel.setTyping(true);
+            }
+        });
+        
+        // Zone info
+        String guildInfo = zone.getGuildName().isEmpty() ? "No Guild Assigned" : "Guild: " + zone.getGuildName();
+        String info = "ID: " + zone.uniqueID + " | Tiles: " + zone.getTileCount() + " | " + guildInfo;
+        entryBox.addComponent((FormComponent)new FormLabel(info, UIStyleConstants.WHITE_SMALL_FONT, -1, xPos, 32));
+        
+        int buttonY = 55;
+        int buttonSpacing = 28;
+        int buttonX = xPos;
+        
+        // Expand button
+        FormContentIconButton expandButton = (FormContentIconButton)entryBox.addComponent(
+            (FormComponent)new FormContentIconButton(buttonX, buttonY, FormInputSize.SIZE_24, ButtonColor.BASE,
+                (ButtonTexture)this.getInterfaceStyle().config_button_32,
+                new GameMessage[]{new StaticMessage(Localization.translate("ui", "expandzone"))}));
+        expandButton.onClicked(e -> this.startGuildZoneEdit(zone));
+        buttonX += buttonSpacing;
+        
+        // Delete button
+        FormContentIconButton deleteButton = (FormContentIconButton)entryBox.addComponent(
+            (FormComponent)new FormContentIconButton(buttonX, buttonY, FormInputSize.SIZE_24, ButtonColor.RED,
+                (ButtonTexture)this.getInterfaceStyle().container_storage_remove,
+                new GameMessage[]{new StaticMessage(Localization.translate("ui", "deletezone"))}));
+        deleteButton.onClicked(e -> this.deleteGuildZone(zone));
+        
+        return yPos + entryHeight + margin;
+    }
+
+    /**
+     * Start creating a new guild zone.
+     */
+    private void startGuildZoneCreation() {
+        boolean wasCleared = GameToolManager.clearGameTools((Object)((Object)this));
+        if (!wasCleared) {
+            GameToolManager.setGameTool((GameTool)new CreateOrExpandZoneTool(this.client, ZoneType.GUILD, () -> this.guildZones), (Object)((Object)this));
+        }
+        ModLogger.info("Started guild zone creation tool");
+    }
+
+    /**
+     * Start editing/expanding a guild zone.
+     */
+    private void startGuildZoneEdit(GuildZone zone) {
+        // Uses the same tool as creation - the tool handles both creation and expansion
+        this.startGuildZoneCreation();
+    }
+
+    /**
+     * Delete a guild zone.
+     */
+    private void deleteGuildZone(GuildZone zone) {
+        this.client.network.sendPacket((Packet)new PacketDeleteZone(zone.uniqueID, ZoneType.GUILD));
+        ModLogger.info("Sent delete request for guild zone %d", zone.uniqueID);
+    }
+
     private int addZoneEntry(FormContentBox scrollContentBox, AdminZone zone, int yPos, boolean isProtectedZone) {
         int baseEntryHeight = 90;
         // Enhancement #5: Allocate more height for protected zones (6 interaction checkboxes + section label)
@@ -561,6 +776,10 @@ extends Form {
         FormContentBox entryBox = (FormContentBox)scrollContentBox.addComponent((FormComponent)new FormContentBox(margin, yPos, scrollContentBox.getWidth() - margin * 2 - 20, entryHeight));
         FontOptions labelOptions = new FontOptions(16).color(Color.WHITE);
         FormLabelEdit nameLabel = (FormLabelEdit)entryBox.addComponent((FormComponent)new FormLabelEdit(zone.name.isEmpty() ? "Unnamed Zone" : zone.name, labelOptions, Color.WHITE, xPos, 5, entryBox.getWidth() - 80, 24));
+        
+        // Track name label for direct updates on rename (Bug #1 fix)
+        this.zoneNameLabels.put(zone.uniqueID, nameLabel);
+        
         FormContentIconButton[] renameButton = new FormContentIconButton[]{(FormContentIconButton)entryBox.addComponent((FormComponent)new FormContentIconButton(entryBox.getWidth() - 60, 5, FormInputSize.SIZE_24, ButtonColor.BASE, (ButtonTexture)this.getInterfaceStyle().container_rename, new GameMessage[]{new StaticMessage(Localization.translate((String)"ui", (String)"renamebutton"))}))};
         Runnable updateRename = () -> {
             if (nameLabel.isTyping()) {
@@ -587,7 +806,7 @@ extends Form {
             }
         });
         String info = "ID: " + zone.uniqueID + " | Tiles: " + zone.zoning.size();
-        entryBox.addComponent((FormComponent)new FormLabel(info, WHITE_TEXT_11, -1, xPos, 32));
+        entryBox.addComponent((FormComponent)new FormLabel(info, UIStyleConstants.WHITE_SMALL_FONT, -1, xPos, 32));
         int buttonY = 55;
         int buttonSpacing = 28;
         int buttonX = xPos;
@@ -617,45 +836,53 @@ extends Form {
                 int configY = baseEntryHeight + 5;
                 int sliderWidth = entryBox.getWidth() - xPos * 2;
                 int damageValue = (int)(pvpZone.damageMultiplier * 1000.0f);
-                FormSlider[] damageSliderRef = new FormSlider[]{(FormSlider)entryBox.addComponent((FormComponent)new FormSlider("Damage: " + String.format("%.1f%%", Float.valueOf(pvpZone.damageMultiplier * 100.0f)), xPos, configY, damageValue, 1, 100, sliderWidth, WHITE_TEXT_10))};
+                FormSlider[] damageSliderRef = new FormSlider[]{(FormSlider)entryBox.addComponent((FormComponent)new FormSlider("Damage: " + String.format("%.1f%%", Float.valueOf(pvpZone.damageMultiplier * 100.0f)), xPos, configY, damageValue, 1, 100, sliderWidth, UIStyleConstants.TINY_FONT.color(Color.WHITE)))};
                 damageSliderRef[0].drawValueInPercent = false;
                 damageSliderRef[0].onChanged(e -> {
                     float newMultiplier = (float)damageSliderRef[0].getValue() / 1000.0f;
                     pvpZone.damageMultiplier = newMultiplier;
                     this.scheduleSliderUpdate(pvpZone.uniqueID, () -> {
-                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, newMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, newMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier, pvpZone.allowBossSummons));
                     });
                 });
-                FormSlider[] combatLockSliderRef = new FormSlider[]{(FormSlider)entryBox.addComponent((FormComponent)new FormSlider("Combat Lock: " + pvpZone.combatLockSeconds + "s", xPos, configY += damageSliderRef[0].getTotalHeight() + 5, pvpZone.combatLockSeconds, 0, 10, sliderWidth, WHITE_TEXT_10))};
+                FormSlider[] combatLockSliderRef = new FormSlider[]{(FormSlider)entryBox.addComponent((FormComponent)new FormSlider("Combat Lock: " + pvpZone.combatLockSeconds + "s", xPos, configY += damageSliderRef[0].getTotalHeight() + 5, pvpZone.combatLockSeconds, 0, 10, sliderWidth, UIStyleConstants.TINY_FONT.color(Color.WHITE)))};
                 combatLockSliderRef[0].drawValueInPercent = false;
                 combatLockSliderRef[0].onChanged(e -> {
                     int newCombatLock = combatLockSliderRef[0].getValue();
                     pvpZone.combatLockSeconds = newCombatLock;
                     this.scheduleSliderUpdate(pvpZone.uniqueID, () -> {
-                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, newCombatLock, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, newCombatLock, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier, pvpZone.allowBossSummons));
                     });
                 });
 
                 // DoT damage slider expressed as 0-100% for clarity
-                FormSlider dotDamageSlider = (FormSlider)entryBox.addComponent((FormComponent)new FormSlider("DoT Damage (%)", xPos, configY += combatLockSliderRef[0].getTotalHeight() + 6, (int)Math.round(pvpZone.dotDamageMultiplier * 100.0f), 0, 100, sliderWidth, WHITE_TEXT_10));
+                FormSlider dotDamageSlider = (FormSlider)entryBox.addComponent((FormComponent)new FormSlider("DoT Damage (%)", xPos, configY += combatLockSliderRef[0].getTotalHeight() + 6, (int)Math.round(pvpZone.dotDamageMultiplier * 100.0f), 0, 100, sliderWidth, UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 dotDamageSlider.drawValueInPercent = true;
                 dotDamageSlider.onChanged(e -> {
                     float v = (float)dotDamageSlider.getValue() / 100.0f;
                     pvpZone.dotDamageMultiplier = v;
                     this.scheduleSliderUpdate(pvpZone.uniqueID, () -> {
-                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier, pvpZone.allowBossSummons));
                     });
                 });
 
                 // DoT: interval multiplier slider
-                FormSlider dotIntervalSlider = (FormSlider)entryBox.addComponent((FormComponent)new FormSlider("DoT Interval Mult: " + String.format("%.2fx", Float.valueOf(pvpZone.dotIntervalMultiplier)), xPos, configY += dotDamageSlider.getTotalHeight() + 6, (int)(pvpZone.dotIntervalMultiplier * 100.0f), 25, 400, sliderWidth, WHITE_TEXT_10));
+                FormSlider dotIntervalSlider = (FormSlider)entryBox.addComponent((FormComponent)new FormSlider("DoT Interval Mult: " + String.format("%.2fx", Float.valueOf(pvpZone.dotIntervalMultiplier)), xPos, configY += dotDamageSlider.getTotalHeight() + 6, (int)(pvpZone.dotIntervalMultiplier * 100.0f), 25, 400, sliderWidth, UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 dotIntervalSlider.drawValueInPercent = false;
                 dotIntervalSlider.onChanged(e -> {
                     float v = (float)dotIntervalSlider.getValue() / 100.0f;
                     pvpZone.dotIntervalMultiplier = v;
                     this.scheduleSliderUpdate(pvpZone.uniqueID, () -> {
-                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier));
+                        this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier, pvpZone.allowBossSummons));
                     });
+                });
+                
+                // Boss summon checkbox
+                configY += dotIntervalSlider.getTotalHeight() + 8;
+                FormCheckBox allowBossSummonsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"allowbosssummons"), xPos, configY, sliderWidth, pvpZone.allowBossSummons, UIStyleConstants.TINY_FONT.color(Color.WHITE)));
+                allowBossSummonsCheckbox.onClicked(e -> {
+                    pvpZone.allowBossSummons = allowBossSummonsCheckbox.checked;
+                    this.client.network.sendPacket((Packet)new PacketConfigurePvPZone(pvpZone.uniqueID, pvpZone.damageMultiplier, pvpZone.combatLockSeconds, pvpZone.dotDamageMultiplier, pvpZone.dotIntervalMultiplier, pvpZone.allowBossSummons));
                 });
 
                 // Per-zone force-clean removed: use the global force-clean control in the PvP list
@@ -686,16 +913,16 @@ extends Form {
                 // Add explanation text at the top (indented like main checkboxes)
                 FormLabel explanationLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(
                     "Checking permissions below grants access to team members",
-                    WHITE_TEXT_10, // Use existing font
+                    UIStyleConstants.TINY_FONT.color(Color.WHITE), // Use existing font
                     0, labelX + 10, configY));
                 configY += explanationLabel.getHeight() + 8;
 
                 // Owner label and input field
-                FormLabel ownerLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"ownerlabel"), WHITE_TEXT_10, 0, labelX, configY));
+                FormLabel ownerLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"ownerlabel"), UIStyleConstants.TINY_FONT.color(Color.WHITE), 0, labelX, configY));
                 configY += ownerLabel.getHeight() + 2;
 
                 final int ownerInputY = configY;  // Store for lambda
-                FormLabelEdit ownerInput = (FormLabelEdit)entryBox.addComponent((FormComponent)new FormLabelEdit(protectedZone.getOwnerDisplayName(), WHITE_TEXT_10, Color.WHITE, labelX, ownerInputY, inputWidth - 25, 20));
+                FormLabelEdit ownerInput = (FormLabelEdit)entryBox.addComponent((FormComponent)new FormLabelEdit(protectedZone.getOwnerDisplayName(), UIStyleConstants.TINY_FONT.color(Color.WHITE), Color.WHITE, labelX, ownerInputY, inputWidth - 25, 20));
 
                 // Add dropdown button next to owner input
                 FormContentIconButton dropdownButton = (FormContentIconButton)entryBox.addComponent((FormComponent)new FormContentIconButton(
@@ -719,7 +946,7 @@ extends Form {
                 configY += 28;
 
                 // Allow Owner's Team checkbox
-                FormCheckBox allowTeamCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"allowownsteam"), labelX, configY, inputWidth, protectedZone.getAllowOwnerTeam(), WHITE_TEXT_10));
+                FormCheckBox allowTeamCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"allowownsteam"), labelX, configY, inputWidth, protectedZone.getAllowOwnerTeam(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 allowTeamCheckbox.onClicked(e -> {
                     protectedZone.setAllowOwnerTeam(allowTeamCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -727,11 +954,11 @@ extends Form {
                 configY += 24;
 
                 // Team Permissions section label
-                FormLabel permLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"teampermissions"), WHITE_TEXT_10, 0, labelX, configY));
+                FormLabel permLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"teampermissions"), UIStyleConstants.TINY_FONT.color(Color.WHITE), 0, labelX, configY));
                 configY += permLabel.getHeight() + 4;
 
                 // Can Break checkbox
-                FormCheckBox canBreakCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"canbreak"), labelX + 10, configY, inputWidth - 10, protectedZone.getCanBreak(), WHITE_TEXT_10));
+                FormCheckBox canBreakCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"canbreak"), labelX + 10, configY, inputWidth - 10, protectedZone.getCanBreak(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 canBreakCheckbox.onClicked(e -> {
                     protectedZone.setCanBreak(canBreakCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -739,7 +966,7 @@ extends Form {
                 configY += 20;
 
                 // Can Place checkbox
-                FormCheckBox canPlaceCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"canplace"), labelX + 10, configY, inputWidth - 10, protectedZone.getCanPlace(), WHITE_TEXT_10));
+                FormCheckBox canPlaceCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"canplace"), labelX + 10, configY, inputWidth - 10, protectedZone.getCanPlace(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 canPlaceCheckbox.onClicked(e -> {
                     protectedZone.setCanPlace(canPlaceCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -747,11 +974,11 @@ extends Form {
                 configY += 20;
 
                 // Enhancement #5: Interactions section label (indented to match checkboxes)
-                FormLabel interactionsLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"interactions"), WHITE_TEXT_10, 0, labelX + 20, configY));
+                FormLabel interactionsLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"interactions"), UIStyleConstants.TINY_FONT.color(Color.WHITE), 0, labelX + 20, configY));
                 configY += interactionsLabel.getHeight() + 4;
 
                 // Can Open Doors checkbox
-                FormCheckBox canInteractDoorsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractdoors"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractDoors(), WHITE_TEXT_10));
+                FormCheckBox canInteractDoorsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractdoors"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractDoors(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 canInteractDoorsCheckbox.onClicked(e -> {
                     protectedZone.setCanInteractDoors(canInteractDoorsCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -759,7 +986,7 @@ extends Form {
                 configY += 20;
 
                 // Can Open Chests checkbox
-                FormCheckBox canInteractContainersCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractcontainers"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractContainers(), WHITE_TEXT_10));
+                FormCheckBox canInteractContainersCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractcontainers"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractContainers(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 canInteractContainersCheckbox.onClicked(e -> {
                     protectedZone.setCanInteractContainers(canInteractContainersCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -767,7 +994,7 @@ extends Form {
                 configY += 20;
 
                 // Can Use Stations checkbox
-                FormCheckBox canInteractStationsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractstations"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractStations(), WHITE_TEXT_10));
+                FormCheckBox canInteractStationsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractstations"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractStations(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 canInteractStationsCheckbox.onClicked(e -> {
                     protectedZone.setCanInteractStations(canInteractStationsCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -775,7 +1002,7 @@ extends Form {
                 configY += 20;
 
                 // Can Edit Signs checkbox
-                FormCheckBox canInteractSignsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractsigns"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractSigns(), WHITE_TEXT_10));
+                FormCheckBox canInteractSignsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractsigns"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractSigns(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 canInteractSignsCheckbox.onClicked(e -> {
                     protectedZone.setCanInteractSigns(canInteractSignsCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -783,7 +1010,7 @@ extends Form {
                 configY += 20;
 
                 // Can Use Switches checkbox
-                FormCheckBox canInteractSwitchesCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractswitches"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractSwitches(), WHITE_TEXT_10));
+                FormCheckBox canInteractSwitchesCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractswitches"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractSwitches(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 canInteractSwitchesCheckbox.onClicked(e -> {
                     protectedZone.setCanInteractSwitches(canInteractSwitchesCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -791,7 +1018,7 @@ extends Form {
                 configY += 20;
 
                 // Can Use Furniture checkbox
-                FormCheckBox canInteractFurnitureCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractfurniture"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractFurniture(), WHITE_TEXT_10));
+                FormCheckBox canInteractFurnitureCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"caninteractfurniture"), labelX + 20, configY, inputWidth - 20, protectedZone.getCanInteractFurniture(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 canInteractFurnitureCheckbox.onClicked(e -> {
                     protectedZone.setCanInteractFurniture(canInteractFurnitureCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
@@ -799,12 +1026,23 @@ extends Form {
                 configY += 20;
 
                 // Movement restrictions label + checkbox
-                FormLabel movementLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"movementrestrictions"), WHITE_TEXT_10, 0, labelX + 20, configY));
+                FormLabel movementLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"movementrestrictions"), UIStyleConstants.TINY_FONT.color(Color.WHITE), 0, labelX + 20, configY));
                 configY += movementLabel.getHeight() + 4;
 
-                FormCheckBox disableBroomsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"disablebrooms"), labelX + 20, configY, inputWidth - 20, protectedZone.isBroomRidingDisabled(), WHITE_TEXT_10));
+                FormCheckBox disableBroomsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"disablebrooms"), labelX + 20, configY, inputWidth - 20, protectedZone.isBroomRidingDisabled(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
                 disableBroomsCheckbox.onClicked(e -> {
                     protectedZone.setDisableBrooms(disableBroomsCheckbox.checked);
+                    this.sendProtectedZoneConfigPacket(protectedZone, null);
+                });
+                configY += 20;
+                
+                // Boss summon restrictions label + checkbox
+                FormLabel bossLabel = (FormLabel)entryBox.addComponent((FormComponent)new FormLabel(Localization.translate((String)"ui", (String)"bosssummonrestrictions"), UIStyleConstants.TINY_FONT.color(Color.WHITE), 0, labelX + 20, configY));
+                configY += bossLabel.getHeight() + 4;
+                
+                FormCheckBox allowBossSummonsCheckbox = (FormCheckBox)entryBox.addComponent((FormComponent)new WhiteTextCheckBox(Localization.translate((String)"ui", (String)"allowbosssummons"), labelX + 20, configY, inputWidth - 20, protectedZone.getAllowBossSummons(), UIStyleConstants.TINY_FONT.color(Color.WHITE)));
+                allowBossSummonsCheckbox.onClicked(e -> {
+                    protectedZone.setAllowBossSummons(allowBossSummonsCheckbox.checked);
                     this.sendProtectedZoneConfigPacket(protectedZone, null);
                 });
             }
@@ -827,7 +1065,8 @@ extends Form {
             zone.getCanInteractSigns(),
             zone.getCanInteractSwitches(),
             zone.getCanInteractFurniture(),
-            zone.isBroomRidingDisabled()
+            zone.isBroomRidingDisabled(),
+            zone.getAllowBossSummons()
         ));
     }
 
@@ -861,7 +1100,7 @@ extends Form {
         this.minimizeButton = (FormContentIconButton)this.addComponent((FormComponent)new FormContentIconButton(this.getWidth() - 20 - 5, 5, FormInputSize.SIZE_16, ButtonColor.BASE, (ButtonTexture)this.getInterfaceStyle().button_collapsed_16, new GameMessage[]{new StaticMessage("Minimize")}));
         this.minimizeButton.onClicked(e -> this.toggleMinimize());
         // Minimized title label aligned to the left to avoid text being cut off
-        this.minimizedTitleLabel = (FormLabel)this.addComponent((FormComponent)new FormLabel("", WHITE_TEXT_16, -1, Constants.UI.MARGIN / 2, 7));
+        this.minimizedTitleLabel = (FormLabel)this.addComponent((FormComponent)new FormLabel("", UIStyleConstants.WHITE_HEADER_FONT, -1, Constants.UI.MARGIN / 2, 7));
     }
 
     private void toggleMinimize() {
@@ -956,26 +1195,26 @@ extends Form {
     private void showMainMenu() {
         int width = getConfiguredHudWidth();
         int height = getConfiguredHudHeight();
-        switchToMenu(true, false, false, false, false, false, width, height);
+        switchToMenu(true, false, false, false, false, false, false, width, height);
     }
 
     private void showBuildTools() {
         int width = getConfiguredHudWidth();
         int height = getConfiguredHudHeight();
-        switchToMenu(false, true, false, false, false, false, width, height);
+        switchToMenu(false, true, false, false, false, false, false, width, height);
     }
 
     private void showZoneTools() {
         int width = getConfiguredHudWidth();
         int height = getConfiguredHudHeight();
-        switchToMenu(false, false, true, false, false, false, width, height);
+        switchToMenu(false, false, true, false, false, false, false, width, height);
     }
 
     private void showCommandCenter() {
         int commandCenterWidth = getConfiguredHudWidth();
         int commandCenterHeight = getConfiguredHudHeight();
 
-        switchToMenu(false, false, false, false, false, true, commandCenterWidth, commandCenterHeight);
+        switchToMenu(false, false, false, false, false, false, true, commandCenterWidth, commandCenterHeight);
 
         // Build Command Center components into AdminToolsHudForm
         if (!this.isMinimized && !this.commandCenterBuilt) {
@@ -1040,7 +1279,7 @@ extends Form {
      * Consolidates common logic for hiding forms, clearing tools, and resizing.
      */
     private void switchToMenu(boolean showMain, boolean showBuild, boolean showZone,
-                             boolean showProtected, boolean showPvP, boolean showCommand,
+                             boolean showProtected, boolean showPvP, boolean showGuild, boolean showCommand,
                              int width, int height) {
         // Clear game tools and zone visualization
         GameToolManager.clearGameTools((Object)((Object)this));
@@ -1058,12 +1297,14 @@ extends Form {
         this.zoneToolsForm.setHidden(!showZone || this.isMinimized);
         this.protectedZonesForm.setHidden(!showProtected);
         this.pvpZonesForm.setHidden(!showPvP);
+        this.guildZonesForm.setHidden(!showGuild);
 
         // Update state flags
         this.wasShowingBuildTools = showBuild;
         this.wasShowingZoneTools = showZone;
         this.wasShowingProtectedZones = showProtected;
         this.wasShowingPvPZones = showPvP;
+        this.wasShowingGuildZones = showGuild;
         this.wasShowingCommandCenter = showCommand;
 
         // Resize
@@ -1094,12 +1335,16 @@ extends Form {
             this.pvpZonesHud.remove();
             this.pvpZonesHud = null;
         }
+        if (this.guildZonesHud != null) {
+            this.guildZonesHud.remove();
+            this.guildZonesHud = null;
+        }
     }
 
     private void showProtectedZonesList() {
         int width = getConfiguredHudWidth();
         int height = getConfiguredHudHeight();
-        switchToMenu(false, false, false, true, false, false, width, height);
+        switchToMenu(false, false, false, true, false, false, false, width, height);
 
         this.refreshZoneList(true);
 
@@ -1115,7 +1360,7 @@ extends Form {
     private void showPvPZonesList() {
         int width = getConfiguredHudWidth();
         int height = getConfiguredHudHeight();
-        switchToMenu(false, false, false, false, true, false, width, height);
+        switchToMenu(false, false, false, false, true, false, false, width, height);
 
         this.refreshZoneList(false);
 
@@ -1125,6 +1370,23 @@ extends Form {
             }
             this.pvpZonesHud = new ZoneVisualizationHud(() -> this.protectedZones, () -> this.pvpZones, false, true);
             this.client.getLevel().hudManager.addElement((HudDrawElement)this.pvpZonesHud);
+        }
+    }
+
+    private void showGuildZonesList() {
+        int width = getConfiguredHudWidth();
+        int height = getConfiguredHudHeight();
+        switchToMenu(false, false, false, false, false, true, false, width, height);
+
+        this.refreshGuildZoneList();
+
+        if (this.client.getLevel() != null) {
+            if (this.guildZonesHud != null) {
+                this.guildZonesHud.remove();
+            }
+            // Guild zones visualization - shows guild zones highlighted
+            this.guildZonesHud = new ZoneVisualizationHud(() -> java.util.Collections.emptyMap(), () -> java.util.Collections.emptyMap(), false, false, () -> this.guildZones);
+            this.client.getLevel().hudManager.addElement((HudDrawElement)this.guildZonesHud);
         }
     }
 
@@ -1322,7 +1584,7 @@ extends Form {
 
         // Show "No players" message if list is empty
         if (buttonCount == 0) {
-            FormLabel noPlayersLabel = new FormLabel("No players found", WHITE_TEXT_10, 0, 5, 5);
+            FormLabel noPlayersLabel = new FormLabel("No players found", UIStyleConstants.TINY_FONT.color(Color.WHITE), 0, 5, 5);
             this.activePlayerDropdown.addComponent(noPlayersLabel);
             this.activePlayerDropdown.setHeight(30);
         }
@@ -1363,8 +1625,9 @@ extends Form {
      */
     private void scheduleSliderUpdate(int zoneID, Runnable updateAction) {
         long now = System.currentTimeMillis();
-        this.sliderDebounceTimers.put(zoneID, now + SLIDER_DEBOUNCE_MILLIS);
-        this.pendingSliderUpdates.put(zoneID, updateAction);
+        SliderDebounceState state = this.sliderDebounceStates.computeIfAbsent(zoneID, k -> new SliderDebounceState());
+        state.setLastUpdateTime(now + SLIDER_DEBOUNCE_MILLIS);
+        state.setPendingUpdate(updateAction);
     }
 
     /**
@@ -1374,17 +1637,20 @@ extends Form {
         long now = System.currentTimeMillis();
         List<Integer> toProcess = new ArrayList<>();
         
-        for (Map.Entry<Integer, Long> entry : this.sliderDebounceTimers.entrySet()) {
-            if (now >= entry.getValue()) {
+        for (Map.Entry<Integer, SliderDebounceState> entry : this.sliderDebounceStates.entrySet()) {
+            if (now >= entry.getValue().getLastUpdateTime() && entry.getValue().hasPendingUpdate()) {
                 toProcess.add(entry.getKey());
             }
         }
         
         for (int zoneID : toProcess) {
-            Runnable action = this.pendingSliderUpdates.remove(zoneID);
-            this.sliderDebounceTimers.remove(zoneID);
-            if (action != null) {
-                action.run();
+            SliderDebounceState state = this.sliderDebounceStates.get(zoneID);
+            if (state != null && state.hasPendingUpdate()) {
+                Runnable action = state.getPendingUpdate();
+                state.clearPendingUpdate();
+                if (action != null) {
+                    action.run();
+                }
             }
         }
     }

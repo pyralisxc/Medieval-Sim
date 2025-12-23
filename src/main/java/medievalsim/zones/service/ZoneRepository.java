@@ -9,17 +9,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.GuildZone;
 import medievalsim.zones.domain.ProtectedZone;
 import medievalsim.zones.domain.PvPZone;
 import necesse.engine.util.GameMath;
 
 /**
- * Thread-safe repository for protected and PvP zones that centralizes
+ * Thread-safe repository for protected, PvP, and guild zones that centralizes
  * read/write access and unique ID generation.
  */
 public class ZoneRepository {
     private final Map<Integer, ProtectedZone> protectedZones = new HashMap<>();
     private final Map<Integer, PvPZone> pvpZones = new HashMap<>();
+    private final Map<Integer, GuildZone> guildZones = new HashMap<>();
     private final AtomicInteger nextUniqueID = new AtomicInteger(1);
 
     public ProtectedZone getProtectedZone(int uniqueID) {
@@ -34,12 +36,22 @@ public class ZoneRepository {
         }
     }
 
-    public AdminZone getZone(int uniqueID) {
-        ProtectedZone zone = getProtectedZone(uniqueID);
-        if (zone != null) {
-            return zone;
+    public GuildZone getGuildZone(int uniqueID) {
+        synchronized (guildZones) {
+            return guildZones.get(uniqueID);
         }
-        return getPvPZone(uniqueID);
+    }
+
+    public AdminZone getZone(int uniqueID) {
+        ProtectedZone pzone = getProtectedZone(uniqueID);
+        if (pzone != null) {
+            return pzone;
+        }
+        PvPZone pvp = getPvPZone(uniqueID);
+        if (pvp != null) {
+            return pvp;
+        }
+        return getGuildZone(uniqueID);
     }
 
     public Map<Integer, ProtectedZone> copyProtectedZones() {
@@ -54,6 +66,12 @@ public class ZoneRepository {
         }
     }
 
+    public Map<Integer, GuildZone> copyGuildZones() {
+        synchronized (guildZones) {
+            return new HashMap<>(guildZones);
+        }
+    }
+
     public void forEachProtectedZone(Consumer<ProtectedZone> action) {
         synchronized (protectedZones) {
             protectedZones.values().forEach(action);
@@ -63,6 +81,12 @@ public class ZoneRepository {
     public void forEachPvPZone(Consumer<PvPZone> action) {
         synchronized (pvpZones) {
             pvpZones.values().forEach(action);
+        }
+    }
+
+    public void forEachGuildZone(Consumer<GuildZone> action) {
+        synchronized (guildZones) {
+            guildZones.values().forEach(action);
         }
     }
 
@@ -96,6 +120,21 @@ public class ZoneRepository {
         }
     }
 
+    public GuildZone addGuildZone(String name, long creatorAuth, int colorHue) {
+        int uniqueID = nextUniqueID.getAndIncrement();
+        GuildZone zone = new GuildZone(uniqueID, name, creatorAuth, colorHue);
+        synchronized (guildZones) {
+            guildZones.put(uniqueID, zone);
+        }
+        return zone;
+    }
+
+    public void putGuildZone(GuildZone zone) {
+        synchronized (guildZones) {
+            guildZones.put(zone.uniqueID, zone);
+        }
+    }
+
     public void removeProtectedZone(int uniqueID) {
         synchronized (protectedZones) {
             protectedZones.remove(uniqueID);
@@ -108,6 +147,12 @@ public class ZoneRepository {
         }
     }
 
+    public void removeGuildZone(int uniqueID) {
+        synchronized (guildZones) {
+            guildZones.remove(uniqueID);
+        }
+    }
+
     public void clearProtectedZones() {
         synchronized (protectedZones) {
             protectedZones.clear();
@@ -117,6 +162,12 @@ public class ZoneRepository {
     public void clearPvPZones() {
         synchronized (pvpZones) {
             pvpZones.clear();
+        }
+    }
+
+    public void clearGuildZones() {
+        synchronized (guildZones) {
+            guildZones.clear();
         }
     }
 
@@ -140,6 +191,19 @@ public class ZoneRepository {
                 for (PvPZone zone : zones) {
                     if (zone != null) {
                         pvpZones.put(zone.uniqueID, zone);
+                    }
+                }
+            }
+        }
+    }
+
+    public void overwriteGuildZones(Iterable<GuildZone> zones) {
+        synchronized (guildZones) {
+            guildZones.clear();
+            if (zones != null) {
+                for (GuildZone zone : zones) {
+                    if (zone != null) {
+                        guildZones.put(zone.uniqueID, zone);
                     }
                 }
             }
@@ -189,6 +253,25 @@ public class ZoneRepository {
         return null;
     }
 
+    public GuildZone getGuildZoneAt(int tileX, int tileY) {
+        synchronized (guildZones) {
+            for (GuildZone zone : guildZones.values()) {
+                Rectangle bounds = zone.zoning.getTileBounds();
+                if (bounds == null || !bounds.contains(tileX, tileY) || !zone.containsTile(tileX, tileY)) {
+                    continue;
+                }
+                return zone;
+            }
+        }
+        return null;
+    }
+
+    public GuildZone getGuildZoneAt(float x, float y) {
+        int tileX = GameMath.getTileCoordinate((int) x);
+        int tileY = GameMath.getTileCoordinate((int) y);
+        return getGuildZoneAt(tileX, tileY);
+    }
+
     public int getNextUniqueIdValue() {
         return nextUniqueID.get();
     }
@@ -215,6 +298,11 @@ public class ZoneRepository {
                 maxID = Math.max(maxID, zone.uniqueID);
             }
         }
+        synchronized (guildZones) {
+            for (GuildZone zone : guildZones.values()) {
+                maxID = Math.max(maxID, zone.uniqueID);
+            }
+        }
         return maxID;
     }
 
@@ -230,11 +318,21 @@ public class ZoneRepository {
         }
     }
 
+    public List<GuildZone> snapshotGuildZones() {
+        synchronized (guildZones) {
+            return new ArrayList<>(guildZones.values());
+        }
+    }
+
     public Map<Integer, ProtectedZone> getProtectedZonesInternal() {
         return protectedZones;
     }
 
     public Map<Integer, PvPZone> getPvPZonesInternal() {
         return pvpZones;
+    }
+
+    public Map<Integer, GuildZone> getGuildZonesInternal() {
+        return guildZones;
     }
 }

@@ -8,6 +8,8 @@ import necesse.engine.registries.ItemRegistry;
 import necesse.inventory.InventoryItem;
 import necesse.inventory.item.Item;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * Represents a Grand Exchange offer (buy or sell).
  * 
@@ -83,7 +85,8 @@ public class GEOffer {
     private int quantityRemaining;        // How much left to trade
     private final int pricePerItem;       // In coins
 
-    // Timestamps
+    // Duration & Timestamps
+    private final int durationHours;     // Total duration in hours (per-offer)
     private final long createdTime;
     private long lastUpdateTime;
     private long expirationTime;          // 0 = no expiration
@@ -100,9 +103,17 @@ public class GEOffer {
      */
     public static GEOffer createSellOffer(long offerID, long playerAuth, String playerName,
                                           int inventorySlot, String itemStringID,
-                                          int quantity, int pricePerItem) {
+                                          int quantity, int pricePerItem, int durationHours) {
         return new GEOffer(offerID, playerAuth, playerName, inventorySlot,
-            OfferType.SELL, itemStringID, quantity, pricePerItem);
+            OfferType.SELL, itemStringID, quantity, pricePerItem, durationHours);
+    }
+
+    /** Convenience overload that uses config default duration. */
+    public static GEOffer createSellOffer(long offerID, long playerAuth, String playerName,
+                                          int inventorySlot, String itemStringID,
+                                          int quantity, int pricePerItem) {
+        return createSellOffer(offerID, playerAuth, playerName, inventorySlot, itemStringID,
+            quantity, pricePerItem, ModConfig.GrandExchange.getDefaultSellDurationHours());
     }
 
     /**
@@ -116,14 +127,16 @@ public class GEOffer {
             return null;
         }
         return new GEOffer(offerID, playerAuth, playerName, inventorySlot,
-            OfferType.BUY, itemStringID, quantity, pricePerItem);
+            OfferType.BUY, itemStringID, quantity, pricePerItem,
+            ModConfig.GrandExchange.getDefaultSellDurationHours());
     }
 
     /**
      * Private constructor for new offers.
      */
     private GEOffer(long offerID, long playerAuth, String playerName, int inventorySlot,
-                    OfferType type, String itemStringID, int quantity, int pricePerItem) {
+                    OfferType type, String itemStringID, int quantity, int pricePerItem,
+                    int durationHours) {
         this.offerID = offerID;
         this.playerAuth = playerAuth;
         this.playerName = playerName;
@@ -137,10 +150,13 @@ public class GEOffer {
         this.pricePerItem = pricePerItem;
         this.createdTime = System.currentTimeMillis();
         this.lastUpdateTime = this.createdTime;
+        this.durationHours = ModConfig.GrandExchange.normalizeSellDurationHours(durationHours);
         
         // Set expiration if enabled
         if (ModConfig.GrandExchange.enableOfferExpiration) {
-            long expirationMs = ModConfig.GrandExchange.getOfferExpirationMs();
+            long expirationMs = this.durationHours > 0
+                ? TimeUnit.HOURS.toMillis(this.durationHours)
+                : ModConfig.GrandExchange.getOfferExpirationMs();
             this.expirationTime = expirationMs > 0 ? createdTime + expirationMs : 0L;
         } else {
             this.expirationTime = 0L;
@@ -161,7 +177,8 @@ public class GEOffer {
                     OfferType type, OfferState state, boolean enabled, String itemStringID,
                     int quantityTotal, int quantityRemaining, int pricePerItem,
                     long createdTime, long lastUpdateTime, long expirationTime,
-                    long totalCoinsReceived, long totalCoinsSpent, int transactionCount) {
+                    long totalCoinsReceived, long totalCoinsSpent, int transactionCount,
+                    int durationHours) {
         this.offerID = offerID;
         this.playerAuth = playerAuth;
         this.playerName = playerName;
@@ -179,6 +196,7 @@ public class GEOffer {
         this.totalCoinsReceived = totalCoinsReceived;
         this.totalCoinsSpent = totalCoinsSpent;
         this.transactionCount = transactionCount;
+        this.durationHours = ModConfig.GrandExchange.normalizeSellDurationHours(durationHours);
     }
 
     /**
@@ -188,7 +206,8 @@ public class GEOffer {
      */
     public static GEOffer fromPacketData(long offerID, long playerAuth, int inventorySlot,
                                          String itemStringID, int quantityTotal, int quantityRemaining,
-                                         int pricePerItem, boolean enabled, OfferState state) {
+                                         int pricePerItem, boolean enabled, OfferState state,
+                                         int durationHours) {
         long now = System.currentTimeMillis();
         
         // Create offer with minimal data (client doesn't need full history)
@@ -208,8 +227,18 @@ public class GEOffer {
             0L,  // expirationTime (not sent in packet)
             0L,  // totalCoinsReceived (not needed client-side)
             0L,  // totalCoinsSpent
-            0    // transactionCount
+            0,   // transactionCount
+            durationHours
         );
+    }
+
+    /** Convenience overload when duration is not transmitted (legacy packets). */
+    public static GEOffer fromPacketData(long offerID, long playerAuth, int inventorySlot,
+                                         String itemStringID, int quantityTotal, int quantityRemaining,
+                                         int pricePerItem, boolean enabled, OfferState state) {
+        return fromPacketData(offerID, playerAuth, inventorySlot, itemStringID, quantityTotal,
+            quantityRemaining, pricePerItem, enabled, state,
+            ModConfig.GrandExchange.getDefaultSellDurationHours());
     }
 
     // ===== GETTERS =====
@@ -331,12 +360,25 @@ public class GEOffer {
         return transactionCount;
     }
 
+    public int getDurationHours() {
+        return durationHours;
+    }
+
     // ===== STATE CHECKS =====
 
     public boolean isActive() {
         return enabled && (state == OfferState.ACTIVE || state == OfferState.PARTIAL);
     }
-    
+
+    /**
+     * Returns true if this offer can be cancelled.
+     * DRAFT, ACTIVE, and PARTIAL offers can be cancelled.
+     * COMPLETED and CANCELLED offers cannot.
+     */
+    public boolean isCancellable() {
+        return state == OfferState.DRAFT || state == OfferState.ACTIVE || state == OfferState.PARTIAL;
+    }
+
     public boolean isDraft() {
         return state == OfferState.DRAFT;
     }
@@ -439,21 +481,6 @@ public class GEOffer {
         ModLogger.info("Offer ID=%d disabled: %s %s x%d @ %d coins (slot=%d)",
             offerID, type, itemStringID, quantityRemaining, pricePerItem, inventorySlot);
         return true;
-    }
-
-    /**
-     * @deprecated Use enable() instead. This method is kept for backwards compatibility only.
-     * WARNING: This bypasses proper state validation. New code should use enable().
-     */
-    @Deprecated
-    public void activate() {
-        if (state == OfferState.DRAFT) {
-            state = OfferState.ACTIVE;
-            enabled = true;
-            lastUpdateTime = System.currentTimeMillis();
-            ModLogger.debug("Offer ID=%d activated via deprecated method (%s %s x%d @ %d)",
-                offerID, type, itemStringID, quantityTotal, pricePerItem);
-        }
     }
 
     public void cancel() {
@@ -592,6 +619,7 @@ public class GEOffer {
         save.addLong("totalCoinsReceived", totalCoinsReceived);
         save.addLong("totalCoinsSpent", totalCoinsSpent);
         save.addInt("transactionCount", transactionCount);
+        save.addInt("durationHours", durationHours);
     }
 
     /**
@@ -615,10 +643,12 @@ public class GEOffer {
         long totalCoinsReceived = load.getLong("totalCoinsReceived");
         long totalCoinsSpent = load.getLong("totalCoinsSpent");
         int transactionCount = load.getInt("transactionCount");
+        int durationHours = load.getInt("durationHours", ModConfig.GrandExchange.getDefaultSellDurationHours());
 
         return new GEOffer(offerID, playerAuth, playerName, inventorySlot, type, state, enabled,
             itemStringID, quantityTotal, quantityRemaining, pricePerItem, createdTime,
-            lastUpdateTime, expirationTime, totalCoinsReceived, totalCoinsSpent, transactionCount);
+            lastUpdateTime, expirationTime, totalCoinsReceived, totalCoinsSpent, transactionCount,
+            durationHours);
     }
 
     @Override

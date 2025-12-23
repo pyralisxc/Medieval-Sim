@@ -1,10 +1,11 @@
 package medievalsim.packets;
 
 import medievalsim.config.ModConfig;
-import medievalsim.grandexchange.domain.GrandExchangeLevelData;
+import medievalsim.grandexchange.application.GrandExchangeContext;
 import medievalsim.registries.MedievalSimContainers;
 import medievalsim.util.ModLogger;
 import necesse.engine.Settings;
+import necesse.engine.commands.PermissionLevel;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketWriter;
@@ -43,8 +44,8 @@ public class PacketOpenGrandExchange extends Packet {
         }
         
         // Get GE data for the level
-        GrandExchangeLevelData geData = GrandExchangeLevelData.getGrandExchangeData(client.getLevel());
-        if (geData == null) {
+        GrandExchangeContext context = GrandExchangeContext.resolve(client.getLevel());
+        if (context == null) {
             ModLogger.error("Failed to get GE data for level");
             return;
         }
@@ -75,11 +76,16 @@ public class PacketOpenGrandExchange extends Packet {
         }
         writer.putNextLong(coinBalance);
 
-        boolean isServerOwner = Settings.serverOwnerAuth != -1L
-            && client.authentication == Settings.serverOwnerAuth;
+        // Check permission level first (covers singleplayer and promoted admins)
+        boolean isServerOwner = client.getPermissionLevel() == PermissionLevel.OWNER;
+        // Fallback to serverOwnerAuth check for dedicated servers
+        if (!isServerOwner && Settings.serverOwnerAuth != -1L) {
+            isServerOwner = client.authentication == Settings.serverOwnerAuth;
+        }
         writer.putNextBoolean(isServerOwner);
         writer.putNextInt(ModConfig.GrandExchange.geInventorySlots);
         writer.putNextInt(ModConfig.GrandExchange.buyOrderSlots);
+        writer.putNextBoolean(ModConfig.GrandExchange.autoClearSellStagingSlot);
 
         ModLogger.info("[BANK SYNC] Writing coin balance %d (owner=%s) to GE open packet", 
             coinBalance, isServerOwner);

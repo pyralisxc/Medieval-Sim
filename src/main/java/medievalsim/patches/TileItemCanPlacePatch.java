@@ -1,8 +1,9 @@
 package medievalsim.patches;
 import java.awt.geom.Line2D;
-import medievalsim.util.ZoneProtectionValidator;
+import medievalsim.zones.protection.ProtectionFacade;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.gameNetworkData.GNDItemMap;
+import necesse.engine.util.GameMath;
 import necesse.entity.mobs.PlayerMob;
 import necesse.inventory.InventoryItem;
 import necesse.inventory.item.placeableItem.tileItem.TileItem;
@@ -23,14 +24,17 @@ public class TileItemCanPlacePatch {
                 return;
             }
 
-            // Server-side protection check (authoritative) using centralized validator
+            // Server-side protection check (authoritative)
+            // Checks both settlement protection (precedence #1) and zone protection (precedence #2)
             // Note: Client-side optimistic placement is allowed, but server will reject unauthorized attempts
             // This is standard Necesse behavior - the server is authoritative and will sync the correct state
             if (level.isServer() && player != null && player.isServerClient()) {
-                ZoneProtectionValidator.ValidationResult validation = 
-                    ZoneProtectionValidator.validatePlacementAtPosition(level, x, y, player.getServerClient());
-                if (!validation.isAllowed()) {
-                    result = validation.getReason();
+                int tileX = GameMath.getTileCoordinate(x);
+                int tileY = GameMath.getTileCoordinate(y);
+                ProtectionFacade.ProtectionResult protection = 
+                    ProtectionFacade.canPlace(player.getServerClient(), level, tileX, tileY, false);
+                if (!protection.isAllowed()) {
+                    result = protection.getMessage();
                 }
             }
         }

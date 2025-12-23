@@ -1,6 +1,8 @@
 /*
  * Patch: LevelObject.interact
- * Purpose: Block interaction with objects in protected zones based on permissions
+ * Purpose: Block interaction with objects in protected zones/settlements based on permissions
+ * 
+ * Settlement protection takes precedence over zone protection.
  * 
  * Note: We patch LevelObject.interact() not GameObject.interact() because:
  * - GameObject.interact() is client-side only (exits immediately on server)
@@ -8,9 +10,7 @@
  */
 package medievalsim.patches;
 
-import medievalsim.zones.domain.AdminZonesLevelData;
-import medievalsim.zones.domain.ProtectedZone;
-import necesse.engine.localization.Localization;
+import medievalsim.zones.protection.ProtectionFacade;
 import necesse.engine.modLoader.annotations.ModMethodPatch;
 import necesse.engine.network.server.ServerClient;
 import necesse.entity.mobs.PlayerMob;
@@ -46,53 +46,16 @@ public class GameObjectCanInteractPatch {
             return null; // Continue with original method
         }
         
-        // Check if position is in a protected zone
-        AdminZonesLevelData zoneData = AdminZonesLevelData.getZoneData(level, false);
-        if (zoneData == null) {
-            return null; // No zones, continue with original method
-        }
-
-        ProtectedZone zone = zoneData.getProtectedZoneAt(tileX, tileY);
-        if (zone == null) {
-            return null; // Not in a protected zone, continue with original method
-        }
-
-        // Use granular interaction check with GameObject type detection
-        if (!zone.canClientInteract(client, level, gameObject)) {
+        // Check protection using unified facade (settlement precedence > zone protection)
+        ProtectionFacade.ProtectionResult protection = 
+            ProtectionFacade.canInteract(client, level, tileX, tileY, gameObject);
+        
+        if (!protection.isAllowed()) {
             // Block interaction by skipping the method
-            String messageKey = getMessageKeyForObject(gameObject);
-            String message = Localization.translate("ui", messageKey);
-            client.sendChatMessage(message);
-            
+            client.sendChatMessage(protection.getMessage());
             return true; // Skip method execution (block interaction)
         }
         
         return null; // Continue with original method (allow interaction)
-    }
-    
-    // Helper method to determine error message based on GameObject type
-    // MUST be public for ByteBuddy advice to access it from injected code
-    public static String getMessageKeyForObject(necesse.level.gameObject.GameObject gameObject) {
-        if (gameObject.isDoor) {
-            return "nopermissiondoors";
-        }
-        if (gameObject instanceof necesse.level.gameObject.container.CraftingStationObject || 
-            gameObject instanceof necesse.level.gameObject.container.FueledCraftingStationObject) {
-            return "nopermissionstations";
-        }
-        if (gameObject instanceof necesse.level.gameObject.container.InventoryObject) {
-            return "nopermissioncontainers";
-        }
-        if (gameObject instanceof necesse.level.gameObject.SignObject) {
-            return "nopermissionsigns";
-        }
-        if (gameObject.isSwitch || gameObject.isPressurePlate) {
-            return "nopermissionswitches";
-        }
-        if (gameObject instanceof necesse.level.gameObject.furniture.FurnitureObject) {
-            return "nopermissionfurniture";
-        }
-        // Generic fallback
-        return "nopermissioninteract";
     }
 }

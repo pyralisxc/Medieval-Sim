@@ -65,12 +65,14 @@ public class GameObjectGetInteractTipPatch {
                 return; // Keep original tooltip
             }
             
-            // Check specific permission from buff data
-            boolean hasPermission = checkPermissionFromBuff(zoneBuff, gameObject);
+            // Check specific permission from buff data using GameObjectClassifier
+            medievalsim.util.GameObjectClassifier.InteractionType type = 
+                medievalsim.util.GameObjectClassifier.classify(gameObject);
+            boolean hasPermission = checkPermissionFromBuff(zoneBuff, type);
             
             if (!hasPermission) {
                 // Player doesn't have permission - override tooltip to show zone protection message
-                String objectType = getObjectTypeTranslation(gameObject);
+                String objectType = medievalsim.util.GameObjectClassifier.getDisplayName(gameObject);
                 result = Localization.translate("ui", "zoneprotectiontooltip", 
                     "zone", zone.name, 
                     "object", objectType);
@@ -80,55 +82,30 @@ public class GameObjectGetInteractTipPatch {
     }
     
     /**
-     * Check if player has permission based on buff data
+     * Check if player has permission based on buff data and GameObject type.
+     * Uses GameObjectClassifier for consistent type detection.
      */
-    private static boolean checkPermissionFromBuff(necesse.entity.mobs.buffs.ActiveBuff zoneBuff, GameObject gameObject) {
-        if (gameObject.isDoor) {
-            return zoneBuff.getGndData().getBoolean("canDoors");
+    private static boolean checkPermissionFromBuff(
+        necesse.entity.mobs.buffs.ActiveBuff zoneBuff, 
+        medievalsim.util.GameObjectClassifier.InteractionType type
+    ) {
+        // Map InteractionType to buff permission flags
+        switch (type) {
+            case DOOR:
+                return zoneBuff.getGndData().getBoolean("canDoors");
+            case CRAFTING_STATION:
+                return zoneBuff.getGndData().getBoolean("canStations");
+            case CONTAINER:
+                return zoneBuff.getGndData().getBoolean("canChests");
+            case SIGN:
+                return zoneBuff.getGndData().getBoolean("canSigns");
+            case SWITCH:
+                return zoneBuff.getGndData().getBoolean("canSwitches");
+            case FURNITURE:
+                return zoneBuff.getGndData().getBoolean("canFurniture");
+            case UNKNOWN:
+            default:
+                return false; // Unknown types denied by default
         }
-        if (gameObject instanceof necesse.level.gameObject.container.CraftingStationObject || 
-            gameObject instanceof necesse.level.gameObject.container.FueledCraftingStationObject) {
-            return zoneBuff.getGndData().getBoolean("canStations");
-        }
-        if (gameObject instanceof necesse.level.gameObject.container.InventoryObject) {
-            return zoneBuff.getGndData().getBoolean("canChests");
-        }
-        if (gameObject instanceof necesse.level.gameObject.SignObject) {
-            return zoneBuff.getGndData().getBoolean("canSigns");
-        }
-        if (gameObject.isSwitch || gameObject.isPressurePlate) {
-            return zoneBuff.getGndData().getBoolean("canSwitches");
-        }
-        if (gameObject instanceof necesse.level.gameObject.furniture.FurnitureObject) {
-            return zoneBuff.getGndData().getBoolean("canFurniture");
-        }
-        return false; // Unknown type - deny
-    }
-    
-    /**
-     * Get a user-friendly localized name for the object type being blocked
-     */
-    private static String getObjectTypeTranslation(GameObject gameObject) {
-        if (gameObject.isDoor) {
-            return Localization.translate("ui", "objecttype.door");
-        }
-        if (gameObject instanceof necesse.level.gameObject.container.CraftingStationObject || 
-            gameObject instanceof necesse.level.gameObject.container.FueledCraftingStationObject) {
-            return Localization.translate("ui", "objecttype.station");
-        }
-        if (gameObject instanceof necesse.level.gameObject.container.InventoryObject) {
-            return Localization.translate("ui", "objecttype.container");
-        }
-        if (gameObject instanceof necesse.level.gameObject.SignObject) {
-            return Localization.translate("ui", "objecttype.sign");
-        }
-        if (gameObject.isSwitch || gameObject.isPressurePlate) {
-            return Localization.translate("ui", "objecttype.switch");
-        }
-        if (gameObject instanceof necesse.level.gameObject.furniture.FurnitureObject) {
-            return Localization.translate("ui", "objecttype.furniture");
-        }
-        // Generic fallback
-        return Localization.translate("ui", "objecttype.object");
     }
 }

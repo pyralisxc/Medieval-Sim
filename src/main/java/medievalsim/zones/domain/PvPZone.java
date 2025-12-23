@@ -21,6 +21,8 @@ extends AdminZone {
         public float dotDamageMultiplier = 1.0f;
         // Multiplies DoT accumulation interval (1.0 = unchanged). >1 means ticks accumulate slower (i.e. slower DoT)
         public float dotIntervalMultiplier = 1.0f;
+        // Boss summon restriction
+        public boolean allowBossSummons = true;  // Default: allow in PvP zones
 
     public PvPZone() {
     }
@@ -64,6 +66,7 @@ extends AdminZone {
         save.addFloat("dotDamageMultiplier", this.dotDamageMultiplier);
         save.addFloat("dotIntervalMultiplier", this.dotIntervalMultiplier);
         save.addInt("combatLockSeconds", this.combatLockSeconds);
+        save.addBoolean("allowBossSummons", this.allowBossSummons);
     }
 
     @Override
@@ -74,6 +77,7 @@ extends AdminZone {
         this.dotIntervalMultiplier = save.getFloat("dotIntervalMultiplier", 1.0f);
         // Use the centralized default so saved defaults follow configuration values
         this.combatLockSeconds = save.getInt("combatLockSeconds", ModConfig.Zones.defaultCombatLockSeconds);
+        this.allowBossSummons = save.getBoolean("allowBossSummons", ModConfig.BossSummons.allowInPvPZonesByDefault);
     }
 
     @Override
@@ -83,6 +87,7 @@ extends AdminZone {
         writer.putNextFloat(this.dotDamageMultiplier);
         writer.putNextFloat(this.dotIntervalMultiplier);
         writer.putNextInt(this.combatLockSeconds);
+        writer.putNextBoolean(this.allowBossSummons);
     }
 
     @Override
@@ -92,6 +97,7 @@ extends AdminZone {
         this.dotDamageMultiplier = reader.getNextFloat();
         this.dotIntervalMultiplier = reader.getNextFloat();
         this.combatLockSeconds = reader.getNextInt();
+        this.allowBossSummons = reader.getNextBoolean();
     }
 
     public void createBarriers(Level level) {

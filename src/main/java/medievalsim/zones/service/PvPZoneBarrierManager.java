@@ -99,13 +99,8 @@ public class PvPZoneBarrierManager {
                 processedInBatch++;
                 if (processedInBatch >= batchSize) {
                     ModLogger.debug("Placed batch: %d barriers (replaced: %d) for zone '%s'", batchPlaced, batchReplaced, zone.name);
-                    // yield briefly to avoid long continuous blocking
-                    try {
-                        Thread.sleep(1L);
-                    }
-                    catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                    }
+                    // Yield to avoid long continuous blocking without introducing fixed delays
+                    Thread.yield();
                     processedInBatch = 0;
                     batchPlaced = 0;
                     batchReplaced = 0;
@@ -309,12 +304,8 @@ public class PvPZoneBarrierManager {
                 processedRemove++;
                 if (processedRemove >= batchSize) {
                     ModLogger.info("Removed batch: %d barriers for zone '%s'", batchRemoved, zone.name);
-                    try {
-                        Thread.sleep(1L);
-                    }
-                    catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                    }
+                    // Yield to avoid long continuous blocking without introducing fixed delays
+                    Thread.yield();
                     processedRemove = 0;
                     batchRemoved = 0;
                 }
@@ -353,12 +344,8 @@ public class PvPZoneBarrierManager {
                     processedAdd++;
                     if (processedAdd >= batchSize) {
                         ModLogger.info("Added batch: %d barriers (replaced: %d) for zone '%s'", batchAdded, batchReplaced, zone.name);
-                        try {
-                            Thread.sleep(1L);
-                        }
-                        catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                        }
+                        // Yield to avoid long continuous blocking without introducing fixed delays
+                        Thread.yield();
                         processedAdd = 0;
                         batchAdded = 0;
                         batchReplaced = 0;

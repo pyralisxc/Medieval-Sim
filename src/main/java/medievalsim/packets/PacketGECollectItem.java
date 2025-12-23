@@ -1,8 +1,10 @@
 package medievalsim.packets;
 
+import medievalsim.grandexchange.application.GrandExchangeContext;
 import medievalsim.grandexchange.domain.CollectionItem;
 import medievalsim.grandexchange.domain.GrandExchangeLevelData;
 import medievalsim.grandexchange.domain.PlayerGEInventory;
+import medievalsim.grandexchange.util.CollectionPaginator;
 import medievalsim.packets.core.AbstractPayloadPacket;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.PacketReader;
@@ -57,14 +59,15 @@ public class PacketGECollectItem extends AbstractPayloadPacket {
         }
         
         Level level = client.playerMob.getLevel();
-        GrandExchangeLevelData geData = GrandExchangeLevelData.getGrandExchangeData(level);
-        if (geData == null) {
+        GrandExchangeContext context = GrandExchangeContext.resolve(level);
+        if (context == null) {
             ModLogger.error("GrandExchangeLevelData not available for collect item");
             return;
         }
+        GrandExchangeLevelData geData = context.getLevelData();
         
         long playerAuth = client.authentication;
-        PlayerGEInventory playerInventory = geData.getOrCreateInventory(playerAuth);
+        PlayerGEInventory playerInventory = context.getOrCreateInventory(playerAuth);
         if (playerInventory == null) {
             ModLogger.error("Failed to resolve PlayerGEInventory for auth=%d", playerAuth);
             return;
@@ -110,6 +113,18 @@ public class PacketGECollectItem extends AbstractPayloadPacket {
         if (client == null || playerInventory == null) {
             return;
         }
-        client.sendPacket(new PacketGECollectionSync(playerAuth, playerInventory.getCollectionBox()));
+        CollectionPaginator.Page page = CollectionPaginator.paginate(
+            playerInventory.getCollectionBox(),
+            playerInventory.getCollectionPageIndex()
+        );
+        playerInventory.setCollectionPageIndex(page.getPageIndex());
+        client.sendPacket(new PacketGECollectionSync(
+            playerAuth,
+            page,
+            playerInventory.isCollectionDepositToBankPreferred(),
+            playerInventory.isAutoSendToBank(),
+            playerInventory.isNotifyPartialSales(),
+            playerInventory.isPlaySoundOnSale()
+        ));
     }
 }

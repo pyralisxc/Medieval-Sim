@@ -3,9 +3,20 @@ package medievalsim.grandexchange.domain;
 import medievalsim.banking.domain.BankingLevelData;
 import medievalsim.banking.domain.PlayerBank;
 import medievalsim.config.ModConfig;
+import medievalsim.grandexchange.model.event.SellOfferSaleEvent;
+import medievalsim.grandexchange.model.snapshot.HistoryDeltaPayload;
+import medievalsim.grandexchange.model.snapshot.HistoryEntrySnapshot;
+import medievalsim.grandexchange.ui.GrandExchangeContainer;
+import medievalsim.grandexchange.net.SellActionResultCode;
 import medievalsim.grandexchange.repository.InMemoryOfferRepository;
 import medievalsim.grandexchange.repository.OfferRepository;
 import medievalsim.grandexchange.services.*;
+import medievalsim.grandexchange.util.CollectionPaginator;
+import medievalsim.packets.PacketGECollectionSync;
+import medievalsim.packets.PacketGEHistoryBadge;
+import medievalsim.packets.PacketGEHistoryDelta;
+import medievalsim.packets.PacketGEHistorySync;
+import medievalsim.packets.PacketGESaleEvent;
 import medievalsim.util.ModLogger;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
@@ -18,12 +29,14 @@ import necesse.engine.registries.ItemRegistry;
 import necesse.level.maps.Level;
 import necesse.level.maps.levelData.LevelData;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -76,6 +89,14 @@ public class GrandExchangeLevelData extends LevelData {
     // Cleanup tracking (run cleanup every 5 minutes)
     private int tickCounter = 0;
     private static final int CLEANUP_INTERVAL_TICKS = 20 * 60 * 5; // 5 minutes
+
+    // Persistence + diagnostics tracking
+    private static final int PERSIST_INTERVAL_TICKS = 20 * 60 * 30; // 30 minutes in ticks
+    private int persistenceTickCounter = 0;
+    private final Deque<DiagnosticsSnapshot> diagnosticsHistory = new ArrayDeque<>(getConfiguredDiagnosticsCapacity());
+    private static int getConfiguredDiagnosticsCapacity() {
+        return Math.max(5, ModConfig.GrandExchange.diagnosticsHistorySize);
+    }
     
     // ===== ENTERPRISE SERVICES =====
     
@@ -99,9 +120,10 @@ public class GrandExchangeLevelData extends LevelData {
         this.repository = new InMemoryOfferRepository();
         // OrderBooks are per-item, created on demand in orderBooksByItem map
         this.analyticsService = new MarketAnalyticsService(
-            ModConfig.GrandExchange.priceHistorySize
+            ModConfig.GrandExchange.priceHistorySize,
+            this::markPersistenceDirty
         );
-        this.rateLimitService = new RateLimitService();
+        this.rateLimitService = new RateLimitService(this::markPersistenceDirty);
         this.auditLog = new TradeAuditLog(
             ModConfig.GrandExchange.auditLogSize,
             ModConfig.GrandExchange.auditLogSize,
@@ -113,27 +135,92 @@ public class GrandExchangeLevelData extends LevelData {
         
         ModLogger.info("Grand Exchange Level Data initialized with enterprise services");
     }
-    
+
+    private void markPersistenceDirty() {
+        persistenceTickCounter = 0;
+    }
+
+    public void requestPersistenceSave() {
+        markPersistenceDirty();
+    }
+
+    /**
+     * Completely reset all Grand Exchange data.
+     * This is called when the GE system is toggled off and back on.
+     * 
+     * WARNING: This permanently deletes ALL offers, orders, inventories,
+     * price history, and statistics. Items in offers are LOST.
+     */
+    public void resetAllData() {
+        ModLogger.warn("=== GRAND EXCHANGE DATA RESET INITIATED ===");
+        ModLogger.warn("Clearing %d inventories, %d offers, %d buy orders",
+            inventories.size(), offers.size(), buyOrders.size());
+
+        // Clear all data structures
+        inventories.clear();
+        offers.clear();
+        offersByItem.clear();
+        buyOrders.clear();
+        buyOrdersByItem.clear();
+        priceHistory.clear();
+        orderBooksByItem.clear();
+
+        // Reset ID generators
+        nextOfferID.set(1);
+        nextBuyOrderID.set(1);
+
+        // Reset statistics
+        totalInventoriesCreated = 0;
+        totalOffersCreated = 0;
+        totalTradesCompleted = 0;
+        totalVolumeTraded = 0L;
+
+        // Clear repository
+        if (repository != null) {
+            repository.clearAll();
+        }
+
+        // Clear audit log
+        if (auditLog != null) {
+            auditLog.clearAll();
+        }
+
+        // Clear diagnostics history
+        diagnosticsHistory.clear();
+
+        markPersistenceDirty();
+        ModLogger.warn("=== GRAND EXCHANGE DATA RESET COMPLETE ===");
+    }
+
+
     // ===== STATIC HELPERS =====
+    
     
     /**
      * Get or create GrandExchangeLevelData for a level.
+     * If a GE reset is pending (from re-enabling in settings), the data is wiped.
      */
     public static GrandExchangeLevelData getGrandExchangeData(Level level) {
         if (level == null || !level.isServer()) {
             return null;
         }
-        
+
         GrandExchangeLevelData data = (GrandExchangeLevelData) level.getLevelData(DATA_KEY);
         if (data == null) {
             data = new GrandExchangeLevelData();
             level.addLevelData(DATA_KEY, data);
             ModLogger.debug("Created new GrandExchangeLevelData for level %s", level.getIdentifier());
         }
+        
+        // Check if a reset was requested (GE was toggled off then back on)
+        if (medievalsim.config.ModConfig.Banking.grandExchangeResetPending) {
+            ModLogger.warn("GE reset pending flag detected - wiping all GE data!");
+            data.resetAllData();
+            medievalsim.config.ModConfig.Banking.grandExchangeResetPending = false;
+        }
+        
         return data;
-    }
-    
-    // ===== INVENTORY MANAGEMENT =====
+    }    // ===== INVENTORY MANAGEMENT =====
     
     /**
      * Get or create player's GE inventory.
@@ -141,6 +228,7 @@ public class GrandExchangeLevelData extends LevelData {
     public PlayerGEInventory getOrCreateInventory(long playerAuth) {
         return inventories.computeIfAbsent(playerAuth, auth -> {
             totalInventoriesCreated++;
+            markPersistenceDirty();
             ModLogger.info("Created GE inventory for player auth=%d (total inventories: %d)", 
                 auth, totalInventoriesCreated);
             return new PlayerGEInventory(auth);
@@ -188,10 +276,12 @@ public class GrandExchangeLevelData extends LevelData {
 
     public void resizeAllSellInventories(int newSlotCount) {
         inventories.values().forEach(inv -> inv.resizeSellSlots(newSlotCount));
+        markPersistenceDirty();
     }
 
     public void resizeAllBuyInventories(int newSlotCount) {
         inventories.values().forEach(inv -> inv.resizeBuySlots(newSlotCount));
+        markPersistenceDirty();
     }
     
     // ===== OFFER MANAGEMENT =====
@@ -220,11 +310,20 @@ public class GrandExchangeLevelData extends LevelData {
         
         // Get or create player's GE inventory
         PlayerGEInventory inventory = getOrCreateInventory(playerAuth);
+
+        if (!rateLimitService.canCreateSellOffer(playerAuth)) {
+            float remaining = rateLimitService.getRemainingCooldownForSellOffer(playerAuth);
+            ModLogger.warn("Player %d rate limited when creating sell offer, %.1fs remaining", playerAuth, remaining);
+            return null;
+        }
         
         // Validate slot
         if (!inventory.isValidSellSlot(slot)) {
-            ModLogger.error("Invalid slot: %d (player auth=%d)", slot, playerAuth);
-            return null;
+            slot = inventory.findAvailableSellSlot();
+            if (slot < 0) {
+                ModLogger.error("No reusable sell slots for player auth=%d", playerAuth);
+                return null;
+            }
         }
         
         // Check existing offer in slot
@@ -287,6 +386,7 @@ public class GrandExchangeLevelData extends LevelData {
         offers.put(offerID, offer);
         inventory.setSlotOffer(slot, offer);
         inventory.recordSellOfferCreated();
+        rateLimitService.recordSellOfferCreation(playerAuth);
         totalOffersCreated++;
         
         // Save to repository
@@ -298,6 +398,8 @@ public class GrandExchangeLevelData extends LevelData {
         
         ModLogger.info("Created DRAFT sell offer ID=%d: %s x%d @ %d coins (slot=%d, player=%s)",
             offerID, itemStringID, quantity, pricePerItem, slot, playerName);
+
+        markPersistenceDirty();
         
         return offer;
     }
@@ -312,29 +414,13 @@ public class GrandExchangeLevelData extends LevelData {
         // Remove from slot
         inventory.setSlotOffer(slot, null);
         
-        // Remove from item index (atomically)
-        if (offer.getItemStringID() != null) {
-            offersByItem.computeIfPresent(offer.getItemStringID(), (k, list) -> {
-                synchronized (list) {
-                    list.remove(offerID);
-                    return list.isEmpty() ? null : list;
-                }
-            });
-        }
-        
-        // Remove from persistent OrderBook if present
-        OrderBook book = orderBooksByItem.get(offer.getItemStringID());
-        if (book != null) {
-            book.removeSellOffer(offerID);
-            if (book.isEmpty()) {
-                orderBooksByItem.remove(offer.getItemStringID());
-            }
-        }
+        removeSellOfferFromIndexes(offer);
 
         // Remove from repository
         repository.deleteSellOffer(offerID);
         
         ModLogger.info("Cleaned up orphaned offer ID=%d from all data structures", offerID);
+        markPersistenceDirty();
     }
     
     /**
@@ -347,29 +433,13 @@ public class GrandExchangeLevelData extends LevelData {
         // Remove from main map
         offers.remove(offerID);
 
-        // Remove from item index (atomically)
-        if (offer.getItemStringID() != null) {
-            offersByItem.computeIfPresent(offer.getItemStringID(), (k, list) -> {
-                synchronized (list) {
-                    list.remove(offerID);
-                    return list.isEmpty() ? null : list;
-                }
-            });
-        }
-
         // Remove from repository
         repository.deleteSellOffer(offerID);
 
-        // Remove from persistent OrderBook if present
-        OrderBook book = orderBooksByItem.get(offer.getItemStringID());
-        if (book != null) {
-            book.removeSellOffer(offerID);
-            if (book.isEmpty()) {
-                orderBooksByItem.remove(offer.getItemStringID());
-            }
-        }
+        removeSellOfferFromIndexes(offer);
 
         ModLogger.debug("Cleaned up finished offer ID=%d (state=%s)", offerID, offer.getState());
+        markPersistenceDirty();
     }
     
     /**
@@ -382,14 +452,14 @@ public class GrandExchangeLevelData extends LevelData {
     /**
      * Cancel an offer with optional Level to send client syncs.
      */
-    public boolean cancelOffer(Level level, long offerID) {
+    public synchronized boolean cancelOffer(Level level, long offerID) {
         GEOffer offer = offers.get(offerID);
         if (offer == null) {
             return false;
         }
 
-        if (!offer.isActive()) {
-            ModLogger.warn("Offer ID=%d is not active (state=%s)", offerID, offer.getState());
+        if (!offer.isCancellable()) {
+            ModLogger.warn("Offer ID=%d cannot be cancelled (state=%s)", offerID, offer.getState());
             return false;
         }
 
@@ -402,20 +472,10 @@ public class GrandExchangeLevelData extends LevelData {
             inventory.recordSellOfferCancelled();
         }
 
-        // Remove from item index
-        List<Long> itemOffers = offersByItem.get(offer.getItemStringID());
-        if (itemOffers != null) {
-            itemOffers.remove(offerID);
-        }
+        refundOfferItems(level, offer, inventory, "Offer cancelled",
+            inventory != null && inventory.isCollectionDepositToBankPreferred());
 
-        // Remove from persistent OrderBook if present
-        OrderBook book = orderBooksByItem.get(offer.getItemStringID());
-        if (book != null) {
-            book.removeSellOffer(offerID);
-            if (book.isEmpty()) {
-                orderBooksByItem.remove(offer.getItemStringID());
-            }
-        }
+        removeSellOfferFromIndexes(offer);
 
         // Remove from repository and main map
         offers.remove(offerID);
@@ -427,7 +487,10 @@ public class GrandExchangeLevelData extends LevelData {
         // Notify player client if we have level context
         if (level != null) {
             notifyPlayerSellInventory(level, offer.getPlayerAuth());
+            sendHistoryUpdate(level, offer.getPlayerAuth(), Collections.emptyList());
         }
+
+        markPersistenceDirty();
 
         return true;
     }
@@ -528,8 +591,12 @@ public class GrandExchangeLevelData extends LevelData {
             ));
         }
 
+        MarketInsightsSummary insights = analyticsService.buildInsightsSummary(
+            ModConfig.GrandExchange.marketInsightTopEntries
+        );
+
         return new MarketSnapshot(safePage, totalPages, totalResults, pageSize,
-            normalizedFilter, normalizedCategory, sortMode, entries);
+            normalizedFilter, normalizedCategory, sortMode, entries, insights);
     }
 
     private boolean matchesCategory(String itemStringID, String targetCategoryId) {
@@ -620,58 +687,47 @@ public class GrandExchangeLevelData extends LevelData {
      * NEW: Uses rate limiting and OrderBook-based matching.
      * Thread-safe: synchronized to prevent race conditions during matching.
      */
-    public synchronized boolean enableSellOffer(Level level, long playerAuth, int slotIndex) {
-        // 1. Check rate limit
-        if (!rateLimitService.canCreateSellOffer(playerAuth)) {
-            float remaining = rateLimitService.getRemainingCooldownForSellOffer(playerAuth);
-            ModLogger.warn("Player %d rate limited, cooldown: %.1f seconds remaining", playerAuth, remaining);
-            // TODO: Send packet to client with error message
-            return false;
+    public synchronized SellActionResultCode enableSellOffer(Level level, long playerAuth, int slotIndex) {
+        if (!rateLimitService.canToggleSellOffer(playerAuth)) {
+            ModLogger.warn("Player %d must wait before toggling sell offers again", playerAuth);
+            return SellActionResultCode.TOGGLE_COOLDOWN;
         }
-        
+
         PlayerGEInventory inventory = getInventory(playerAuth);
         if (inventory == null) {
             ModLogger.warn("No GE inventory for player auth=%d", playerAuth);
-            return false;
+            return SellActionResultCode.UNKNOWN_FAILURE;
         }
-        
+
         GEOffer offer = inventory.getSlotOffer(slotIndex);
         if (offer == null) {
             ModLogger.warn("No sell offer in slot %d for player auth=%d", slotIndex, playerAuth);
-            return false;
+            return SellActionResultCode.NO_OFFER_IN_SLOT;
         }
-        
+
         if (offer.getState() != GEOffer.OfferState.DRAFT) {
             ModLogger.warn("Sell offer ID=%d cannot be enabled (state=%s)", offer.getOfferID(), offer.getState());
-            return false;
+            return SellActionResultCode.OFFER_STATE_LOCKED;
         }
-        
-        // Enable the offer
+
         if (!offer.enable()) {
-            return false;
+            return SellActionResultCode.UNKNOWN_FAILURE;
         }
-        
-        // Add to item index for matching (use synchronized list for thread-safety)
+
         List<Long> itemList = offersByItem.computeIfAbsent(offer.getItemStringID(), k -> Collections.synchronizedList(new ArrayList<>()));
         synchronized (itemList) {
             if (!itemList.contains(offer.getOfferID())) {
                 itemList.add(offer.getOfferID());
             }
         }
-        
-        // Save to repository (within synchronized block for consistency)
+
         repository.saveSellOffer(offer);
-        
-        // Record rate limit
-        rateLimitService.recordSellOfferCreation(playerAuth);
-        
+        rateLimitService.recordSellToggle(playerAuth);
+
         ModLogger.info("Enabled sell offer ID=%d (player auth=%d, slot=%d)",
             offer.getOfferID(), playerAuth, slotIndex);
-        
-        // Attempt to match with existing buy orders using new OrderBook system
-        // This happens within the synchronized block to prevent race conditions
+
         if (ModConfig.GrandExchange.enableInstantTrades) {
-            // Add to persistent OrderBook and try matching against existing buy orders
             OrderBook itemOrderBook = orderBooksByItem.computeIfAbsent(offer.getItemStringID(), k -> new OrderBook(k));
             itemOrderBook.addSellOffer(offer);
             List<OrderBook.Match> matches = itemOrderBook.findMatchesForSellOffer(offer);
@@ -686,11 +742,10 @@ public class GrandExchangeLevelData extends LevelData {
                 }
             }
         }
-        
-        // Notify player client so UI stays in sync (if online)
-        notifyPlayerSellInventory(level, playerAuth);
 
-        return true;
+        notifyPlayerSellInventory(level, playerAuth);
+        markPersistenceDirty();
+        return SellActionResultCode.SUCCESS;
     }
     
     /**
@@ -698,63 +753,45 @@ public class GrandExchangeLevelData extends LevelData {
      * Moves offer from ACTIVE → DRAFT, removes from market.
      * Thread-safe: synchronized to prevent race conditions.
      */
-    public synchronized boolean disableSellOffer(Level level, long playerAuth, int slotIndex) {
-        // Check rate limit to prevent rapid enable/disable spam
-        if (!rateLimitService.canCreateSellOffer(playerAuth)) {
-            float remaining = rateLimitService.getRemainingCooldownForSellOffer(playerAuth);
-            ModLogger.warn("Player %d rate limited for offer state change, cooldown: %.1f seconds", playerAuth, remaining);
-            return false;
+    public synchronized SellActionResultCode disableSellOffer(Level level, long playerAuth, int slotIndex) {
+        if (!rateLimitService.canToggleSellOffer(playerAuth)) {
+            ModLogger.warn("Player %d must wait before toggling sell offers again", playerAuth);
+            return SellActionResultCode.TOGGLE_COOLDOWN;
         }
-        
+
         PlayerGEInventory inventory = getInventory(playerAuth);
         if (inventory == null) {
             ModLogger.warn("No GE inventory for player auth=%d", playerAuth);
-            return false;
+            return SellActionResultCode.UNKNOWN_FAILURE;
         }
-        
+
         GEOffer offer = inventory.getSlotOffer(slotIndex);
         if (offer == null) {
             ModLogger.warn("No sell offer in slot %d for player auth=%d", slotIndex, playerAuth);
-            return false;
+            return SellActionResultCode.NO_OFFER_IN_SLOT;
         }
-        
+
         GEOffer.OfferState state = offer.getState();
         if (state != GEOffer.OfferState.ACTIVE && state != GEOffer.OfferState.PARTIAL) {
             ModLogger.warn("Sell offer ID=%d cannot be disabled (state=%s)", offer.getOfferID(), offer.getState());
-            return false;
+            return SellActionResultCode.OFFER_STATE_LOCKED;
         }
-        
-        // Remove from item index (atomically)
-        if (offer.getItemStringID() != null) {
-            offersByItem.computeIfPresent(offer.getItemStringID(), (k, list) -> {
-                synchronized (list) {
-                    list.remove(offer.getOfferID());
-                    return list.isEmpty() ? null : list;
-                }
-            });
-        }
-        
-        // Disable the offer
+
+        removeSellOfferFromIndexes(offer);
+
         if (!offer.disable()) {
-            return false;
+            return SellActionResultCode.UNKNOWN_FAILURE;
         }
-        
-        // Update repository
+
         repository.saveSellOffer(offer);
-        
-        // Remove from persistent OrderBook if present
-        OrderBook book = orderBooksByItem.get(offer.getItemStringID());
-        if (book != null) {
-            book.removeSellOffer(offer.getOfferID());
-        }
-        
+
         ModLogger.info("Disabled sell offer ID=%d (player auth=%d, slot=%d)",
             offer.getOfferID(), playerAuth, slotIndex);
-        
-        // Notify player client so UI stays in sync (if online)
-        notifyPlayerSellInventory(level, playerAuth);
 
-        return true;
+        rateLimitService.recordSellToggle(playerAuth);
+        notifyPlayerSellInventory(level, playerAuth);
+        markPersistenceDirty();
+        return SellActionResultCode.SUCCESS;
     }
     
     // ===== BUY ORDER MANAGEMENT =====
@@ -763,10 +800,20 @@ public class GrandExchangeLevelData extends LevelData {
      * Create a new buy order (DRAFT state, not yet enabled).
      * Player must enable it to activate and escrow coins.
      */
-    public BuyOrder createBuyOrder(long playerAuth, int slotIndex, String itemStringID, 
-                                    int quantity, int pricePerItem, int durationDays) {
+    public BuyOrder createBuyOrder(long playerAuth,
+                                   String playerName,
+                                   int slotIndex,
+                                   String itemStringID,
+                                   int quantity,
+                                   int pricePerItem,
+                                   int durationDays) {
         // Validation
         PlayerGEInventory inventory = getOrCreateInventory(playerAuth);
+        if (!rateLimitService.canCreateBuyOrder(playerAuth)) {
+            float remaining = rateLimitService.getRemainingCooldownForBuyOrder(playerAuth);
+            ModLogger.warn("Player %d rate limited when creating buy order, %.1fs remaining", playerAuth, remaining);
+            return null;
+        }
         
         if (slotIndex < 0 || slotIndex >= ModConfig.GrandExchange.buyOrderSlots) {
             ModLogger.warn("Invalid buy order slot %d for player auth=%d", slotIndex, playerAuth);
@@ -802,8 +849,8 @@ public class GrandExchangeLevelData extends LevelData {
         
         // Create buy order (DRAFT state)
         long orderID = nextBuyOrderID.getAndIncrement();
-        String playerName = "Player"; // TODO: Get from ServerClient if available
-        BuyOrder order = new BuyOrder(orderID, playerAuth, playerName, slotIndex);
+        String resolvedPlayerName = (playerName == null || playerName.isBlank()) ? "Player" : playerName;
+        BuyOrder order = new BuyOrder(orderID, playerAuth, resolvedPlayerName, slotIndex);
         
         // Configure the order
         if (!order.configure(itemStringID, quantity, pricePerItem, durationDays)) {
@@ -814,12 +861,14 @@ public class GrandExchangeLevelData extends LevelData {
         // Store in inventory
         inventory.setBuyOrder(slotIndex, order);
         inventory.recordBuyOrderCreated();
+        rateLimitService.recordBuyOrderCreation(playerAuth);
         
         // Store in global map (but NOT in buyOrdersByItem index until enabled)
         buyOrders.put(orderID, order);
         
         ModLogger.info("Created buy order ID=%d (player auth=%d, slot=%d, item=%s, qty=%d, price=%d) [DRAFT]",
             orderID, playerAuth, slotIndex, itemStringID, quantity, pricePerItem);
+        markPersistenceDirty();
         
         return order;
     }
@@ -830,15 +879,7 @@ public class GrandExchangeLevelData extends LevelData {
      * Returns true if successful, false if insufficient funds.
      * NEW: Uses rate limiting to prevent spam.
      */
-    public boolean enableBuyOrder(Level level, long playerAuth, int slotIndex) {
-        // Check rate limit
-        if (!rateLimitService.canCreateBuyOrder(playerAuth)) {
-            float remaining = rateLimitService.getRemainingCooldownForBuyOrder(playerAuth);
-            ModLogger.warn("Player %d rate limited for buy orders, cooldown: %.1f seconds remaining", playerAuth, remaining);
-            // TODO: Send packet to client with error message
-            return false;
-        }
-        
+    public synchronized boolean enableBuyOrder(Level level, long playerAuth, int slotIndex) {
         PlayerGEInventory inventory = getInventory(playerAuth);
         if (inventory == null) {
             ModLogger.warn("No GE inventory for player auth=%d", playerAuth);
@@ -853,6 +894,12 @@ public class GrandExchangeLevelData extends LevelData {
         
         if (order.getState() != BuyOrder.BuyOrderState.DRAFT) {
             ModLogger.warn("Buy order ID=%d cannot be enabled (state=%s)", order.getOrderID(), order.getState());
+            return false;
+        }
+
+        if (rateLimitService != null && !rateLimitService.canToggleBuyOrder(playerAuth)) {
+            float remaining = rateLimitService.getRemainingCooldownForBuyToggle(playerAuth);
+            ModLogger.warn("Player %d rate limited when enabling buy order, %.1fs remaining", playerAuth, remaining);
             return false;
         }
         
@@ -896,9 +943,6 @@ public class GrandExchangeLevelData extends LevelData {
         // Save to repository
         repository.saveBuyOrder(order);
         
-        // Record rate limit
-        rateLimitService.recordBuyOrderCreation(playerAuth);
-        
         ModLogger.info("Enabled buy order ID=%d (player auth=%d, slot=%d, escrowed %d coins)",
             order.getOrderID(), playerAuth, slotIndex, coinsRequired);
         
@@ -922,6 +966,10 @@ public class GrandExchangeLevelData extends LevelData {
         
         // Notify player client so buy order UI stays in sync (if online)
         notifyPlayerBuyOrders(level, playerAuth);
+        if (rateLimitService != null) {
+            rateLimitService.recordBuyToggle(playerAuth);
+        }
+        markPersistenceDirty();
 
         return true;
     }
@@ -930,10 +978,10 @@ public class GrandExchangeLevelData extends LevelData {
      * Disable a buy order (checkbox unchecked).
      * Refunds escrowed coins back to player's bank.
      */
-    public boolean disableBuyOrder(Level level, long playerAuth, int slotIndex) {
+    public synchronized boolean disableBuyOrder(Level level, long playerAuth, int slotIndex) {
         // Check rate limit to prevent rapid enable/disable spam
-        if (!rateLimitService.canCreateBuyOrder(playerAuth)) {
-            float remaining = rateLimitService.getRemainingCooldownForBuyOrder(playerAuth);
+        if (rateLimitService != null && !rateLimitService.canToggleBuyOrder(playerAuth)) {
+            float remaining = rateLimitService.getRemainingCooldownForBuyToggle(playerAuth);
             ModLogger.warn("Player %d rate limited for order state change, cooldown: %.1f seconds", playerAuth, remaining);
             return false;
         }
@@ -958,58 +1006,25 @@ public class GrandExchangeLevelData extends LevelData {
         
         // Calculate coins to refund (only remaining quantity)
         int coinsToRefund = order.getTotalCoinsRequired();
-        
-        // Remove from item index (atomically)
-        if (order.getItemStringID() != null) {
-            buyOrdersByItem.computeIfPresent(order.getItemStringID(), (k, list) -> {
-                synchronized (list) {
-                    list.remove(order.getOrderID());
-                    return list.isEmpty() ? null : list;
-                }
-            });
-        }
-        // Remove from persistent OrderBook if present
-        OrderBook book = orderBooksByItem.get(order.getItemStringID());
-        if (book != null) {
-            book.removeBuyOrder(order.getOrderID());
-            if (book.isEmpty()) {
-                orderBooksByItem.remove(order.getItemStringID());
-            }
-        }
+
+        removeBuyOrderFromIndexes(order);
         
         // Disable the order
         order.disable();
         
         // Refund coins to bank
         if (coinsToRefund > 0) {
-            BankingLevelData bankingData = BankingLevelData.getBankingData(level);
-            if (bankingData != null) {
-                PlayerBank bank = bankingData.getOrCreateBank(playerAuth);
-                bank.addCoins(coinsToRefund);
-                
-                // Remove from escrow
-                inventory.removeCoinsFromEscrow(coinsToRefund);
-                
-                // Add notification to collection box so player knows coins were refunded
-                SaleNotification refundNotification = new SaleNotification(
-                    "coins",
-                    coinsToRefund,
-                    1, // price per "item" is 1 coin
-                    coinsToRefund,
-                    false, // not partial
-                    "System"
-                );
-                inventory.addSaleNotification(refundNotification);
-                
-                ModLogger.info("Disabled buy order ID=%d (player auth=%d, slot=%d, refunded %d coins)",
-                    order.getOrderID(), playerAuth, slotIndex, coinsToRefund);
-            } else {
-                ModLogger.error("Banking system not available for buy order refund!");
-            }
+            int refunded = refundBuyOrderEscrow(level, inventory, order, true);
+            ModLogger.info("Disabled buy order ID=%d (player auth=%d, slot=%d, refunded %d coins)",
+                order.getOrderID(), playerAuth, slotIndex, refunded);
         }
         
         // Notify player client so buy order UI stays in sync (if online)
         notifyPlayerBuyOrders(level, playerAuth);
+        if (rateLimitService != null) {
+            rateLimitService.recordBuyToggle(playerAuth);
+        }
+        markPersistenceDirty();
 
         return true;
     }
@@ -1018,7 +1033,7 @@ public class GrandExchangeLevelData extends LevelData {
      * Cancel a buy order (remove completely).
      * Refunds any escrowed coins and clears the slot.
      */
-    public boolean cancelBuyOrder(Level level, long playerAuth, int slotIndex) {
+    public synchronized boolean cancelBuyOrder(Level level, long playerAuth, int slotIndex) {
         PlayerGEInventory inventory = getInventory(playerAuth);
         if (inventory == null) {
             return false;
@@ -1031,29 +1046,8 @@ public class GrandExchangeLevelData extends LevelData {
         
         // If enabled/active, refund coins first
         if (order.isActive()) {
-            int coinsToRefund = order.getTotalCoinsRequired();
-            if (coinsToRefund > 0) {
-                BankingLevelData bankingData = BankingLevelData.getBankingData(level);
-                if (bankingData != null) {
-                    PlayerBank bank = bankingData.getOrCreateBank(playerAuth);
-                    bank.addCoins(coinsToRefund);
-                    inventory.removeCoinsFromEscrow(coinsToRefund);
-                }
-            }
-            
-            // Remove from item index
-            List<Long> itemOrders = buyOrdersByItem.get(order.getItemStringID());
-            if (itemOrders != null) {
-                itemOrders.remove(order.getOrderID());
-            }
-            // Remove from persistent OrderBook if present
-            OrderBook book = orderBooksByItem.get(order.getItemStringID());
-            if (book != null) {
-                book.removeBuyOrder(order.getOrderID());
-                if (book.isEmpty()) {
-                    orderBooksByItem.remove(order.getItemStringID());
-                }
-            }
+            refundBuyOrderEscrow(level, inventory, order, false);
+            removeBuyOrderFromIndexes(order);
         }
         
         // Cancel the order
@@ -1068,6 +1062,7 @@ public class GrandExchangeLevelData extends LevelData {
         
         ModLogger.info("Cancelled buy order ID=%d (player auth=%d, slot=%d)",
             order.getOrderID(), playerAuth, slotIndex);
+        this.markPersistenceDirty();
         
         // Notify player client so buy order UI stays in sync (if online)
         notifyPlayerBuyOrders(level, playerAuth);
@@ -1079,7 +1074,7 @@ public class GrandExchangeLevelData extends LevelData {
      * Process a manual market purchase (Tab 0) using the shared trade transaction pipeline.
      * Buys the entire remaining quantity of the specified offer at the asking price.
      */
-    public boolean processMarketPurchase(Level level, long buyerAuth, String buyerName, long offerID) {
+    public synchronized boolean processMarketPurchase(Level level, long buyerAuth, String buyerName, long offerID, int requestedQuantity) {
         if (level == null) {
             ModLogger.warn("Cannot process market purchase without level context");
             return false;
@@ -1107,14 +1102,30 @@ public class GrandExchangeLevelData extends LevelData {
             return false;
         }
 
-        int quantity = offer.getQuantityRemaining();
-        if (quantity <= 0) {
+        int availableQuantity = offer.getQuantityRemaining();
+        if (availableQuantity <= 0) {
             ModLogger.warn("Offer ID=%d has no remaining quantity", offerID);
             return false;
         }
 
+        int quantity = requestedQuantity <= 0 ? availableQuantity : requestedQuantity;
+        quantity = Math.min(quantity, availableQuantity);
+        if (quantity <= 0) {
+            ModLogger.warn("Requested quantity for offer ID=%d resolved to zero", offerID);
+            return false;
+        }
+
         int pricePerItem = offer.getPricePerItem();
-        int totalCost = pricePerItem * quantity;
+        long totalCostLong = (long) pricePerItem * (long) quantity;
+        if (totalCostLong <= 0L) {
+            ModLogger.warn("Invalid total cost for offer ID=%d (qty=%d, price=%d)", offerID, quantity, pricePerItem);
+            return false;
+        }
+        if (totalCostLong > Integer.MAX_VALUE) {
+            ModLogger.warn("Total cost exceeds escrow limit for offer ID=%d (cost=%d)", offerID, totalCostLong);
+            return false;
+        }
+        int totalCost = (int) totalCostLong;
 
         BankingLevelData bankingData = BankingLevelData.getBankingData(level);
         if (bankingData == null) {
@@ -1128,14 +1139,14 @@ public class GrandExchangeLevelData extends LevelData {
             return false;
         }
 
-        if (buyerBank.getCoins() < totalCost) {
+        if (buyerBank.getCoins() < totalCostLong) {
             ModLogger.warn("Player auth=%d lacks coins for purchase: has %d, needs %d",
-                buyerAuth, buyerBank.getCoins(), totalCost);
+                buyerAuth, buyerBank.getCoins(), totalCostLong);
             return false;
         }
 
-        if (!buyerBank.removeCoins(totalCost)) {
-            ModLogger.error("Failed to remove %d coins from bank for player auth=%d", totalCost, buyerAuth);
+        if (!buyerBank.removeCoins(totalCostLong)) {
+            ModLogger.error("Failed to remove %d coins from bank for player auth=%d", totalCostLong, buyerAuth);
             return false;
         }
 
@@ -1146,14 +1157,14 @@ public class GrandExchangeLevelData extends LevelData {
         BuyOrder instantOrder = new BuyOrder(orderID, buyerAuth, resolvedBuyerName, -1);
         if (!instantOrder.configure(offer.getItemStringID(), quantity, pricePerItem, 1)) {
             buyerInventory.removeCoinsFromEscrow(totalCost);
-            buyerBank.addCoins(totalCost);
+            buyerBank.addCoins(totalCostLong);
             ModLogger.warn("Failed to configure instant buy order for offer ID=%d", offerID);
             return false;
         }
 
         if (!instantOrder.enable()) {
             buyerInventory.removeCoinsFromEscrow(totalCost);
-            buyerBank.addCoins(totalCost);
+            buyerBank.addCoins(totalCostLong);
             ModLogger.warn("Failed to enable instant buy order for offer ID=%d", offerID);
             return false;
         }
@@ -1161,7 +1172,7 @@ public class GrandExchangeLevelData extends LevelData {
         TradeTransaction.TradeResult tradeResult = executeTradeWithTransaction(level, instantOrder, offer, quantity, pricePerItem);
         if (tradeResult == null) {
             buyerInventory.removeCoinsFromEscrow(totalCost);
-            buyerBank.addCoins(totalCost);
+            buyerBank.addCoins(totalCostLong);
             ModLogger.warn("Trade transaction failed for manual purchase (offer ID=%d)", offerID);
             return false;
         }
@@ -1171,15 +1182,12 @@ public class GrandExchangeLevelData extends LevelData {
 
         return true;
     }
-    
-    // Legacy matching helpers removed — replaced by persistent OrderBook flows.
-    
-    // ===== DEPRECATED LEGACY MATCHING (TO BE REMOVED) =====
 
-    
+    // ===== TRADE EXECUTION & COLLECTION MANAGEMENT =====
+
     /**
      * Execute a trade using the TradeTransaction service for atomic operations.
-     * NEW ENTERPRISE VERSION: Uses prepare/commit/rollback pattern.
+     * Uses prepare/commit/rollback pattern for atomicity.
      */
     private TradeTransaction.TradeResult executeTradeWithTransaction(Level level, BuyOrder buyOrder, GEOffer sellOffer, 
                                             int quantity, int pricePerItem) {
@@ -1198,6 +1206,7 @@ public class GrandExchangeLevelData extends LevelData {
         // Phase 1: Prepare
         if (!transaction.prepare()) {
             ModLogger.error("Trade preparation failed: %s", transaction.getFailureReason());
+            logTradeFailure("prepare", buyOrder, sellOffer, quantity, pricePerItem, transaction);
             return null;
         }
         
@@ -1205,6 +1214,7 @@ public class GrandExchangeLevelData extends LevelData {
         TradeTransaction.TradeResult result = transaction.commit();
         if (result == null) {
             ModLogger.error("Trade commit failed: %s", transaction.getFailureReason());
+            logTradeFailure("commit", buyOrder, sellOffer, quantity, pricePerItem, transaction);
             return null;
         }
         
@@ -1233,6 +1243,17 @@ public class GrandExchangeLevelData extends LevelData {
         }
 
         PlayerGEInventory sellerInventory = getInventory(sellOffer.getPlayerAuth());
+        SellOfferSaleEvent saleEvent = new SellOfferSaleEvent(
+            sellOffer.getInventorySlot(),
+            sellOffer.getItemStringID(),
+            quantity,
+            sellOffer.getQuantityRemaining(),
+            pricePerItem,
+            System.currentTimeMillis()
+        );
+        notifyPlayerSaleEvent(level, sellOffer.getPlayerAuth(), saleEvent);
+
+        // Create seller history entry (sale)
         if (sellerInventory != null) {
             SaleNotification saleNotification = new SaleNotification(
                 sellOffer.getItemStringID(),
@@ -1240,48 +1261,46 @@ public class GrandExchangeLevelData extends LevelData {
                 pricePerItem,
                 totalCoins,
                 sellOffer.getQuantityRemaining() > 0,
-                buyOrder.getPlayerName()
+                buyOrder.getPlayerName(),
+                true  // isSale = true for seller
             );
             sellerInventory.addSaleNotification(saleNotification);
+            HistoryEntrySnapshot entrySnapshot = toHistoryEntrySnapshot(saleNotification);
+            List<HistoryEntrySnapshot> deltaEntries = entrySnapshot == null
+                ? Collections.emptyList()
+                : List.of(entrySnapshot);
+            sendHistoryUpdate(level, sellOffer.getPlayerAuth(), deltaEntries);
+        }
+
+        // Create buyer history entry (purchase) - only for non-ephemeral orders
+        if (!isEphemeralOrder) {
+            PlayerGEInventory buyerInventory = getInventory(buyOrder.getPlayerAuth());
+            if (buyerInventory != null) {
+                SaleNotification purchaseNotification = new SaleNotification(
+                    sellOffer.getItemStringID(),
+                    quantity,
+                    pricePerItem,
+                    totalCoins,
+                    buyOrder.getQuantityRemaining() > 0,
+                    sellOffer.getPlayerName(),
+                    false  // isSale = false for buyer (this is a purchase)
+                );
+                buyerInventory.addSaleNotification(purchaseNotification);
+                HistoryEntrySnapshot entrySnapshot = toHistoryEntrySnapshot(purchaseNotification);
+                List<HistoryEntrySnapshot> deltaEntries = entrySnapshot == null
+                    ? Collections.emptyList()
+                    : List.of(entrySnapshot);
+                sendHistoryUpdate(level, buyOrder.getPlayerAuth(), deltaEntries);
+            }
         }
         
         // Update indexes if orders/offers are complete
         if (buyOrder.getState() == BuyOrder.BuyOrderState.COMPLETED) {
-            if (buyOrder.getItemStringID() != null) {
-                buyOrdersByItem.computeIfPresent(buyOrder.getItemStringID(), (k, list) -> {
-                    synchronized (list) {
-                        list.remove(buyOrder.getOrderID());
-                        return list.isEmpty() ? null : list;
-                    }
-                });
-            }
-            // Also remove from persistent OrderBook
-            OrderBook buyBook = orderBooksByItem.get(buyOrder.getItemStringID());
-            if (buyBook != null) {
-                buyBook.removeBuyOrder(buyOrder.getOrderID());
-                if (buyBook.isEmpty()) {
-                    orderBooksByItem.remove(buyOrder.getItemStringID());
-                }
-            }
+            removeBuyOrderFromIndexes(buyOrder);
         }
 
         if (sellOffer.getState() == GEOffer.OfferState.COMPLETED) {
-            if (sellOffer.getItemStringID() != null) {
-                offersByItem.computeIfPresent(sellOffer.getItemStringID(), (k, list) -> {
-                    synchronized (list) {
-                        list.remove(sellOffer.getOfferID());
-                        return list.isEmpty() ? null : list;
-                    }
-                });
-            }
-            // Also remove from persistent OrderBook
-            OrderBook sellBook = orderBooksByItem.get(sellOffer.getItemStringID());
-            if (sellBook != null) {
-                sellBook.removeSellOffer(sellOffer.getOfferID());
-                if (sellBook.isEmpty()) {
-                    orderBooksByItem.remove(sellOffer.getItemStringID());
-                }
-            }
+            removeSellOfferFromIndexes(sellOffer);
         }
         
         // Save to repository
@@ -1299,7 +1318,48 @@ public class GrandExchangeLevelData extends LevelData {
             "qty=%d, price=%d/ea, execution time=%dms",
             buyOrder.getOrderID(), sellOffer.getOfferID(), quantity, pricePerItem, executionTime);
 
+        notifyPlayerCollectionBox(level, buyOrder.getPlayerAuth());
+        markPersistenceDirty();
         return result;
+    }
+
+    private void logTradeFailure(String phase,
+                                 BuyOrder buyOrder,
+                                 GEOffer sellOffer,
+                                 int quantity,
+                                 int pricePerItem,
+                                 TradeTransaction transaction) {
+        String reason = transaction != null && transaction.getFailureReason() != null
+            ? transaction.getFailureReason()
+            : "unknown";
+        long buyOrderId = buyOrder != null ? buyOrder.getOrderID() : -1L;
+        String buyState = buyOrder != null ? buyOrder.getState().name() : "null";
+        int buyRemaining = buyOrder != null ? buyOrder.getQuantityRemaining() : -1;
+        long buyAuth = buyOrder != null ? buyOrder.getPlayerAuth() : -1L;
+
+        long sellOfferId = sellOffer != null ? sellOffer.getOfferID() : -1L;
+        String sellState = sellOffer != null ? sellOffer.getState().name() : "null";
+        int sellRemaining = sellOffer != null ? sellOffer.getQuantityRemaining() : -1;
+        long sellAuth = sellOffer != null ? sellOffer.getPlayerAuth() : -1L;
+
+        ModLogger.error(
+            "[GE TRADE FAILURE] phase=%s reason=%s buyOrder{id=%d,state=%s,remaining=%d,price=%d,auth=%d} " +
+                "sellOffer{id=%d,state=%s,remaining=%d,price=%d,auth=%d} qty=%d execPrice=%d",
+            phase,
+            reason,
+            buyOrderId,
+            buyState,
+            buyRemaining,
+            buyOrder != null ? buyOrder.getPricePerItem() : -1,
+            buyAuth,
+            sellOfferId,
+            sellState,
+            sellRemaining,
+            sellOffer != null ? sellOffer.getPricePerItem() : -1,
+            sellAuth,
+            quantity,
+            pricePerItem
+        );
     }
 
     
@@ -1313,7 +1373,32 @@ public class GrandExchangeLevelData extends LevelData {
             return null;
         }
         
-        return inventory.removeFromCollectionBox(index);
+        CollectionItem removed = inventory.removeFromCollectionBox(index);
+        if (removed != null) {
+            markPersistenceDirty();
+        }
+        return removed;
+    }
+
+    public void setCollectionDepositPreference(long playerAuth, boolean preferBank) {
+        PlayerGEInventory inventory = getOrCreateInventory(playerAuth);
+        inventory.setCollectionDepositToBankPreferred(preferBank);
+        markPersistenceDirty();
+    }
+
+    public CollectionPaginator.Page getCollectionPage(long playerAuth, int requestedPage) {
+        PlayerGEInventory inventory = getOrCreateInventory(playerAuth);
+        CollectionPaginator.Page page = CollectionPaginator.paginate(
+            inventory.getCollectionBox(),
+            requestedPage
+        );
+        inventory.setCollectionPageIndex(page.getPageIndex());
+        return page;
+    }
+
+    public CollectionPaginator.Page getCollectionPage(long playerAuth) {
+        PlayerGEInventory inventory = getOrCreateInventory(playerAuth);
+        return getCollectionPage(playerAuth, inventory.getCollectionPageIndex());
     }
     
     /**
@@ -1332,20 +1417,27 @@ public class GrandExchangeLevelData extends LevelData {
         }
         
         PlayerBank bank = bankingData.getOrCreateBank(playerAuth);
-        List<CollectionItem> collectionBox = new ArrayList<>(inventory.getCollectionBox());
         int transferred = 0;
-        
-        for (int i = collectionBox.size() - 1; i >= 0; i--) {
-            CollectionItem item = collectionBox.get(i);
+
+        for (int i = inventory.getCollectionBoxSize() - 1; i >= 0; i--) {
+            CollectionItem item = inventory.removeFromCollectionBox(i);
+            if (item == null) {
+                continue;
+            }
+
             InventoryItem invItem = item.toInventoryItem();
-            
             if (bank.getInventory().addItem(level, null, invItem, "geCollection", null)) {
-                inventory.removeFromCollectionBox(i);
                 transferred++;
+            } else {
+                inventory.insertIntoCollectionBox(i, item);
             }
         }
-        
+
         ModLogger.info("Collected %d items from collection box to bank for player auth=%d", transferred, playerAuth);
+        notifyPlayerCollectionBox(level, playerAuth);
+        if (transferred > 0) {
+            markPersistenceDirty();
+        }
         return transferred;
     }
     
@@ -1406,14 +1498,7 @@ public class GrandExchangeLevelData extends LevelData {
         
         ModLogger.debug("Recorded sale: %s x%d @ %d coins (total: %d coins)",
             itemStringID, quantity, pricePerItem, totalCoins);
-    }
-    
-    /**
-     * @deprecated Use recordSale(String, int, int, long) with full parameters. Phase 6 removal.
-     */
-    @Deprecated
-    public void recordSale(String itemStringID, int pricePerItem) {
-        recordSale(itemStringID, pricePerItem, 1, pricePerItem);
+        markPersistenceDirty();
     }
 
     /**
@@ -1521,6 +1606,98 @@ public class GrandExchangeLevelData extends LevelData {
     public RateLimitService getRateLimitService() {
         return rateLimitService;
     }
+
+    // ===== DIAGNOSTICS & PERSISTENCE =====
+
+    public DiagnosticsReport buildDiagnosticsReport() {
+        java.util.Collection<PlayerGEInventory> inventoryValues = getAllInventories();
+        int activeInventories = inventoryValues.size();
+        long backlogEntries = 0L;
+        long backlogPlayers = 0L;
+        long playersWithOffers = 0L;
+        long totalEscrow = 0L;
+        for (PlayerGEInventory inventory : inventoryValues) {
+            int collectionSize = inventory.getCollectionBoxSize();
+            backlogEntries += collectionSize;
+            if (collectionSize > 0) {
+                backlogPlayers++;
+            }
+            if (inventory.hasAnyActiveOffers()) {
+                playersWithOffers++;
+            }
+            totalEscrow += inventory.getCoinsInEscrow();
+        }
+
+        int activeSellOffers = getActiveOfferCount();
+        int activeBuyOrders = orderBooksByItem.values().stream()
+            .mapToInt(OrderBook::getBuyOrderCount)
+            .sum();
+        int trackedItems = orderBooksByItem.size();
+
+        int trackedRatePlayers = rateLimitService != null ? rateLimitService.getTrackedPlayerCount() : 0;
+        int rateChecks = rateLimitService != null ? rateLimitService.getTotalChecks() : 0;
+        float denialRate = rateLimitService != null ? rateLimitService.getDenialRate() : 0f;
+
+        return new DiagnosticsReport(
+            System.currentTimeMillis(),
+            activeInventories,
+            totalInventoriesCreated,
+            backlogEntries,
+            backlogPlayers,
+            playersWithOffers,
+            totalEscrow,
+            activeSellOffers,
+            activeBuyOrders,
+            trackedItems,
+            totalTradesCompleted,
+            totalVolumeTraded,
+            trackedRatePlayers,
+            rateChecks,
+            denialRate
+        );
+    }
+
+    public DiagnosticsSnapshot captureDiagnosticsSnapshot(String requestedBy, long requestedAuth) {
+        DiagnosticsReport report = buildDiagnosticsReport();
+        DiagnosticsSnapshot snapshot = new DiagnosticsSnapshot(
+            requestedBy == null ? "system" : requestedBy,
+            requestedAuth,
+            report
+        );
+        synchronized (diagnosticsHistory) {
+            diagnosticsHistory.addFirst(snapshot);
+            int maxSnapshots = getConfiguredDiagnosticsCapacity();
+            while (diagnosticsHistory.size() > maxSnapshots) {
+                diagnosticsHistory.removeLast();
+            }
+        }
+        markPersistenceDirty();
+        return snapshot;
+    }
+
+    public java.util.List<DiagnosticsSnapshot> getDiagnosticsHistory(int limit) {
+        int maxSnapshots = getConfiguredDiagnosticsCapacity();
+        int normalized = limit <= 0 ? maxSnapshots : Math.min(limit, maxSnapshots);
+        java.util.List<DiagnosticsSnapshot> snapshots = new ArrayList<>(normalized);
+        synchronized (diagnosticsHistory) {
+            int index = 0;
+            for (DiagnosticsSnapshot snapshot : diagnosticsHistory) {
+                if (index++ >= normalized) {
+                    break;
+                }
+                snapshots.add(snapshot.copy());
+            }
+        }
+        return snapshots;
+    }
+
+    public void forcePersistenceFlush(String reason) {
+        DiagnosticsSnapshot snapshot = captureDiagnosticsSnapshot(
+            reason == null ? "manual" : reason,
+            -1L
+        );
+        ModLogger.info("Grand Exchange persistence snapshot captured (%s) at %d", reason, snapshot.getReport().getTimestamp());
+    }
     
     /**
      * Get the offer repository for data access.
@@ -1539,58 +1716,6 @@ public class GrandExchangeLevelData extends LevelData {
         rateLimitService.cleanup();
         notificationService.cleanup();
         ModLogger.debug("GE service cleanup completed");
-    }
-    
-    // ===== LEGACY COMPATIBILITY (Phase 6 Removal) =====
-    
-    /**
-     * @deprecated Use getAllActiveOffers() instead. This is a temporary compatibility method
-     * for old container code. Will be removed in Phase 6 when container is rewritten.
-     */
-    @Deprecated
-    public List<medievalsim.grandexchange.domain.MarketListing> getAllListings() {
-        // Return empty list - old MarketListing system deprecated
-        ModLogger.warn("getAllListings() called - deprecated, returning empty list. Phase 6 rewrite needed.");
-        return new ArrayList<>();
-    }
-    
-    /**
-     * @deprecated Use getPlayerOffers() instead. Phase 6 removal.
-     */
-    @Deprecated
-    public List<medievalsim.grandexchange.domain.MarketListing> getListingsBySeller(long playerAuth) {
-        ModLogger.warn("getListingsBySeller() called - deprecated, returning empty list. Phase 6 rewrite needed.");
-        return new ArrayList<>();
-    }
-    
-    /**
-     * @deprecated Use getOffer() instead. Phase 6 removal.
-     */
-    @Deprecated
-    public medievalsim.grandexchange.domain.MarketListing getListing(long offerID) {
-        ModLogger.warn("getListing() called - deprecated, returning null. Phase 6 rewrite needed.");
-        return null;
-    }
-    
-    /**
-     * @deprecated Use createSellOffer() instead. Phase 6 removal.
-     */
-    @Deprecated
-    public medievalsim.grandexchange.domain.MarketListing createListing(ServerClient seller, 
-                                                                         String itemStringID, 
-                                                                         int quantity, 
-                                                                         int pricePerItem) {
-        ModLogger.warn("createListing() called - deprecated. Phase 6 rewrite needed.");
-        return null;
-    }
-    
-    /**
-     * @deprecated Use cancelOffer() instead. Phase 6 removal.
-     */
-    @Deprecated
-    public boolean removeListing(long offerID) {
-        ModLogger.warn("removeListing() called - deprecated. Phase 6 rewrite needed.");
-        return false;
     }
     
     // ===== TICK & CLEANUP =====
@@ -1617,6 +1742,16 @@ public class GrandExchangeLevelData extends LevelData {
             // Clean up service layer
             performServiceCleanup();
         }
+
+        persistenceTickCounter++;
+        if (persistenceTickCounter >= PERSIST_INTERVAL_TICKS) {
+            persistenceTickCounter = 0;
+            DiagnosticsSnapshot snapshot = captureDiagnosticsSnapshot("system-autosave", -1L);
+            ModLogger.debug("[GE] Captured periodic diagnostics snapshot at %d (sell=%d buy=%d)",
+                snapshot.getReport().getTimestamp(),
+                snapshot.getReport().getActiveSellOffers(),
+                snapshot.getReport().getActiveBuyOrders());
+        }
     }
 
     /**
@@ -1625,7 +1760,6 @@ public class GrandExchangeLevelData extends LevelData {
      */
     public void cleanupExpiredOffers(Level level) {
         int expired = 0;
-        int returned = 0;
         
         Iterator<Map.Entry<Long, GEOffer>> iterator = offers.entrySet().iterator();
         while (iterator.hasNext()) {
@@ -1639,60 +1773,21 @@ public class GrandExchangeLevelData extends LevelData {
                 PlayerGEInventory inventory = inventories.get(offer.getPlayerAuth());
                 if (inventory != null) {
                     int slot = offer.getInventorySlot();
-                    
-                    // Return items to bank if enabled
-                    if (ModConfig.GrandExchange.returnExpiredToBank &&
-                        ModConfig.Banking.enabled &&
-                        offer.getType() == GEOffer.OfferType.SELL) {
-
-                        medievalsim.banking.domain.BankingLevelData bankingData =
-                            medievalsim.banking.domain.BankingLevelData.getBankingData(level);
-
-                        if (bankingData != null) {
-                            medievalsim.banking.domain.PlayerBank playerBank =
-                                bankingData.getOrCreateBank(offer.getPlayerAuth());
-
-                            necesse.inventory.InventoryItem unsoldItem = inventory.getSlotItem(slot);
-                            if (unsoldItem != null && unsoldItem.getAmount() > 0) {
-                                boolean success = playerBank.getInventory().addItem(
-                                    level,
-                                    null,
-                                    unsoldItem,
-                                    "grandexchange_expired",
-                                    null
-                                );
-
-                                if (success) {
-                                    // Clear GE slot after returning to bank
-                                    inventory.clearSlot(slot);
-                                    returned++;
-                                    ModLogger.debug("Returned %d x %s to bank (offer expired, player auth=%d)",
-                                        unsoldItem.getAmount(), offer.getItemStringID(), offer.getPlayerAuth());
-                                } else {
-                                    ModLogger.warn("Failed to return expired items to bank (bank full?) - items remain in GE slot");
-                                }
-                            }
-                        }
-                    } else {
-                        // Just clear the slot offer link (items stay in GE slot for manual retrieval)
-                        inventory.setSlotOffer(slot, null);
-                    }
-                    
+                    inventory.setSlotOffer(slot, null);
+                    refundOfferItems(level, offer, inventory, "Offer expired",
+                        ModConfig.GrandExchange.returnExpiredToBank && ModConfig.Banking.enabled);
                     inventory.recordSellOfferCompleted();
                 }
                 
-                // Remove from item index
-                List<Long> itemOffers = offersByItem.get(offer.getItemStringID());
-                if (itemOffers != null) {
-                    itemOffers.remove(offer.getOfferID());
-                }
+                removeSellOfferFromIndexes(offer);
                 
                 expired++;
             }
         }
         
         if (expired > 0) {
-            ModLogger.info("Cleaned up %d expired offers (%d items returned to banks)", expired, returned);
+            ModLogger.info("Cleaned up %d expired offers", expired);
+            markPersistenceDirty();
         }
     }
 
@@ -1709,41 +1804,11 @@ public class GrandExchangeLevelData extends LevelData {
             return;
         }
         
-        // Extract offer data from playerInventory
-        int slotCount = ModConfig.GrandExchange.geInventorySlots;
-        long[] offerIDs = new long[slotCount];
-        String[] itemStringIDs = new String[slotCount];
-        int[] quantityTotal = new int[slotCount];
-        boolean[] offerEnabled = new boolean[slotCount];
-        int[] offerStates = new int[slotCount];
-        int[] offerPrices = new int[slotCount];
-        int[] offerQuantitiesRemaining = new int[slotCount];
-        
-        for (int i = 0; i < slotCount; i++) {
-            GEOffer offer = inventory.getSlotOffer(i);
-            if (offer != null) {
-                offerIDs[i] = offer.getOfferID();
-                itemStringIDs[i] = offer.getItemStringID();
-                quantityTotal[i] = offer.getQuantityTotal();
-                offerEnabled[i] = offer.isEnabled();
-                offerStates[i] = offer.getState().ordinal();
-                offerPrices[i] = offer.getPricePerItem();
-                offerQuantitiesRemaining[i] = offer.getQuantityRemaining();
-            } else {
-                offerIDs[i] = 0;
-                itemStringIDs[i] = "";
-                quantityTotal[i] = 0;
-                offerEnabled[i] = false;
-                offerStates[i] = 0;
-                offerPrices[i] = 0;
-                offerQuantitiesRemaining[i] = 0;
-            }
-        }
-        
-        medievalsim.packets.PacketGESellInventorySync packet = 
+        medievalsim.packets.PacketGESellInventorySync packet =
             new medievalsim.packets.PacketGESellInventorySync(
-                playerAuth, offerIDs, itemStringIDs, quantityTotal, 
-                offerEnabled, offerStates, offerPrices, offerQuantitiesRemaining);
+                playerAuth,
+                inventory.getSellOffers()
+            );
         
         client.sendPacket(packet);
         ModLogger.debug("Sent sell inventory sync to player auth=%d", playerAuth);
@@ -1771,9 +1836,185 @@ public class GrandExchangeLevelData extends LevelData {
         if (server == null) return;
         ServerClient client = server.getClientByAuth(playerAuth);
         if (client != null) {
+            PlayerGEInventory inventory = getPlayerInventorySnapshot(playerAuth);
+            RateLimitStatus creationStatus = rateLimitStatus(RateLimitedAction.BUY_CREATE, playerAuth);
+            RateLimitStatus toggleStatus = rateLimitStatus(RateLimitedAction.BUY_TOGGLE, playerAuth);
+
             medievalsim.packets.PacketGEBuyOrderSync packet =
-                new medievalsim.packets.PacketGEBuyOrderSync(playerAuth, getPlayerInventorySnapshot(playerAuth).getBuyOrders());
+                new medievalsim.packets.PacketGEBuyOrderSync(
+                    playerAuth,
+                    inventory.getBuyOrders(),
+                    analyticsService,
+                    inventory,
+                    creationStatus,
+                    toggleStatus
+                );
             client.sendPacket(packet);
+        }
+    }
+
+    private RateLimitStatus rateLimitStatus(RateLimitedAction action, long playerAuth) {
+        if (rateLimitService == null) {
+            return RateLimitStatus.inactive(action);
+        }
+        return rateLimitService.snapshot(action, playerAuth);
+    }
+
+    private void notifyPlayerCollectionBox(Level level, long playerAuth) {
+        if (level == null || !level.isServer()) return;
+        Server server = level.getServer();
+        if (server == null) return;
+        ServerClient client = server.getClientByAuth(playerAuth);
+        if (client == null) {
+            return;
+        }
+
+        PlayerGEInventory inventory = getOrCreateInventory(playerAuth);
+        CollectionPaginator.Page page = CollectionPaginator.paginate(
+            inventory.getCollectionBox(),
+            inventory.getCollectionPageIndex()
+        );
+        client.sendPacket(new PacketGECollectionSync(
+            playerAuth,
+            page,
+            inventory.isCollectionDepositToBankPreferred(),
+            inventory.isAutoSendToBank(),
+            inventory.isNotifyPartialSales(),
+            inventory.isPlaySoundOnSale()
+        ));
+    }
+
+    public void sendHistoryUpdate(Level level, long playerAuth, List<HistoryEntrySnapshot> newEntries) {
+        sendHistoryUpdate(level, playerAuth, newEntries, false);
+    }
+
+    public void sendHistoryUpdate(Level level, long playerAuth, List<HistoryEntrySnapshot> newEntries, boolean fallbackToSnapshot) {
+        if (newEntries == null) {
+            sendHistorySnapshot(level, playerAuth);
+            return;
+        }
+        boolean delivered = sendHistoryDelta(level, playerAuth, newEntries);
+        if (!delivered && fallbackToSnapshot) {
+            sendHistorySnapshot(level, playerAuth);
+        }
+    }
+
+    private boolean sendHistoryDelta(Level level, long playerAuth, List<HistoryEntrySnapshot> newEntries) {
+        if (level == null || !level.isServer()) {
+            return false;
+        }
+        Server server = level.getServer();
+        if (server == null) {
+            return false;
+        }
+        ServerClient client = server.getClientByAuth(playerAuth);
+        if (client == null || !(client.getContainer() instanceof GrandExchangeContainer)) {
+            return false;
+        }
+        PlayerGEInventory inventory = getOrCreateInventory(playerAuth);
+        HistoryDeltaPayload payload = buildHistoryDeltaPayload(inventory, newEntries);
+        if (payload == null) {
+            return false;
+        }
+        client.sendPacket(new PacketGEHistoryDelta(payload));
+        sendHistoryBadge(client, inventory);
+        return true;
+    }
+
+    private void sendHistorySnapshot(Level level, long playerAuth) {
+        if (level == null || !level.isServer()) {
+            return;
+        }
+        Server server = level.getServer();
+        if (server == null) {
+            return;
+        }
+        ServerClient client = server.getClientByAuth(playerAuth);
+        if (client == null || !(client.getContainer() instanceof GrandExchangeContainer)) {
+            return;
+        }
+        PlayerGEInventory inventory = getOrCreateInventory(playerAuth);
+        if (inventory == null) {
+            return;
+        }
+        client.sendPacket(new PacketGEHistorySync(playerAuth, inventory));
+        sendHistoryBadge(client, inventory);
+    }
+
+    private void sendHistoryBadge(ServerClient client, PlayerGEInventory inventory) {
+        if (client == null || !(client.getContainer() instanceof GrandExchangeContainer)) {
+            return;
+        }
+        if (inventory == null) {
+            return;
+        }
+        client.sendPacket(new PacketGEHistoryBadge(
+            inventory.getOwnerAuth(),
+            inventory.getUnseenHistoryCount(),
+            inventory.getLatestHistoryTimestamp(),
+            inventory.getLastHistoryViewedTimestamp()
+        ));
+    }
+
+    private HistoryDeltaPayload buildHistoryDeltaPayload(PlayerGEInventory inventory, List<HistoryEntrySnapshot> newEntries) {
+        if (inventory == null) {
+            return null;
+        }
+        List<HistoryEntrySnapshot> safeEntries = (newEntries == null || newEntries.isEmpty())
+            ? Collections.emptyList()
+            : newEntries;
+        return new HistoryDeltaPayload(
+            inventory.getOwnerAuth(),
+            safeEntries,
+            inventory.getTotalItemsPurchased(),
+            inventory.getTotalItemsSold(),
+            inventory.getTotalSellOffersCreated(),
+            inventory.getTotalSellOffersCompleted(),
+            inventory.getTotalBuyOrdersCreated(),
+            inventory.getTotalBuyOrdersCompleted(),
+            inventory.getLatestHistoryTimestamp(),
+            inventory.getLastHistoryViewedTimestamp()
+        );
+    }
+
+    private HistoryEntrySnapshot toHistoryEntrySnapshot(SaleNotification notification) {
+        if (notification == null) {
+            return null;
+        }
+        return new HistoryEntrySnapshot(
+            notification.getItemStringID(),
+            notification.getQuantityTraded(),
+            notification.getPricePerItem(),
+            notification.getTotalCoins(),
+            notification.isPartial(),
+            notification.getCounterpartyName(),
+            notification.getTimestamp(),
+            notification.isSale()
+        );
+    }
+
+    private void notifyPlayerSaleEvent(Level level, long playerAuth, SellOfferSaleEvent event) {
+        if (event == null) {
+            return;
+        }
+
+        PlayerGEInventory inventory = getInventory(playerAuth);
+        boolean deliveredToActiveContainer = false;
+
+        if (level != null && level.isServer()) {
+            Server server = level.getServer();
+            if (server != null) {
+                ServerClient client = server.getClientByAuth(playerAuth);
+                if (client != null && client.getContainer() instanceof GrandExchangeContainer) {
+                    client.sendPacket(new PacketGESaleEvent(playerAuth, event));
+                    deliveredToActiveContainer = true;
+                }
+            }
+        }
+
+        if (!deliveredToActiveContainer && inventory != null) {
+            inventory.queuePendingSaleEvent(event);
+            markPersistenceDirty();
         }
     }
 
@@ -1781,6 +2022,206 @@ public class GrandExchangeLevelData extends LevelData {
     private PlayerGEInventory getPlayerInventorySnapshot(long playerAuth) {
         PlayerGEInventory inv = inventories.get(playerAuth);
         return inv == null ? new PlayerGEInventory(playerAuth) : inv;
+    }
+
+    private void removeSellOfferFromIndexes(GEOffer offer) {
+        if (offer == null) {
+            return;
+        }
+
+        String itemID = offer.getItemStringID();
+        if (itemID != null) {
+            offersByItem.computeIfPresent(itemID, (k, list) -> {
+                synchronized (list) {
+                    list.remove(offer.getOfferID());
+                    return list.isEmpty() ? null : list;
+                }
+            });
+        }
+
+        OrderBook book = itemID == null ? null : orderBooksByItem.get(itemID);
+        if (book != null) {
+            book.removeSellOffer(offer.getOfferID());
+            if (book.isEmpty()) {
+                orderBooksByItem.remove(itemID);
+            }
+        }
+    }
+
+    private void removeBuyOrderFromIndexes(BuyOrder order) {
+        if (order == null) {
+            return;
+        }
+
+        String itemID = order.getItemStringID();
+        if (itemID != null) {
+            buyOrdersByItem.computeIfPresent(itemID, (k, list) -> {
+                synchronized (list) {
+                    list.remove(order.getOrderID());
+                    return list.isEmpty() ? null : list;
+                }
+            });
+        }
+
+        OrderBook book = itemID == null ? null : orderBooksByItem.get(itemID);
+        if (book != null) {
+            book.removeBuyOrder(order.getOrderID());
+            if (book.isEmpty()) {
+                orderBooksByItem.remove(itemID);
+            }
+        }
+    }
+
+    private int refundBuyOrderEscrow(Level level,
+                                     PlayerGEInventory inventory,
+                                     BuyOrder order,
+                                     boolean addNotification) {
+        if (order == null) {
+            return 0;
+        }
+
+        int coinsToRefund = order.getTotalCoinsRequired();
+        if (coinsToRefund <= 0) {
+            return 0;
+        }
+
+        BankingLevelData bankingData = BankingLevelData.getBankingData(level);
+        if (bankingData == null) {
+            ModLogger.error("Banking system not available for buy order refund!");
+            return 0;
+        }
+
+        PlayerBank bank = bankingData.getOrCreateBank(order.getPlayerAuth());
+        bank.addCoins(coinsToRefund);
+
+        if (inventory != null) {
+            inventory.removeCoinsFromEscrow(coinsToRefund);
+            if (addNotification) {
+                SaleNotification refundNotification = new SaleNotification(
+                    "coins",
+                    coinsToRefund,
+                    1,
+                    coinsToRefund,
+                    false,
+                    "System"
+                );
+                inventory.addSaleNotification(refundNotification);
+            }
+        }
+
+        return coinsToRefund;
+    }
+
+    private void refundOfferItems(Level level, GEOffer offer, PlayerGEInventory inventory,
+                                   String source, boolean preferBankDeposit) {
+        if (offer == null) {
+            return;
+        }
+
+        InventoryItem slotItem = inventory != null
+            ? inventory.getSellInventory().getItem(offer.getInventorySlot())
+            : null;
+        InventoryItem refundStack = buildRefundStack(offer, slotItem);
+        if (refundStack == null || refundStack.item == null || refundStack.getAmount() <= 0) {
+            ModLogger.debug("No refundable items for offer ID=%d", offer.getOfferID());
+            if (inventory != null) {
+                inventory.getSellInventory().setItem(offer.getInventorySlot(), null);
+            }
+            return;
+        }
+
+        boolean delivered = tryGiveItemToPlayer(level, offer.getPlayerAuth(), refundStack.copy());
+        if (!delivered && preferBankDeposit) {
+            delivered = tryDepositToBank(level, offer.getPlayerAuth(), refundStack.copy());
+        }
+
+        if (!delivered && inventory != null) {
+            inventory.addToCollectionBox(refundStack.item.getStringID(), refundStack.getAmount(), source);
+            notifyPlayerCollectionBox(level, offer.getPlayerAuth());
+            delivered = true;
+        }
+
+        if (!delivered) {
+            ModLogger.warn("Failed to deliver refund for offer ID=%d (player auth=%d)",
+                offer.getOfferID(), offer.getPlayerAuth());
+        }
+
+        if (inventory != null) {
+            inventory.getSellInventory().setItem(offer.getInventorySlot(), null);
+        }
+    }
+
+    private InventoryItem buildRefundStack(GEOffer offer, InventoryItem slotItem) {
+        if (slotItem != null && slotItem.item != null && slotItem.getAmount() > 0) {
+            return slotItem.copy();
+        }
+
+        int quantity = Math.max(0, offer.getQuantityRemaining());
+        if (quantity <= 0) {
+            return null;
+        }
+
+        Item item = ItemRegistry.getItem(offer.getItemStringID());
+        if (item == null) {
+            ModLogger.warn("Cannot refund offer ID=%d: unknown item %s",
+                offer.getOfferID(), offer.getItemStringID());
+            return null;
+        }
+
+        InventoryItem fallback = new InventoryItem(item, quantity);
+        fallback.setAmount(quantity);
+        return fallback;
+    }
+
+    private boolean tryGiveItemToPlayer(Level level, long playerAuth, InventoryItem stack) {
+        if (stack == null || stack.item == null || level == null || !level.isServer()) {
+            return false;
+        }
+        Server server = level.getServer();
+        if (server == null) {
+            return false;
+        }
+        ServerClient client = server.getClientByAuth(playerAuth);
+        if (client == null || client.playerMob == null) {
+            return false;
+        }
+        InventoryItem copy = stack.copy();
+        boolean added = client.playerMob.getInv().main.addItem(
+            level,
+            client.playerMob,
+            copy,
+            "grandexchange_refund",
+            null
+        );
+        if (added) {
+            ModLogger.info("Returned %s x%d to player auth=%d",
+                copy.item.getStringID(), copy.getAmount(), playerAuth);
+        }
+        return added;
+    }
+
+    private boolean tryDepositToBank(Level level, long playerAuth, InventoryItem stack) {
+        if (!ModConfig.Banking.enabled || level == null || stack == null || stack.item == null) {
+            return false;
+        }
+        BankingLevelData bankingData = BankingLevelData.getBankingData(level);
+        if (bankingData == null) {
+            return false;
+        }
+        PlayerBank bank = bankingData.getOrCreateBank(playerAuth);
+        InventoryItem copy = stack.copy();
+        boolean added = bank.getInventory().addItem(
+            level,
+            null,
+            copy,
+            "grandexchange_refund_bank",
+            null
+        );
+        if (added) {
+            ModLogger.info("Deposited %s x%d to bank for player auth=%d",
+                copy.item.getStringID(), copy.getAmount(), playerAuth);
+        }
+        return added;
     }
     
     @Override
@@ -1843,6 +2284,28 @@ public class GrandExchangeLevelData extends LevelData {
             auditLog.addSaveData(auditSave);
             save.addSaveData(auditSave);
         }
+
+        if (analyticsService != null) {
+            SaveData analyticsSave = new SaveData("MARKET_ANALYTICS");
+            analyticsService.addSaveData(analyticsSave);
+            save.addSaveData(analyticsSave);
+        }
+
+        if (rateLimitService != null) {
+            SaveData rateLimitSave = new SaveData("RATE_LIMIT");
+            rateLimitService.addSaveData(rateLimitSave);
+            save.addSaveData(rateLimitSave);
+        }
+
+        SaveData diagnosticsData = new SaveData("DIAGNOSTICS_HISTORY");
+        synchronized (diagnosticsHistory) {
+            for (DiagnosticsSnapshot snapshot : diagnosticsHistory) {
+                SaveData snapshotSave = new SaveData("SNAPSHOT");
+                snapshot.addSaveData(snapshotSave);
+                diagnosticsData.addSaveData(snapshotSave);
+            }
+        }
+        save.addSaveData(diagnosticsData);
         
         ModLogger.debug("Saved %d inventories, %d offers, %d buy orders, %d price histories",
             inventories.size(), offers.size(), buyOrders.size(), priceHistory.size());
@@ -1853,6 +2316,8 @@ public class GrandExchangeLevelData extends LevelData {
         super.applyLoadData(load); // CRITICAL: Restore parent LevelData state
         
         ModLogger.debug("Loading GrandExchangeLevelData...");
+        
+        repository.clearAll();
         
         // Load ID generators
         nextOfferID.set(load.getLong("nextOfferID", 1L));
@@ -1880,8 +2345,7 @@ public class GrandExchangeLevelData extends LevelData {
                     inventory.applyLoadData(inventoryLoad);
                     inventories.put(ownerAuth, inventory);
                 } catch (Exception e) {
-                    ModLogger.error("Failed to load GE inventory: %s", e.getMessage());
-                    e.printStackTrace();
+                    ModLogger.error("Failed to load GE inventory", e);
                 }
             }
         }
@@ -1900,9 +2364,9 @@ public class GrandExchangeLevelData extends LevelData {
                     // Rebuild item index
                     offersByItem.computeIfAbsent(offer.getItemStringID(), k -> new ArrayList<>())
                         .add(offer.getOfferID());
+                    repository.saveSellOffer(offer);
                 } catch (Exception e) {
-                    ModLogger.error("Failed to load GE offer: %s", e.getMessage());
-                    e.printStackTrace();
+                    ModLogger.error("Failed to load GE offer", e);
                 }
             }
         }
@@ -1946,10 +2410,11 @@ public class GrandExchangeLevelData extends LevelData {
                         if (inventory != null) {
                             inventory.setBuyOrder(order.getSlotIndex(), order);
                         }
+
+                        repository.saveBuyOrder(order);
                     }
                 } catch (Exception e) {
-                    ModLogger.error("Failed to load buy order: %s", e.getMessage());
-                    e.printStackTrace();
+                    ModLogger.error("Failed to load buy order", e);
                 }
             }
         }
@@ -1980,13 +2445,257 @@ public class GrandExchangeLevelData extends LevelData {
                 auditLog.applyLoadData(auditLogData);
                 ModLogger.info("Loaded audit entries from save");
             } catch (Exception e) {
-                ModLogger.error("Failed to load audit log: %s", e.getMessage());
-                e.printStackTrace();
+                ModLogger.error("Failed to load audit log", e);
+            }
+        }
+
+        LoadData analyticsData = load.getFirstLoadDataByName("MARKET_ANALYTICS");
+        if (analyticsService != null && analyticsData != null) {
+            analyticsService.applyLoadData(analyticsData);
+        }
+
+        LoadData rateLimitData = load.getFirstLoadDataByName("RATE_LIMIT");
+        if (rateLimitService != null && rateLimitData != null) {
+            rateLimitService.applyLoadData(rateLimitData);
+        }
+
+        LoadData diagnosticsData = load.getFirstLoadDataByName("DIAGNOSTICS_HISTORY");
+        if (diagnosticsData != null) {
+            synchronized (diagnosticsHistory) {
+                diagnosticsHistory.clear();
+                for (LoadData snapshotLoad : diagnosticsData.getLoadDataByName("SNAPSHOT")) {
+                    DiagnosticsSnapshot snapshot = DiagnosticsSnapshot.fromLoadData(snapshotLoad);
+                    if (snapshot != null) {
+                        diagnosticsHistory.addLast(snapshot);
+                    }
+                }
             }
         }
         
         ModLogger.info("Loaded GE data: %d inventories, %d offers, %d buy orders, %d price histories (trades: %d, volume: %d coins)",
             inventories.size(), offers.size(), buyOrders.size(), priceHistory.size(), totalTradesCompleted, totalVolumeTraded);
+    }
+
+    public static final class DiagnosticsReport {
+        private final long timestamp;
+        private final int activeInventories;
+        private final long totalInventoriesCreated;
+        private final long backlogEntries;
+        private final long backlogPlayers;
+        private final long playersWithOffers;
+        private final long totalEscrow;
+        private final int activeSellOffers;
+        private final int activeBuyOrders;
+        private final int trackedItems;
+        private final long totalTrades;
+        private final long totalVolume;
+        private final int trackedRatePlayers;
+        private final int rateChecks;
+        private final float denialRate;
+
+        public DiagnosticsReport(long timestamp,
+                                  int activeInventories,
+                                  long totalInventoriesCreated,
+                                  long backlogEntries,
+                                  long backlogPlayers,
+                                  long playersWithOffers,
+                                  long totalEscrow,
+                                  int activeSellOffers,
+                                  int activeBuyOrders,
+                                  int trackedItems,
+                                  long totalTrades,
+                                  long totalVolume,
+                                  int trackedRatePlayers,
+                                  int rateChecks,
+                                  float denialRate) {
+            this.timestamp = timestamp;
+            this.activeInventories = activeInventories;
+            this.totalInventoriesCreated = totalInventoriesCreated;
+            this.backlogEntries = backlogEntries;
+            this.backlogPlayers = backlogPlayers;
+            this.playersWithOffers = playersWithOffers;
+            this.totalEscrow = totalEscrow;
+            this.activeSellOffers = activeSellOffers;
+            this.activeBuyOrders = activeBuyOrders;
+            this.trackedItems = trackedItems;
+            this.totalTrades = totalTrades;
+            this.totalVolume = totalVolume;
+            this.trackedRatePlayers = trackedRatePlayers;
+            this.rateChecks = rateChecks;
+            this.denialRate = denialRate;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
+
+        public int getActiveInventories() {
+            return activeInventories;
+        }
+
+        public long getTotalInventoriesCreated() {
+            return totalInventoriesCreated;
+        }
+
+        public long getBacklogEntries() {
+            return backlogEntries;
+        }
+
+        public long getBacklogPlayers() {
+            return backlogPlayers;
+        }
+
+        public long getPlayersWithOffers() {
+            return playersWithOffers;
+        }
+
+        public long getTotalEscrow() {
+            return totalEscrow;
+        }
+
+        public int getActiveSellOffers() {
+            return activeSellOffers;
+        }
+
+        public int getActiveBuyOrders() {
+            return activeBuyOrders;
+        }
+
+        public int getTrackedItems() {
+            return trackedItems;
+        }
+
+        public long getTotalTrades() {
+            return totalTrades;
+        }
+
+        public long getTotalVolume() {
+            return totalVolume;
+        }
+
+        public int getTrackedRatePlayers() {
+            return trackedRatePlayers;
+        }
+
+        public int getRateChecks() {
+            return rateChecks;
+        }
+
+        public float getDenialRate() {
+            return denialRate;
+        }
+
+        public DiagnosticsReport copy() {
+            return new DiagnosticsReport(
+                timestamp,
+                activeInventories,
+                totalInventoriesCreated,
+                backlogEntries,
+                backlogPlayers,
+                playersWithOffers,
+                totalEscrow,
+                activeSellOffers,
+                activeBuyOrders,
+                trackedItems,
+                totalTrades,
+                totalVolume,
+                trackedRatePlayers,
+                rateChecks,
+                denialRate
+            );
+        }
+
+        public void addSaveData(SaveData save) {
+            save.addLong("timestamp", timestamp);
+            save.addInt("activeInventories", activeInventories);
+            save.addLong("totalInventoriesCreated", totalInventoriesCreated);
+            save.addLong("backlogEntries", backlogEntries);
+            save.addLong("backlogPlayers", backlogPlayers);
+            save.addLong("playersWithOffers", playersWithOffers);
+            save.addLong("totalEscrow", totalEscrow);
+            save.addInt("activeSellOffers", activeSellOffers);
+            save.addInt("activeBuyOrders", activeBuyOrders);
+            save.addInt("trackedItems", trackedItems);
+            save.addLong("totalTrades", totalTrades);
+            save.addLong("totalVolume", totalVolume);
+            save.addInt("trackedRatePlayers", trackedRatePlayers);
+            save.addInt("rateChecks", rateChecks);
+            save.addFloat("denialRate", denialRate);
+        }
+
+        public static DiagnosticsReport fromLoadData(LoadData load) {
+            if (load == null) {
+                return null;
+            }
+            return new DiagnosticsReport(
+                load.getLong("timestamp", System.currentTimeMillis()),
+                load.getInt("activeInventories", 0),
+                load.getLong("totalInventoriesCreated", 0L),
+                load.getLong("backlogEntries", 0L),
+                load.getLong("backlogPlayers", 0L),
+                load.getLong("playersWithOffers", 0L),
+                load.getLong("totalEscrow", 0L),
+                load.getInt("activeSellOffers", 0),
+                load.getInt("activeBuyOrders", 0),
+                load.getInt("trackedItems", 0),
+                load.getLong("totalTrades", 0L),
+                load.getLong("totalVolume", 0L),
+                load.getInt("trackedRatePlayers", 0),
+                load.getInt("rateChecks", 0),
+                load.getFloat("denialRate", 0f)
+            );
+        }
+    }
+
+    public static final class DiagnosticsSnapshot {
+        private final String requestedBy;
+        private final long requestedAuth;
+        private final DiagnosticsReport report;
+
+        public DiagnosticsSnapshot(String requestedBy, long requestedAuth, DiagnosticsReport report) {
+            this.requestedBy = requestedBy == null || requestedBy.isEmpty() ? "system" : requestedBy;
+            this.requestedAuth = requestedAuth;
+            this.report = report;
+        }
+
+        public String getRequestedBy() {
+            return requestedBy;
+        }
+
+        public long getRequestedAuth() {
+            return requestedAuth;
+        }
+
+        public DiagnosticsReport getReport() {
+            return report;
+        }
+
+        public DiagnosticsSnapshot copy() {
+            return new DiagnosticsSnapshot(requestedBy, requestedAuth, report.copy());
+        }
+
+        public void addSaveData(SaveData save) {
+            save.addUnsafeString("requestedBy", requestedBy);
+            save.addLong("requestedAuth", requestedAuth);
+            SaveData reportSave = new SaveData("REPORT");
+            report.addSaveData(reportSave);
+            save.addSaveData(reportSave);
+        }
+
+        public static DiagnosticsSnapshot fromLoadData(LoadData load) {
+            if (load == null) {
+                return null;
+            }
+            DiagnosticsReport report = DiagnosticsReport.fromLoadData(load.getFirstLoadDataByName("REPORT"));
+            if (report == null) {
+                return null;
+            }
+            return new DiagnosticsSnapshot(
+                load.getUnsafeString("requestedBy") != null ? load.getUnsafeString("requestedBy") : "system",
+                load.getLong("requestedAuth", -1L),
+                report
+            );
+        }
     }
 }
 

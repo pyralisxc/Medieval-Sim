@@ -1,142 +1,153 @@
 package medievalsim.packets;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import medievalsim.config.ModConfig;
+import medievalsim.grandexchange.domain.GEOffer;
+import medievalsim.grandexchange.model.snapshot.SellOfferSlotSnapshot;
+import medievalsim.grandexchange.model.snapshot.SellOffersSnapshot;
+import medievalsim.grandexchange.ui.GrandExchangeContainer;
+import medievalsim.grandexchange.ui.viewmodel.GrandExchangeViewModel;
 import medievalsim.packets.core.AbstractPayloadPacket;
 import medievalsim.util.ModLogger;
+import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.network.client.Client;
 import necesse.engine.network.server.Server;
 import necesse.engine.network.server.ServerClient;
+import necesse.inventory.container.Container;
 
 /**
- * Packet to sync sell offer states (10 slots) from server to client.
- * Does not sync inventory - that's handled by container sync.
- * Just syncs offer metadata (enabled state, prices, quantities).
+ * Snapshot-based sell-offer sync packet (Phase 3).
  */
 public class PacketGESellInventorySync extends AbstractPayloadPacket {
     public final long ownerAuth;
-    public final long[] offerIDs;          // offerID per slot (0 = no offer)
-    public final String[] itemStringIDs;   // item string ID per slot
-    public final int[] quantityTotal;      // original quantity per slot
-    public final boolean[] offerEnabled;   // checkbox state per slot
-    public final int[] offerStates;        // state enum ordinal per slot
-    public final int[] offerPrices;        // price per item per slot
-    public final int[] offerQuantitiesRemaining; // remaining quantity per slot
-    
-    /**
-     * Receiving constructor (client-side).
-     */
+    private final SellOffersSnapshot snapshot;
+
+    public SellOffersSnapshot getSnapshot() {
+        return snapshot;
+    }
+
     public PacketGESellInventorySync(byte[] data) {
         super(data);
         PacketReader reader = new PacketReader(this);
         this.ownerAuth = reader.getNextLong();
-        
+        int slotCapacity = reader.getNextByteUnsigned();
         int slotCount = reader.getNextByteUnsigned();
-        this.offerIDs = new long[slotCount];
-        this.itemStringIDs = new String[slotCount];
-        this.quantityTotal = new int[slotCount];
-        this.offerEnabled = new boolean[slotCount];
-        this.offerStates = new int[slotCount];
-        this.offerPrices = new int[slotCount];
-        this.offerQuantitiesRemaining = new int[slotCount];
-        
+        List<SellOfferSlotSnapshot> slots = new ArrayList<>(slotCount);
         for (int i = 0; i < slotCount; i++) {
-            offerIDs[i] = reader.getNextLong();
-            itemStringIDs[i] = reader.getNextString();
-            quantityTotal[i] = reader.getNextInt();
-            offerEnabled[i] = reader.getNextBoolean();
-            offerStates[i] = reader.getNextByteUnsigned();
-            offerPrices[i] = reader.getNextInt();
-            offerQuantitiesRemaining[i] = reader.getNextInt();
+            boolean hasOffer = reader.getNextBoolean();
+            if (!hasOffer) {
+                slots.add(SellOfferSlotSnapshot.empty(i));
+                continue;
+            }
+            long offerId = reader.getNextLong();
+            String itemStringID = reader.getNextString();
+            int quantityTotal = reader.getNextInt();
+            int quantityRemaining = reader.getNextInt();
+            int pricePerItem = reader.getNextInt();
+            boolean enabled = reader.getNextBoolean();
+            GEOffer.OfferState state = resolveState(reader.getNextByteUnsigned());
+            int durationHours = reader.getNextInt();
+            slots.add(new SellOfferSlotSnapshot(
+                i,
+                offerId,
+                itemStringID,
+                quantityTotal,
+                quantityRemaining,
+                pricePerItem,
+                enabled,
+                state,
+                durationHours
+            ));
         }
+        this.snapshot = new SellOffersSnapshot(ownerAuth, slotCapacity, slots);
     }
-    
-    /**
-     * Sending constructor (server-side).
-     */
-    public PacketGESellInventorySync(long ownerAuth, long[] offerIDs, String[] itemStringIDs,
-                                      int[] quantityTotal, boolean[] offerEnabled, 
-                                      int[] offerStates, int[] offerPrices, 
-                                      int[] offerQuantitiesRemaining) {
+
+    public PacketGESellInventorySync(long ownerAuth, GEOffer[] sellOffers) {
         this.ownerAuth = ownerAuth;
-        this.offerIDs = offerIDs;
-        this.itemStringIDs = itemStringIDs;
-        this.quantityTotal = quantityTotal;
-        this.offerEnabled = offerEnabled;
-        this.offerStates = offerStates;
-        this.offerPrices = offerPrices;
-        this.offerQuantitiesRemaining = offerQuantitiesRemaining;
-        
+        this.snapshot = buildSnapshot(ownerAuth, sellOffers);
+
         PacketWriter writer = new PacketWriter(this);
         writer.putNextLong(ownerAuth);
-        writer.putNextByteUnsigned(offerIDs.length);
-        
-        for (int i = 0; i < offerIDs.length; i++) {
-            writer.putNextLong(offerIDs[i]);
-            writer.putNextString(itemStringIDs[i] != null ? itemStringIDs[i] : "");
-            writer.putNextInt(quantityTotal[i]);
-            writer.putNextBoolean(offerEnabled[i]);
-            writer.putNextByteUnsigned(offerStates[i]);
-            writer.putNextInt(offerPrices[i]);
-            writer.putNextInt(offerQuantitiesRemaining[i]);
-        }
-    }
-    
-    @Override
-    public void processClient(necesse.engine.network.NetworkPacket packet, Client client) {
-        ModLogger.debug("Client: Received sell inventory sync for player auth=%d", ownerAuth);
-        
-        // Get the active container
-        necesse.inventory.container.Container container = client.getContainer();
-        if (!(container instanceof medievalsim.grandexchange.ui.GrandExchangeContainer)) {
-            ModLogger.warn("Received sell inventory sync but GE container not open");
-            return;
-        }
-        
-        medievalsim.grandexchange.ui.GrandExchangeContainer geContainer = 
-            (medievalsim.grandexchange.ui.GrandExchangeContainer) container;
-        
-        // Only update if this packet is for the current player's inventory
-        if (geContainer.playerAuth != this.ownerAuth) {
-            ModLogger.warn("Sell inventory sync auth mismatch: container=%d, packet=%d",
-                geContainer.playerAuth, this.ownerAuth);
-            return;
-        }
-        
-        ModLogger.info("[SELL OFFER SYNC] Received sync for %d slots", offerIDs.length);
-        
-        // Reconstruct GEOffer objects from packet data and update client's playerInventory
-        for (int i = 0; i < offerIDs.length; i++) {
-            if (offerIDs[i] == 0) {
-                // No offer in this slot - clear it
-                geContainer.playerInventory.setSlotOffer(i, null);
-                ModLogger.debug("[SELL OFFER SYNC] Cleared slot %d (no offer)", i);
-            } else {
-                // Reconstruct offer from packet data using itemStringID and quantities from packet
-                medievalsim.grandexchange.domain.GEOffer.OfferState state = 
-                    medievalsim.grandexchange.domain.GEOffer.OfferState.values()[offerStates[i]];
-                
-                medievalsim.grandexchange.domain.GEOffer offer = 
-                    medievalsim.grandexchange.domain.GEOffer.fromPacketData(
-                        offerIDs[i], ownerAuth, i, itemStringIDs[i],
-                        quantityTotal[i], offerQuantitiesRemaining[i],
-                        offerPrices[i], offerEnabled[i], state
-                    );
-                
-                geContainer.playerInventory.setSlotOffer(i, offer);
-                ModLogger.info("[SELL OFFER SYNC] Updated slot %d: item=%s, offer ID=%d, state=%s, enabled=%s, quantity=%d/%d",
-                    i, itemStringIDs[i], offerIDs[i], state, offerEnabled[i], offerQuantitiesRemaining[i], quantityTotal[i]);
+        writer.putNextByteUnsigned(snapshot.slotCapacity());
+        writer.putNextByteUnsigned(snapshot.slots().size());
+        for (SellOfferSlotSnapshot slot : snapshot.slots()) {
+            boolean hasOffer = slot != null && slot.isOccupied();
+            writer.putNextBoolean(hasOffer);
+            if (!hasOffer) {
+                continue;
             }
+            writer.putNextLong(slot.offerId());
+            writer.putNextString(slot.itemStringID());
+            writer.putNextInt(slot.quantityTotal());
+            writer.putNextInt(slot.quantityRemaining());
+            writer.putNextInt(slot.pricePerItem());
+            writer.putNextBoolean(slot.enabled());
+            writer.putNextByteUnsigned(slot.state().ordinal());
+            writer.putNextInt(slot.durationHours());
         }
-        
-        // Trigger UI refresh to display updated data
-        geContainer.onSellOffersUpdated();
-        
-        ModLogger.debug("Client: Reconstructed offers for %d slots", offerIDs.length);
     }
-    
+
     @Override
-    public void processServer(necesse.engine.network.NetworkPacket packet, Server server, ServerClient client) {
+    public void processClient(NetworkPacket packet, Client client) {
+        ModLogger.debug("Client: Received sell snapshot sync for player auth=%d", ownerAuth);
+        Container container = client.getContainer();
+        if (!(container instanceof GrandExchangeContainer geContainer)) {
+            ModLogger.warn("Received sell snapshot but GE container not open");
+            return;
+        }
+        if (geContainer.playerAuth != ownerAuth) {
+            ModLogger.warn("Sell snapshot auth mismatch: container=%d, packet=%d",
+                geContainer.playerAuth, ownerAuth);
+            return;
+        }
+        try {
+            GrandExchangeViewModel viewModel = geContainer.getViewModel();
+            viewModel.applySellOffersSnapshot(snapshot);
+            geContainer.onSellOffersUpdated();
+        } catch (IllegalStateException ex) {
+            ModLogger.error("Failed to apply sell snapshot on client: %s", ex.getMessage());
+        }
+    }
+
+    @Override
+    public void processServer(NetworkPacket packet, Server server, ServerClient client) {
         ModLogger.warn("PacketGESellInventorySync.processServer called - server-to-client only!");
+    }
+
+    private static SellOffersSnapshot buildSnapshot(long ownerAuth, GEOffer[] sellOffers) {
+        int slotCapacity = sellOffers == null ? ModConfig.GrandExchange.geInventorySlots : sellOffers.length;
+        int slotCount = Math.max(0, slotCapacity);
+        List<SellOfferSlotSnapshot> slots = new ArrayList<>(slotCount);
+        for (int i = 0; i < slotCount; i++) {
+            GEOffer offer = sellOffers == null || i >= sellOffers.length ? null : sellOffers[i];
+            if (offer == null || offer.getItemStringID() == null) {
+                slots.add(SellOfferSlotSnapshot.empty(i));
+                continue;
+            }
+            slots.add(new SellOfferSlotSnapshot(
+                i,
+                offer.getOfferID(),
+                offer.getItemStringID(),
+                offer.getQuantityTotal(),
+                offer.getQuantityRemaining(),
+                offer.getPricePerItem(),
+                offer.isEnabled(),
+                offer.getState(),
+                offer.getDurationHours()
+            ));
+        }
+        return new SellOffersSnapshot(ownerAuth, slotCapacity, slots);
+    }
+
+    private static GEOffer.OfferState resolveState(int ordinal) {
+        GEOffer.OfferState[] states = GEOffer.OfferState.values();
+        if (ordinal < 0 || ordinal >= states.length) {
+            return GEOffer.OfferState.DRAFT;
+        }
+        return states[ordinal];
     }
 }

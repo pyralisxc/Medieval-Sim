@@ -186,10 +186,21 @@ public class ConfirmationDialog extends Form {
     /**
      * Predefined confirmation for /clearall command.
      */
-    public static ConfirmationDialog forClearAll(Consumer<Boolean> callback) {
+    public static ConfirmationDialog forClearAll(Consumer<Boolean> callback) {  
         return new ConfirmationDialog(
             "Clear All Entities",
             "WARNING: This will remove ALL mobs, dropped items, and projectiles from the current level.\nThis cannot be undone!",
+            callback
+        );
+    }
+
+    /**
+     * Predefined confirmation for large Grand Exchange purchases.
+     */
+    public static ConfirmationDialog forLargePurchase(String itemName, int quantity, long totalCost, Consumer<Boolean> callback) {
+        return new ConfirmationDialog(
+            "Confirm Large Purchase",
+            String.format("Purchase %d x %s for %,d coins?\nThis is a large transaction.", quantity, itemName, totalCost),
             callback
         );
     }

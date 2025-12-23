@@ -323,6 +323,105 @@ USER EXPERIENCE:
                         INTEGRATION & USER FLOW
 ========================================================================
 
+8. GUILD SYSTEM (In Development)
+================================
+
+WHAT IT DOES:
+- Provides a complete guild/clan system for player communities
+- Allows players to form groups with shared resources and permissions
+- Offers hierarchical ranks with configurable permission levels
+- Includes shared storage, research system, and teleportation network
+
+GUILD STRUCTURE:
+
+Rank Hierarchy (lowest to highest):
+- Recruit: New members with limited permissions
+- Member: Standard members with basic access
+- Officer: Management role with elevated permissions
+- Leader: Full control over guild settings
+
+Permission Categories:
+- Building & Breaking: Control who can modify terrain
+- Storage Access: Guild bank and settlement storage permissions
+- Territory: Claim and manage guild territory
+- Treasury: Deposit/withdraw gold management
+- Research: View, donate, and manage research priorities
+- Membership: Invite, kick, and rank management
+- Settings: Guild name, crest, tax rate, and permissions
+
+GUILD FEATURES:
+
+Guild Artisan NPC:
+- Central hub for all guild interactions
+- Create new guilds or join existing ones
+- View guild information and member lists
+- Edit guild crest with visual designer
+- Access guild bank
+- Manage research projects
+
+Guild Bank:
+- Shared inventory storage for guild members
+- Multiple tabs for organization
+- Deposit/withdraw permissions per rank
+- Tracks contributions for fair distribution
+
+Guild Research:
+- Research projects that unlock guild benefits
+- Resource contribution from members
+- Progress tracking and completion rewards
+- Research points system
+
+Teleport Network:
+- Guild Teleport Banners for fast travel
+- Waving banner animation (visual appeal)
+- Teleport between any guild banners
+- Auto-claims to first guild member's guild
+
+Visual Identity:
+- Custom guild crests with:
+  - Background shapes
+  - Primary and secondary colors
+  - Emblems and symbols
+  - Border styles
+- Guild Banners (placeable/wearable)
+- Guild Crests (wearable trinket)
+
+Guild Objects:
+- Guild Flag: Decorative flag showing guild colors
+- Guild Chest: Shared storage container
+- Guild Teleport Banner: Fast travel network
+- Guild Cauldron: Guild-wide potion brewing (planned)
+
+GUILD MANAGEMENT:
+
+Creating a Guild:
+1. Find a Guild Artisan NPC
+2. Click "Create Guild"
+3. Enter guild name
+4. Choose public or private visibility
+5. Guild is created with you as Leader
+
+Joining a Guild:
+- Public guilds: Browse and join directly
+- Private guilds: Receive and accept invitations
+- Only one guild membership at a time
+
+Member Management:
+- Leaders can promote/demote members
+- Officers can invite new members
+- Officers can kick lower-ranked members
+- Audit log tracks all membership changes
+
+INTEGRATION WITH OTHER SYSTEMS:
+- Zone Management: Guilds can own protected zones
+- Settlement Protection: Guild territories can be protected
+- Grand Exchange: Guild treasury can fund purchases
+- Build Mode: Officers can use build tools in guild areas
+
+========================================================================
+                        INTEGRATION & USER FLOW
+========================================================================
+
 HOW EVERYTHING WORKS TOGETHER:
 ------------------------------
 

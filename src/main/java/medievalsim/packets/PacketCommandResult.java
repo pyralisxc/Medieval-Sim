@@ -8,6 +8,7 @@ import necesse.engine.network.PacketReader;
 import necesse.engine.network.PacketWriter;
 import necesse.engine.network.client.Client;
 import necesse.engine.Settings;
+import necesse.gfx.GameColor;
 
 /**
  * Server → Client: Result of command execution
@@ -72,7 +73,7 @@ public class PacketCommandResult extends Packet {
         
         // Show in chat
         if (client.getLevel() != null && client.getLevel().getClient() != null) {
-            String chatMessage = (success ? "§a" : "§c") + message; // Green for success, red for error
+            String chatMessage = (success ? GameColor.GREEN.getColorCode() : GameColor.RED.getColorCode()) + message;
             client.getLevel().getClient().chat.addMessage(chatMessage);
         }
     }

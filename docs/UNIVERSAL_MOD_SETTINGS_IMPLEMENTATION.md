@@ -2,50 +2,42 @@
 
 ## Overview
 
-Successfully implemented a **universal in-game mod settings editor** that allows admins to modify mod configuration values without leaving the game or manually editing config files.
+Implemented a **universal in-game mod settings editor** that allows admins to modify mod configuration values without leaving the game or manually editing config files.
 
-This system works with **ANY mod** that follows the ModConfig pattern - no compile-time dependencies required!
+This system works with **ANY mod** that follows the ModConfig pattern using `@ConfigSection` and `@ConfigValue` annotations.
 
 ---
 
 ## What Was Built
 
-### 1. Core Components
+### Core Components
 
-**Data Models:**
-- `ModConfigSection.java` - Represents a section of settings (e.g., "Build Mode", "Zones")
-- `ConfigurableSetting.java` - Wraps a Field with metadata (description, min/max, type)
-- `SettingType.java` - Enum for supported types (INTEGER, LONG, FLOAT, BOOLEAN, STRING, ENUM)
+**Configuration System:**
+- `ModConfig.java` - Medieval Sim's configuration with `@ConfigSection` nested classes
+- Annotation-driven configuration with `@ConfigValue` fields
+- Automatic UI generation in Command Center's Mod Settings tab
+- Real-time persistence via `Settings.saveClientSettings()`
 
-**Scanner:**
-- `UniversalModConfigScanner.java` - Reflection-based scanner that discovers ModConfig classes in all loaded mods
-  - Scans for pattern: `<package>.config.ModConfig`
-  - Discovers `@ConfigSection` nested classes
-  - Discovers `@ConfigValue` annotated fields
-  - Works without compile-time dependency on annotations
-
-**UI:**
-- `CommandCenterPanel.buildModSettingsTab()` - Generates UI automatically from scanned settings
-  - Scrollable content area
-  - Collapsible sections per mod
-  - Appropriate input widgets per type
-  - Real-time save on change
+**UI Generation:**
+- `CommandCenterPanel.buildModSettingsTab()` - Generates UI from ModConfig sections
+- Scrollable content area with collapsible sections
+- Appropriate input widgets based on field type (text, checkbox, dropdown)
+- Real-time save on change
 
 ---
 
-### 2. Features
+### Features
 
-✅ **Universal Discovery** - Scans ALL loaded mods for ModConfig classes  
-✅ **No Dependencies** - Other mods just copy 2 annotation files  
+✅ **Annotation-Driven** - Use `@ConfigSection` and `@ConfigValue` annotations  
 ✅ **Automatic UI Generation** - Input widgets created based on field type  
-✅ **Real-time Persistence** - Changes saved immediately via `Settings.saveClientSettings()`  
+✅ **Real-time Persistence** - Changes saved immediately  
 ✅ **Validation** - Min/max ranges enforced for numeric types  
+✅ **Enum Support** - Dropdown widgets with formatted display names  
 ✅ **Admin-Only** - Only admins can access the settings editor  
-✅ **Medieval Sim First** - Your mod's settings appear first, others alphabetically  
 
 ---
 
-### 3. Supported Types
+### Supported Types
 
 | Type | Widget | Validation |
 |------|--------|------------|
@@ -55,7 +47,7 @@ This system works with **ANY mod** that follows the ModConfig pattern - no compi
 | `double` / `Double` | Text input (as float) | Min/max range |
 | `boolean` / `Boolean` | Checkbox | N/A |
 | `String` | Text input | Max 100 chars |
-| `enum` | Label (TODO) | Not yet implemented |
+| `enum` | Dropdown | Formatted display names |
 
 ---
 

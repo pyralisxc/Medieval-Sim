@@ -1,14 +1,27 @@
 # Medieval Sim - Necesse Administrative Tools Mod
 
-**Version 1.0.0** - Production-ready administrative tools, zone management, settlement protection, and command automation for Necesse servers.
+**Version 1.0.0** - Production-ready administrative tools, zone management, settlement protection, and Grand Exchange marketplace for Necesse servers.
 
 ## 🎯 Overview
 
-Medieval Sim is a comprehensive server administration mod that provides powerful tools for managing Necesse multiplayer servers. From zone protection to settlement management, build tools to command automation, Medieval Sim gives server administrators everything they need to create and manage thriving communities.
+Medieval Sim is a comprehensive server administration and economy mod for Necesse multiplayer servers. Featuring zone protection, settlement management, a full marketplace system, build tools, and command automation - Medieval Sim provides everything needed to create and manage thriving communities.
+
+**Status:** ✅ Production-ready, stable, thread-safe, and fully documented.
 
 ## ✨ Features
 
-### 🏰 Settlement Protection System (NEW in 1.0.0)
+### 💹 Grand Exchange Marketplace
+- **Player-to-Player Trading**: Asynchronous marketplace for buying and selling items
+- **Order Matching**: Automatic matching of buy orders with sell offers
+- **Price Discovery**: Real-time market analytics with guide prices, VWAP, and 24h high/low
+- **Collection Box**: Items and coins delivered to personal collection inventory
+- **Order Book System**: Priority-based matching (best price first)
+- **Rate Limiting**: Cooldown system prevents spam
+- **Notifications**: Player notifications for filled orders and expired offers
+- **Trade History**: Track all completed trades with timestamps
+- **Market Analytics**: Performance metrics, coin velocity, trade volume tracking
+
+### 🏰 Settlement Protection System
 - **Settlement-Based Protection**: Protect entire settlements with granular permissions
 - **Owner-Only Configuration**: Only settlement owners can configure protection settings
 - **Team Permissions**: Allow owner's team to build and interact
@@ -91,7 +104,60 @@ Medieval Sim is a comprehensive server administration mod that provides powerful
 - **Visual Feedback**: Clear indicators for active tools and modes
 - **Quick Access**: Hotkey toggle for admin tools panel
 
-## Recent Refactoring (v2.0)
+### ⚔️ Guild System (In Development)
+- **Guild Creation**: Players can create public or private guilds with custom names
+- **Hierarchical Ranks**: 4-tier rank system (Recruit → Member → Officer → Leader)
+- **Permission System**: 20+ configurable permissions (building, storage, treasury, research, etc.)
+- **Guild Artisan NPC**: Dedicated NPC for guild management, crest editing, and crafting
+- **Guild Bank**: Shared storage with deposit/withdraw permissions per rank
+- **Guild Research**: Research projects with resource contribution and unlock system
+- **Custom Crests**: Visual crest designer with shapes, colors, emblems, and borders
+- **Teleport Network**: Guild Teleport Banners for fast travel between guild locations
+- **Wearable Items**: Guild Banners and Crests displaying guild crests
+- **Guild Cauldron**: Guild-wide potion brewing (placeholder)
+- **Audit Log**: Track member actions and rank changes
+- **Treasury System**: Gold storage with tax rates and thresholds
+
+### 🛠️ Core Architecture & Utilities
+
+**New Utility Classes:**
+- **TimeConstants** - Time conversion constants (eliminates magic numbers like 60000, 3600000)
+- **BaseForm** - Abstract UI component base class with standard helpers
+- **DiagnosticLogger** - Production diagnostic framework (method tracing, performance timing, resource tracking)
+- **ErrorMessageBuilder** - Consistent user-facing error messages
+- **ValidationUtil** - 15+ input validation methods for common patterns
+- **Constants** - Centralized constants organized by nested classes (Zone, GrandExchange, BuildMode, etc.)
+
+**Architecture Patterns:**
+- **Facade Pattern**: `ProtectionFacade` - single entry point for all protection checks
+- **Service Layer**: Grand Exchange services (OrderBook, MarketAnalytics, Notifications)
+- **Thread Safety**: ConcurrentHashMap + synchronized methods for all shared state
+- **Input Validation**: All packet handlers validate via ZoneAPI and ValidationUtil
+
+## Recent Improvements
+
+### December 2025 - Architectural Enhancements
+**Thread Safety & Stability:**
+- Fixed race condition in NotificationService (synchronized collection access)
+- Fixed TOCTOU bugs in MarketAnalyticsService (double-check pattern)
+- Added defensive null checks in zone deletion packets
+
+**Security Hardening:**
+- Input sanitization for zone dimensions (prevents integer overflow)
+- Collection size limits (MAX_NOTIFICATIONS_PER_PLAYER = 100)
+- Zone dimension validation (1-10,000 tiles)
+
+**Performance Optimization:**
+- Notification cleanup algorithm: O(n×m) → O(n)
+- Empty collection removal prevents memory leaks
+- Batched barrier placement for PvP zones
+
+**Developer Experience:**
+- DiagnosticLogger connected to ModConfig.Logging.verboseDebug
+- ErrorMessageBuilder integrated in packet handlers
+- Comprehensive JavaDoc with usage examples
+
+### November 2025 - Refactoring (v2.0)
 
 **Code Reduction**: Eliminated 1,204+ lines (~6.7% of codebase)
 - Removed widget strategy pattern overhead (~500 lines)

@@ -3,6 +3,7 @@ package medievalsim.grandexchange.commands;
 import medievalsim.commandcenter.domain.CommandCategory;
 import medievalsim.commandcenter.service.AdminCommand;
 import medievalsim.commandcenter.service.CommandResult;
+import medievalsim.grandexchange.application.GrandExchangeContext;
 import medievalsim.grandexchange.domain.GrandExchangeLevelData;
 import medievalsim.grandexchange.services.OrderBook;
 import medievalsim.util.ModLogger;
@@ -42,10 +43,11 @@ public class DumpOrderBooksCommand extends AdminCommand {
             return CommandResult.error("Server context required");
         }
 
-        GrandExchangeLevelData geData = GrandExchangeLevelData.getGrandExchangeData(server.world.getLevel(executor));
-        if (geData == null) {
+        GrandExchangeContext context = GrandExchangeContext.resolve(server.world.getLevel(executor));
+        if (context == null) {
             return CommandResult.error("Grand Exchange not available in this world");
         }
+        GrandExchangeLevelData geData = context.getLevelData();
 
         Map<String, OrderBook> orderBooks = geData.getOrderBooksByItem();
         if (orderBooks.isEmpty()) {

@@ -1,6 +1,7 @@
 package medievalsim.packets;
 import medievalsim.util.ModLogger;
 import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.ZoneType;
 import necesse.engine.localization.message.GameMessage;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
@@ -13,25 +14,34 @@ import necesse.engine.network.server.ServerClient;
 public class PacketRenameZone
 extends Packet {
     public final int zoneUniqueID;
-    public final boolean isProtectedZone;
+    public final ZoneType zoneType;
     public final GameMessage newName;
 
     public PacketRenameZone(byte[] data) {
         super(data);
         PacketReader reader = new PacketReader((Packet)this);
         this.zoneUniqueID = reader.getNextInt();
-        this.isProtectedZone = reader.getNextBoolean();
+        this.zoneType = ZoneType.fromId(reader.getNextInt());
         this.newName = GameMessage.fromPacket((PacketReader)reader);
     }
 
-    public PacketRenameZone(int zoneUniqueID, boolean isProtectedZone, GameMessage newName) {
+    public PacketRenameZone(int zoneUniqueID, ZoneType zoneType, GameMessage newName) {
         this.zoneUniqueID = zoneUniqueID;
-        this.isProtectedZone = isProtectedZone;
+        this.zoneType = zoneType;
         this.newName = newName;
         PacketWriter writer = new PacketWriter((Packet)this);
         writer.putNextInt(zoneUniqueID);
-        writer.putNextBoolean(isProtectedZone);
+        writer.putNextInt(zoneType.getId());
         newName.writePacket(writer);
+    }
+
+    /**
+     * Legacy constructor for backward compatibility.
+     * @deprecated Use {@link #PacketRenameZone(int, ZoneType, GameMessage)} instead
+     */
+    @Deprecated
+    public PacketRenameZone(int zoneUniqueID, boolean isProtectedZone, GameMessage newName) {
+        this(zoneUniqueID, isProtectedZone ? ZoneType.PROTECTED : ZoneType.PVP, newName);
     }
 
     @Override
@@ -40,7 +50,7 @@ extends Packet {
             // Validate using ZoneAPI
             medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
                 .withPacketName("PacketRenameZone")
-                .requireAnyZone(this.zoneUniqueID, !this.isProtectedZone)
+                .requireZoneByType(this.zoneUniqueID, this.zoneType)
                 .build();
             if (!ctx.isValid()) return;
 
@@ -51,7 +61,7 @@ extends Packet {
             zone.name = translatedName;
 
             ModLogger.info("Renamed zone " + this.zoneUniqueID + " to '" + translatedName + "' by " + client.getName());
-            PacketZoneChanged changedPacket = new PacketZoneChanged(zone, this.isProtectedZone);
+            PacketZoneChanged changedPacket = new PacketZoneChanged(zone);
             ctx.getLevel().getServer().network.sendToAllClients((Packet)changedPacket);
             
         } catch (Exception e) {

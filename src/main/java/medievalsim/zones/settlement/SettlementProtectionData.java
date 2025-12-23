@@ -31,6 +31,7 @@ public class SettlementProtectionData {
     private boolean canInteractSwitches = false;   // Can use levers/switches
     private boolean canInteractFurniture = false;  // Can use beds/chairs
     private boolean disableBrooms = false;         // Movement restriction
+    private boolean allowBossSummons = false;      // Boss summon restriction
     
     public SettlementProtectionData() {
     }
@@ -125,6 +126,14 @@ public class SettlementProtectionData {
         this.disableBrooms = disableBrooms;
     }
     
+    public boolean getAllowBossSummons() {
+        return allowBossSummons;
+    }
+    
+    public void setAllowBossSummons(boolean allowBossSummons) {
+        this.allowBossSummons = allowBossSummons;
+    }
+    
     // ===== CONVENIENCE METHODS =====
     
     /**
@@ -190,6 +199,7 @@ public class SettlementProtectionData {
         save.addBoolean("canInteractSwitches", this.canInteractSwitches);
         save.addBoolean("canInteractFurniture", this.canInteractFurniture);
         save.addBoolean("disableBrooms", this.disableBrooms);
+        save.addBoolean("allowBossSummons", this.allowBossSummons);
     }
 
     public void applyLoadData(LoadData save) {
@@ -204,6 +214,7 @@ public class SettlementProtectionData {
         this.canInteractSwitches = save.getBoolean("canInteractSwitches", false);
         this.canInteractFurniture = save.getBoolean("canInteractFurniture", false);
         this.disableBrooms = save.getBoolean("disableBrooms", false);
+        this.allowBossSummons = save.getBoolean("allowBossSummons", medievalsim.config.ModConfig.BossSummons.allowInSettlementsByDefault);
     }
 
     // ===== PACKET SERIALIZATION =====
@@ -220,6 +231,7 @@ public class SettlementProtectionData {
         writer.putNextBoolean(this.canInteractSwitches);
         writer.putNextBoolean(this.canInteractFurniture);
         writer.putNextBoolean(this.disableBrooms);
+        writer.putNextBoolean(this.allowBossSummons);
     }
 
     public void readPacket(PacketReader reader) {
@@ -234,5 +246,6 @@ public class SettlementProtectionData {
         this.canInteractSwitches = reader.getNextBoolean();
         this.canInteractFurniture = reader.getNextBoolean();
         this.disableBrooms = reader.getNextBoolean();
+        this.allowBossSummons = reader.getNextBoolean();
     }
 }

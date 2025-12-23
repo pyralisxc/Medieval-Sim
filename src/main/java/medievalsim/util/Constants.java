@@ -16,6 +16,16 @@ public final class Constants {
     public static final String LOG_WARNING_PREFIX = "MedievalSim: ";
     public static final String LOG_INFO_PREFIX = "MedievalSim: ";
     
+    // ===== ZONE LIMITS =====
+    public static final class Zone {
+        /** Maximum zone width in tiles (prevents memory exhaustion) */
+        public static final int MAX_ZONE_WIDTH = 10000;
+        /** Maximum zone height in tiles (prevents memory exhaustion) */
+        public static final int MAX_ZONE_HEIGHT = 10000;
+        /** Minimum zone dimension (must be at least 1 tile) */
+        public static final int MIN_ZONE_DIMENSION = 1;
+    }
+    
     // ===== BUILD MODE =====
     public static final class BuildMode {
         // Game Data Keys (immutable identifiers)
@@ -176,6 +186,107 @@ public final class Constants {
         }
         
         private CommandCenter() {} // Prevent instantiation
+    }
+    
+    // ===== ZONE VISUALIZATION =====
+    public static final class ZoneVisualization {
+        // Zone Overlay Rendering Priorities
+        /**
+         * Draw priority for zone overlay shapes (lower = drawn first/behind other elements).
+         */
+        public static final int ZONE_OVERLAY_PRIORITY = -100000;
+        
+        /**
+         * Draw priority for zone name labels (should be above overlays).
+         */
+        public static final int ZONE_LABEL_PRIORITY = -100001;
+        
+        // Zone Visual Styling
+        /**
+         * Font size for zone name labels.
+         */
+        public static final int LABEL_FONT_SIZE = 20;
+        
+        /**
+         * Y-offset for zone labels from center point (negative = above center).
+         */
+        public static final int LABEL_Y_OFFSET = -10;
+        
+        /**
+         * Color saturation for zone edge colors (0.0-1.0, where 1.0 = full saturation).
+         */
+        public static final float COLOR_SATURATION = 0.8f;
+        
+        /**
+         * Alpha value for zone fill color (0-255, where 255 = fully opaque).
+         */
+        public static final int FILL_ALPHA = 40;
+        
+        /**
+         * Conversion factor for HSB hue (stored as 0-360 degrees).
+         */
+        public static final float HUE_CONVERSION_FACTOR = 360.0f;
+        
+        private ZoneVisualization() {} // Prevent instantiation
+    }
+    
+    // ===== GRAND EXCHANGE =====
+    public static final class GrandExchange {
+        // Default Values
+        /**
+         * Default price text shown in price input fields.
+         */
+        public static final String DEFAULT_PRICE_TEXT = "100";
+        
+        /**
+         * Quick quantity selection buttons for market purchases.
+         */
+        public static final int[] QUICK_QUANTITY_BUTTONS = {1, 10, 25, 100};
+        
+        // Tab Button Dimensions
+        /**
+         * Width of Grand Exchange tab buttons.
+         */
+        public static final int TAB_BUTTON_WIDTH = 150;
+        
+        /**
+         * Height of Grand Exchange tab buttons.
+         */
+        public static final int TAB_BUTTON_HEIGHT = 32;
+        
+        /**
+         * Spacing between tab buttons.
+         */
+        public static final int TAB_BUTTON_SPACING = 5;
+        
+        // Input Field Dimensions
+        /**
+         * Standard width for price input fields.
+         */
+        public static final int PRICE_INPUT_WIDTH = 100;
+        
+        /**
+         * Standard width for item dropdown selectors.
+         */
+        public static final int ITEM_DROPDOWN_WIDTH = 200;
+        
+        /**
+         * Standard width for category filter dropdown.
+         */
+        public static final int CATEGORY_DROPDOWN_WIDTH = 200;
+        
+        // Button Widths
+        /**
+         * Standard width for action buttons (Buy, Sell, etc.).
+         */
+        public static final int ACTION_BUTTON_WIDTH = 120;
+        
+        /**
+         * Wide button width for emphasized actions (Collect All, etc.).
+         */
+        public static final int WIDE_ACTION_BUTTON_WIDTH = 220;
+        
+        private GrandExchange() {} // Prevent instantiation
     }
     
     private Constants() {} // Prevent instantiation of main class

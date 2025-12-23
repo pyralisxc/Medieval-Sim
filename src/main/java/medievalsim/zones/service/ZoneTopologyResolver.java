@@ -15,8 +15,10 @@ import medievalsim.packets.PacketZoneChanged;
 import medievalsim.packets.PacketZoneRemoved;
 import medievalsim.util.ModLogger;
 import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.GuildZone;
 import medievalsim.zones.domain.ProtectedZone;
 import medievalsim.zones.domain.PvPZone;
+import medievalsim.zones.domain.ZoneType;
 import necesse.engine.network.Packet;
 import necesse.engine.network.server.Server;
 import necesse.engine.util.PointTreeSet;
@@ -131,14 +133,25 @@ public class ZoneTopologyResolver {
         return affected;
     }
 
-    public List<AdminZone> resolveAfterZoneChange(AdminZone targetZone, Level level, Server server, boolean isProtectedZone,
+    /**
+     * Resolve zone changes after expand/shrink operations.
+     * Handles merge candidates, split detection, barrier updates, and packet notifications.
+     * 
+     * @param targetZone The zone that was modified
+     * @param level The level containing the zone
+     * @param server The server for broadcasting packets
+     * @param zoneType The type of zone being modified
+     * @param oldEdgesByZoneID Optional old edge snapshot for barrier differential updates
+     * @return List of zones that were modified or created as part of the resolution
+     */
+    public List<AdminZone> resolveAfterZoneChange(AdminZone targetZone, Level level, Server server, ZoneType zoneType,
                                                   Map<Integer, Collection<Point>> oldEdgesByZoneID) {
         List<AdminZone> result = new ArrayList<>();
         if (targetZone == null || level == null) {
             return result;
         }
 
-        Set<AdminZone> candidates = findMergeCandidates(targetZone, isProtectedZone);
+        Set<AdminZone> candidates = findMergeCandidates(targetZone, zoneType);
         if (candidates.size() <= 1) {
             List<AdminZone> affected = splitZoneIfDisconnected(targetZone, level);
             for (AdminZone az : affected) {
@@ -147,7 +160,7 @@ public class ZoneTopologyResolver {
                     barrierService.updateBarriers(level, (PvPZone) az, oldEdges);
                 }
                 if (server != null) {
-                    server.network.sendToAllClients((Packet) new PacketZoneChanged(az, isProtectedZone));
+                    server.network.sendToAllClients((Packet) new PacketZoneChanged(az));
                 }
                 result.add(az);
             }
@@ -191,34 +204,55 @@ public class ZoneTopologyResolver {
         winner.zoning = newZoning;
 
         List<AdminZone> removed = new ArrayList<>();
-        if (isProtectedZone) {
-            Map<Integer, ProtectedZone> map = repository.getProtectedZonesInternal();
-            synchronized (map) {
-                for (AdminZone z : new ArrayList<>(mergeSet)) {
-                    if (z == winner || !(z instanceof ProtectedZone)) {
-                        continue;
+        switch (zoneType) {
+            case PVP: {
+                Map<Integer, PvPZone> map = repository.getPvPZonesInternal();
+                synchronized (map) {
+                    for (AdminZone z : new ArrayList<>(mergeSet)) {
+                        if (z == winner || !(z instanceof PvPZone)) {
+                            continue;
+                        }
+                        PvPZone pz = (PvPZone) z;
+                        barrierService.removeZoneArtifacts(level, pz);
+                        map.remove(pz.uniqueID);
+                        removed.add(pz);
                     }
-                    ProtectedZone pz = (ProtectedZone) z;
-                    pz.remove();
-                    map.remove(pz.uniqueID);
-                    removed.add(pz);
                 }
+                repository.putPvPZone((PvPZone) winner);
+                break;
             }
-            repository.putProtectedZone((ProtectedZone) winner);
-        } else {
-            Map<Integer, PvPZone> map = repository.getPvPZonesInternal();
-            synchronized (map) {
-                for (AdminZone z : new ArrayList<>(mergeSet)) {
-                    if (z == winner || !(z instanceof PvPZone)) {
-                        continue;
+            case GUILD: {
+                Map<Integer, GuildZone> map = repository.getGuildZonesInternal();
+                synchronized (map) {
+                    for (AdminZone z : new ArrayList<>(mergeSet)) {
+                        if (z == winner || !(z instanceof GuildZone)) {
+                            continue;
+                        }
+                        GuildZone gz = (GuildZone) z;
+                        gz.remove();
+                        map.remove(gz.uniqueID);
+                        removed.add(gz);
                     }
-                    PvPZone pz = (PvPZone) z;
-                    barrierService.removeZoneArtifacts(level, pz);
-                    map.remove(pz.uniqueID);
-                    removed.add(pz);
                 }
+                repository.putGuildZone((GuildZone) winner);
+                break;
             }
-            repository.putPvPZone((PvPZone) winner);
+            default: { // PROTECTED
+                Map<Integer, ProtectedZone> map = repository.getProtectedZonesInternal();
+                synchronized (map) {
+                    for (AdminZone z : new ArrayList<>(mergeSet)) {
+                        if (z == winner || !(z instanceof ProtectedZone)) {
+                            continue;
+                        }
+                        ProtectedZone pz = (ProtectedZone) z;
+                        pz.remove();
+                        map.remove(pz.uniqueID);
+                        removed.add(pz);
+                    }
+                }
+                repository.putProtectedZone((ProtectedZone) winner);
+                break;
+            }
         }
 
         List<AdminZone> affected = splitZoneIfDisconnected(winner, level);
@@ -230,45 +264,82 @@ public class ZoneTopologyResolver {
                 barrierService.updateBarriers(level, (PvPZone) az, diff);
             }
             if (server != null) {
-                server.network.sendToAllClients((Packet) new PacketZoneChanged(az, isProtectedZone));
+                server.network.sendToAllClients((Packet) new PacketZoneChanged(az));
             }
             result.add(az);
         }
 
         for (AdminZone rem : removed) {
             if (server != null) {
-                server.network.sendToAllClients((Packet) new PacketZoneRemoved(rem.uniqueID, isProtectedZone));
+                server.network.sendToAllClients((Packet) new PacketZoneRemoved(rem.uniqueID, ZoneType.fromZone(rem)));
             }
         }
 
         return result;
     }
 
-    private Set<AdminZone> findMergeCandidates(AdminZone targetZone, boolean isProtectedZone) {
+    /**
+     * Legacy method for backward compatibility.
+     * @deprecated Use {@link #resolveAfterZoneChange(AdminZone, Level, Server, ZoneType, Map)} instead
+     */
+    @Deprecated
+    public List<AdminZone> resolveAfterZoneChange(AdminZone targetZone, Level level, Server server, boolean isProtectedZone,
+                                                  Map<Integer, Collection<Point>> oldEdgesByZoneID) {
+        ZoneType zoneType = isProtectedZone ? ZoneType.PROTECTED : ZoneType.PVP;
+        return resolveAfterZoneChange(targetZone, level, server, zoneType, oldEdgesByZoneID);
+    }
+
+    private Set<AdminZone> findMergeCandidates(AdminZone targetZone, ZoneType zoneType) {
         Set<AdminZone> candidates = new HashSet<>();
         if (targetZone == null) {
             return candidates;
         }
-        if (isProtectedZone) {
-            Map<Integer, ProtectedZone> map = repository.getProtectedZonesInternal();
-            synchronized (map) {
-                for (ProtectedZone z : map.values()) {
-                    if (z == targetZone || areZonesAdjacentOrOverlapping(targetZone, z)) {
-                        candidates.add(z);
+        switch (zoneType) {
+            case PVP: {
+                Map<Integer, PvPZone> map = repository.getPvPZonesInternal();
+                synchronized (map) {
+                    for (PvPZone z : map.values()) {
+                        if (z == targetZone || areZonesAdjacentOrOverlapping(targetZone, z)) {
+                            candidates.add(z);
+                        }
                     }
                 }
+                break;
             }
-        } else {
-            Map<Integer, PvPZone> map = repository.getPvPZonesInternal();
-            synchronized (map) {
-                for (PvPZone z : map.values()) {
-                    if (z == targetZone || areZonesAdjacentOrOverlapping(targetZone, z)) {
-                        candidates.add(z);
+            case GUILD: {
+                Map<Integer, GuildZone> map = repository.getGuildZonesInternal();
+                synchronized (map) {
+                    for (GuildZone z : map.values()) {
+                        if (z == targetZone || areZonesAdjacentOrOverlapping(targetZone, z)) {
+                            candidates.add(z);
+                        }
                     }
                 }
+                break;
+            }
+            default: { // PROTECTED
+                Map<Integer, ProtectedZone> map = repository.getProtectedZonesInternal();
+                synchronized (map) {
+                    for (ProtectedZone z : map.values()) {
+                        if (z == targetZone || areZonesAdjacentOrOverlapping(targetZone, z)) {
+                            candidates.add(z);
+                        }
+                    }
+                }
+                break;
             }
         }
         return candidates;
+    }
+
+    /**
+     * Legacy method for backward compatibility.
+     * @deprecated Use {@link #findMergeCandidates(AdminZone, ZoneType)} instead
+     */
+    @Deprecated
+    private Set<AdminZone> findMergeCandidates(AdminZone targetZone, boolean isProtectedZone) {
+        ZoneType zoneType = isProtectedZone ? ZoneType.PROTECTED : ZoneType.PVP;
+        return findMergeCandidates(targetZone, zoneType);
     }
 
     private Collection<Point> computeCombinedOldEdges(Map<Integer, Collection<Point>> oldEdgesByZoneID, Set<AdminZone> mergeSet) {

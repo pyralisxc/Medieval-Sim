@@ -33,8 +33,8 @@ public class SettlementSpacingPatch {
             @Advice.Argument(3) int flagTier
         ) {
             // Get custom spacing settings
-            int customTier = ModConfig.SettlementSpacing.minimumTier;
-            int customRegionPadding = ModConfig.SettlementSpacing.customPadding;
+            int customTier = ModConfig.Settlements.minimumTier;
+            int customRegionPadding = ModConfig.Settlements.customPadding;
 
             // Only apply custom spacing if tier > 0 or custom padding is set
             if (customTier == 0 && customRegionPadding == 0) {
@@ -58,8 +58,8 @@ public class SettlementSpacingPatch {
         ) {
             // If we skipped the original method, set the return value based on our custom validation
             if (skipped) {
-                int customTier = ModConfig.SettlementSpacing.minimumTier;
-                int customRegionPadding = ModConfig.SettlementSpacing.customPadding;
+                int customTier = ModConfig.Settlements.minimumTier;
+                int customRegionPadding = ModConfig.Settlements.customPadding;
                 returnValue = canPlaceWithCustomSpacing(worldData, levelIdentifier, tileX, tileY, 
                                                        flagTier, customTier, customRegionPadding);
             }

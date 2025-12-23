@@ -1,5 +1,5 @@
 package medievalsim.registries;
-import medievalsim.admintools.service.AdminToolsManager;
+import medievalsim.admintools.service.AdminToolsHelper;
 import medievalsim.buildmode.service.BuildModeManager;
 import necesse.engine.GlobalData;
 import necesse.engine.input.Control;
@@ -9,6 +9,7 @@ import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.network.client.Client;
 import necesse.engine.state.MainGame;
 import necesse.entity.mobs.PlayerMob;
+import necesse.gfx.GameColor;
 
 public class MedievalSimControls {
     public static Control TOGGLE_BUILD_MODE;
@@ -24,8 +25,8 @@ public class MedievalSimControls {
                     Client client = mainGame.getClient();
                     if (client != null) {
                         // Permission check - only admins can toggle build mode
-                        if (!AdminToolsManager.hasAdminPermission(client)) {
-                            client.chat.addMessage("§cAccess Denied: Admin permission required");
+                        if (!AdminToolsHelper.hasAdminPermission(client)) {
+                            client.chat.addMessage(GameColor.RED.getColorCode() + "Access Denied: Admin permission required");
                             return;
                         }
                         

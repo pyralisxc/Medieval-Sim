@@ -2,9 +2,10 @@ package medievalsim.packets;
 import java.awt.Rectangle;
 import medievalsim.util.ModLogger;
 import medievalsim.zones.domain.AdminZone;
+import medievalsim.zones.domain.ZoneType;
 import medievalsim.zones.service.BarrierPlacementWorker;
 import medievalsim.zones.domain.PvPZone;
-import medievalsim.zones.service.ZoneManager;
+import medievalsim.zones.service.ZoneHelper;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
@@ -14,33 +15,63 @@ import necesse.engine.network.server.ServerClient;
 
 public class PacketCreateZone
 extends Packet {
-    public boolean isProtectedZone;
+    public ZoneType zoneType;
     public String zoneName;
     public Rectangle initialArea;
 
     public PacketCreateZone(byte[] data) {
         super(data);
         PacketReader reader = new PacketReader((Packet)this);
-        this.isProtectedZone = reader.getNextBoolean();
+        this.zoneType = ZoneType.fromId(reader.getNextInt());
         this.zoneName = reader.getNextString();
         int x = reader.getNextInt();
         int y = reader.getNextInt();
         int width = reader.getNextInt();
         int height = reader.getNextInt();
+        
+        // Input sanitization: prevent integer overflow and unreasonable zone sizes
+        if (width < medievalsim.util.Constants.Zone.MIN_ZONE_DIMENSION || 
+            width > medievalsim.util.Constants.Zone.MAX_ZONE_WIDTH || 
+            height < medievalsim.util.Constants.Zone.MIN_ZONE_DIMENSION || 
+            height > medievalsim.util.Constants.Zone.MAX_ZONE_HEIGHT) {
+            
+            // Report which dimension is invalid
+            String fieldName = (width < 1 || width > 10000) ? "width" : "height";
+            int actual = (width < 1 || width > 10000) ? width : height;
+            
+            throw new IllegalArgumentException(
+                medievalsim.util.ErrorMessageBuilder.buildOutOfRangeMessage(
+                    "Zone " + fieldName,
+                    medievalsim.util.Constants.Zone.MIN_ZONE_DIMENSION,
+                    Math.max(medievalsim.util.Constants.Zone.MAX_ZONE_WIDTH, medievalsim.util.Constants.Zone.MAX_ZONE_HEIGHT),
+                    actual
+                )
+            );
+        }
+        
         this.initialArea = new Rectangle(x, y, width, height);
     }
 
-    public PacketCreateZone(boolean isProtectedZone, String zoneName, Rectangle initialArea) {
-        this.isProtectedZone = isProtectedZone;
+    public PacketCreateZone(ZoneType zoneType, String zoneName, Rectangle initialArea) {
+        this.zoneType = zoneType;
         this.zoneName = zoneName;
         this.initialArea = initialArea;
         PacketWriter writer = new PacketWriter((Packet)this);
-        writer.putNextBoolean(isProtectedZone);
+        writer.putNextInt(zoneType.getId());
         writer.putNextString(zoneName);
         writer.putNextInt(initialArea.x);
         writer.putNextInt(initialArea.y);
         writer.putNextInt(initialArea.width);
         writer.putNextInt(initialArea.height);
+    }
+
+    /**
+     * Legacy constructor for backward compatibility.
+     * @deprecated Use {@link #PacketCreateZone(ZoneType, String, Rectangle)} instead
+     */
+    @Deprecated
+    public PacketCreateZone(boolean isProtectedZone, String zoneName, Rectangle initialArea) {
+        this(isProtectedZone ? ZoneType.PROTECTED : ZoneType.PVP, zoneName, initialArea);
     }
 
     @Override
@@ -56,12 +87,26 @@ extends Packet {
             // Name validation
             String validatedName = medievalsim.util.ZoneAPI.validateZoneName(this.zoneName);
             
-            // Create zone
-            AdminZone zone = this.isProtectedZone
-                ? ZoneManager.createProtectedZone(ctx.getLevel(), validatedName, client)
-                : ZoneManager.createPvPZone(ctx.getLevel(), validatedName, client);
+            // Create zone based on type
+            AdminZone zone;
+            switch (this.zoneType) {
+                case PVP:
+                    zone = ZoneHelper.createPvPZone(ctx.getLevel(), validatedName, client);
+                    break;
+                case GUILD:
+                    zone = ZoneHelper.createGuildZone(ctx.getLevel(), validatedName, client);
+                    break;
+                default:
+                    zone = ZoneHelper.createProtectedZone(ctx.getLevel(), validatedName, client);
+                    break;
+            }
                 
             if (zone == null) {
+                String errorMsg = medievalsim.util.ErrorMessageBuilder.buildOperationFailedMessage(
+                    "Zone creation", 
+                    "Unable to create zone. Please try again."
+                );
+                client.sendChatMessage(errorMsg);
                 ModLogger.error("Failed to create zone for client " + client.getName());
                 return;
             }
@@ -89,10 +134,19 @@ extends Packet {
             }
             
             ModLogger.info("Created zone " + zone.uniqueID + " (" + zone.name + ") by " + client.getName());
-            server.network.sendToAllClients((Packet)new PacketZoneChanged(zone, this.isProtectedZone));
+            server.network.sendToAllClients((Packet)new PacketZoneChanged(zone));
             // Defer saving to the central resolver or autosave to avoid large synchronous saves here
             
+        } catch (IllegalArgumentException e) {
+            // Input validation failure - send user-friendly message
+            client.sendChatMessage(e.getMessage());
+            ModLogger.warn("Invalid input in PacketCreateZone from %s: %s", client.getName(), e.getMessage());
         } catch (Exception e) {
+            String errorMsg = medievalsim.util.ErrorMessageBuilder.buildOperationFailedMessage(
+                "Zone creation",
+                "An unexpected error occurred. Please contact an administrator."
+            );
+            client.sendChatMessage(errorMsg);
             ModLogger.error("Exception in PacketCreateZone.processServer", e);
         }
     }

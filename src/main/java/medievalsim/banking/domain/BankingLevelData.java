@@ -134,8 +134,7 @@ public class BankingLevelData extends LevelData {
                     bank.applyLoadData(bankSave);
                     banks.put(ownerAuth, bank);
                 } catch (Exception e) {
-                    ModLogger.error("Failed to load bank: %s", e.getMessage());
-                    e.printStackTrace();
+                    ModLogger.error("Failed to load bank", e);
                 }
             }
         }

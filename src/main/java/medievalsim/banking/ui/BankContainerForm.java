@@ -1,7 +1,9 @@
 package medievalsim.banking.ui;
 
+import java.awt.Color;
 import java.awt.Rectangle;
 
+import medievalsim.ui.UIStyleConstants;
 import necesse.engine.gameLoop.tickManager.TickManager;
 import necesse.engine.localization.Localization;
 import necesse.engine.localization.message.LocalMessage;
@@ -31,24 +33,27 @@ public class BankContainerForm<T extends BankContainer> extends ContainerForm<T>
 
         FormFlow flow = new FormFlow(10);
 
-        this.addComponent(new FormLabel(
+        FormLabel titleLabel = this.addComponent(new FormLabel(
             Localization.translate("ui", "banktitle"),
-            new FontOptions(20),
+            UIStyleConstants.TITLE_FONT,
             0,
             this.getWidth() / 2,
             flow.next(30)
         ));
+        titleLabel.setColor(Color.BLACK);
 
         flow.next(10);
         int coinY = flow.next(30);
 
         this.coinLabel = this.addComponent(new FormLabel(
             getCoinText(container),
-            new FontOptions(14),
+            UIStyleConstants.BODY_FONT,
             -1,
             10,
             coinY
         ));
+        this.coinLabel.setColor(Color.BLACK);
+        container.setCoinCountUpdateCallback(this::refreshCoinLabel);
 
         this.coinAmountInput = this.addComponent(new FormTextInput(
             200,
@@ -97,11 +102,12 @@ public class BankContainerForm<T extends BankContainer> extends ContainerForm<T>
 
         this.upgradeLabel = this.addComponent(new FormLabel(
             getUpgradeText(container),
-            new FontOptions(14),
+            UIStyleConstants.BODY_FONT,
             -1,
             10,
             upgradeY
         ));
+        this.upgradeLabel.setColor(Color.BLACK);
 
         FormTextButton upgradeButton = this.addComponent(new FormTextButton(
             Localization.translate("ui", "bankupgrade"),
@@ -120,11 +126,11 @@ public class BankContainerForm<T extends BankContainer> extends ContainerForm<T>
         if (container.canUpgrade()) {
             int upgradeCost = container.getNextUpgradeCost();
             upgradeButton.setTooltip(
-                Localization.translate("ui", "bankupgradecost") + ": " + upgradeCost + " coins"
+                new LocalMessage("ui", "bankupgradecost", "cost", String.valueOf(upgradeCost)).translate()
             );
         } else {
             upgradeButton.setActive(false);
-            upgradeButton.setTooltip(Localization.translate("ui", "bankmaxlevel"));
+            upgradeButton.setTooltip(new LocalMessage("ui", "bankmaxlevel").translate());
         }
 
         int pinY = 10;
@@ -236,6 +242,12 @@ public class BankContainerForm<T extends BankContainer> extends ContainerForm<T>
     private String getCoinText(T container) {
         long coins = container.clientCoinCount;
         return Localization.translate("ui", "bankcoins") + " " + coins;
+    }
+
+    private void refreshCoinLabel() {
+        if (this.coinLabel != null) {
+            this.coinLabel.setText(getCoinText(this.container));
+        }
     }
 
     private String getUpgradeText(T container) {

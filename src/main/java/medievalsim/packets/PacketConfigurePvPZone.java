@@ -16,6 +16,7 @@ extends Packet {
     public int combatLockSeconds;
     public float dotDamageMultiplier;
     public float dotIntervalMultiplier;
+    public boolean allowBossSummons;
 
     public PacketConfigurePvPZone(byte[] data) {
         super(data);
@@ -25,20 +26,23 @@ extends Packet {
         this.dotDamageMultiplier = reader.getNextFloat();
         this.dotIntervalMultiplier = reader.getNextFloat();
         this.combatLockSeconds = reader.getNextInt();
+        this.allowBossSummons = reader.getNextBoolean();
     }
 
-    public PacketConfigurePvPZone(int zoneID, float damageMultiplier, int combatLockSeconds, float dotDamageMultiplier, float dotIntervalMultiplier) {
+    public PacketConfigurePvPZone(int zoneID, float damageMultiplier, int combatLockSeconds, float dotDamageMultiplier, float dotIntervalMultiplier, boolean allowBossSummons) {
         this.zoneID = zoneID;
         this.damageMultiplier = damageMultiplier;
         this.combatLockSeconds = combatLockSeconds;
         this.dotDamageMultiplier = dotDamageMultiplier;
         this.dotIntervalMultiplier = dotIntervalMultiplier;
+        this.allowBossSummons = allowBossSummons;
         PacketWriter writer = new PacketWriter((Packet)this);
         writer.putNextInt(zoneID);
         writer.putNextFloat(damageMultiplier);
         writer.putNextFloat(dotDamageMultiplier);
         writer.putNextFloat(dotIntervalMultiplier);
         writer.putNextInt(combatLockSeconds);
+        writer.putNextBoolean(allowBossSummons);
     }
 
     @Override
@@ -59,6 +63,7 @@ extends Packet {
             // DoT damage multiplier now maps directly to a 0-100% slider value
             zone.dotDamageMultiplier = Math.max(0.0f, Math.min(1.0f, this.dotDamageMultiplier));
             zone.dotIntervalMultiplier = Math.max(0.25f, Math.min(4.0f, this.dotIntervalMultiplier));
+            zone.allowBossSummons = this.allowBossSummons;
             
             // Silent update - logging removed to prevent spam during slider adjustments
             server.network.sendToAllClients((Packet)new PacketZoneChanged(zone, false));

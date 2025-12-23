@@ -2,6 +2,7 @@ package medievalsim.packets;
 import medievalsim.ui.AdminToolsHudForm;
 import medievalsim.ui.AdminToolsHudManager;
 import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.ZoneType;
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
 import necesse.engine.network.PacketReader;
@@ -14,21 +15,30 @@ import necesse.level.maps.Level;
 public class PacketZoneRemoved
 extends Packet {
     private final int uniqueID;
-    private final boolean isProtectedZone;
+    private final ZoneType zoneType;
 
     public PacketZoneRemoved(byte[] data) {
         super(data);
         PacketReader reader = new PacketReader((Packet)this);
         this.uniqueID = reader.getNextInt();
-        this.isProtectedZone = reader.getNextBoolean();
+        this.zoneType = ZoneType.fromId(reader.getNextInt());
     }
 
-    public PacketZoneRemoved(int uniqueID, boolean isProtectedZone) {
+    public PacketZoneRemoved(int uniqueID, ZoneType zoneType) {
         this.uniqueID = uniqueID;
-        this.isProtectedZone = isProtectedZone;
+        this.zoneType = zoneType;
         PacketWriter writer = new PacketWriter((Packet)this);
         writer.putNextInt(uniqueID);
-        writer.putNextBoolean(isProtectedZone);
+        writer.putNextInt(zoneType.getId());
+    }
+
+    /**
+     * Legacy constructor for backward compatibility.
+     * @deprecated Use {@link #PacketZoneRemoved(int, ZoneType)} instead
+     */
+    @Deprecated
+    public PacketZoneRemoved(int uniqueID, boolean isProtectedZone) {
+        this(uniqueID, isProtectedZone ? ZoneType.PROTECTED : ZoneType.PVP);
     }
 
     @Override
@@ -45,14 +55,20 @@ extends Packet {
         if (zoneData == null) {
             return;
         }
-        if (this.isProtectedZone) {
-            zoneData.getProtectedZones().remove(this.uniqueID);
-        } else {
-            zoneData.getPvPZones().remove(this.uniqueID);
+        switch (this.zoneType) {
+            case PVP:
+                zoneData.getPvPZones().remove(this.uniqueID);
+                break;
+            case GUILD:
+                zoneData.getGuildZones().remove(this.uniqueID);
+                break;
+            default:
+                zoneData.getProtectedZones().remove(this.uniqueID);
+                break;
         }
         AdminToolsHudForm hudForm = AdminToolsHudManager.getHudForm();
         if (hudForm != null) {
-            hudForm.onZoneRemoved(this.uniqueID, this.isProtectedZone);
+            hudForm.onZoneRemoved(this.uniqueID, this.zoneType);
         }
     }
 }

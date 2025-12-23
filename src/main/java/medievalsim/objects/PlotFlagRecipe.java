@@ -35,7 +35,7 @@ public class PlotFlagRecipe extends Recipe {
      */
     private boolean canPlayerCraft(Level level, PlayerMob player) {
         // Check if plot flags are enabled
-        if (!ModConfig.PlotFlags.enabled) {
+        if (!ModConfig.Settlements.plotFlagsEnabled) {
             return false;
         }
 

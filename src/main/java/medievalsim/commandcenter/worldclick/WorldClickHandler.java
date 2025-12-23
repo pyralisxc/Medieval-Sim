@@ -1,6 +1,7 @@
 package medievalsim.commandcenter.worldclick;
 
 import necesse.engine.network.client.Client;
+import necesse.gfx.GameColor;
 
 import java.util.function.BiConsumer;
 
@@ -54,7 +55,7 @@ public class WorldClickHandler {
         
         // Show message to guide user
         if (client != null) {
-            client.chat.addMessage("§eClick on the world to select coordinates. Press ESC to cancel.");
+            client.chat.addMessage(GameColor.YELLOW.getColorCode() + "Click on the world to select coordinates. Press ESC to cancel.");
         }
     }
     

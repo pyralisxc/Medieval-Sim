@@ -1,7 +1,10 @@
 package medievalsim.grandexchange.services;
 
+import medievalsim.grandexchange.domain.MarketInsightsSummary;
 import medievalsim.grandexchange.services.TradeTransaction.TradeResult;
 import medievalsim.util.ModLogger;
+import necesse.engine.save.LoadData;
+import necesse.engine.save.SaveData;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,15 +36,27 @@ public class MarketAnalyticsService {
     // Statistics
     private long totalTradesRecorded = 0;
     private long totalVolumeTraded = 0;
-    
+    private final Runnable dirtyListener;
+
     /**
      * Create analytics service.
      * @param maxTradesPerItem Maximum trades to keep in history per item (default: 100)
      */
     public MarketAnalyticsService(int maxTradesPerItem) {
+        this(maxTradesPerItem, null);
+    }
+
+    public MarketAnalyticsService(int maxTradesPerItem, Runnable dirtyListener) {
         this.maxTradesPerItem = maxTradesPerItem;
         this.tradeHistory = new ConcurrentHashMap<>();
         this.dailyRanges = new ConcurrentHashMap<>();
+        this.dirtyListener = dirtyListener;
+    }
+
+    private void markDirty() {
+        if (dirtyListener != null) {
+            dirtyListener.run();
+        }
     }
     
     /**
@@ -57,7 +72,6 @@ public class MarketAnalyticsService {
         List<TradeRecord> history = tradeHistory.computeIfAbsent(itemID, k -> new ArrayList<>());
         synchronized (history) {
             history.add(new TradeRecord(price, quantity, timestamp));
-            
             // Trim if exceeds max
             if (history.size() > maxTradesPerItem) {
                 history.remove(0); // Remove oldest
@@ -76,19 +90,27 @@ public class MarketAnalyticsService {
         
         ModLogger.debug("Recorded trade: %s x%d @ %d coins (total trades: %d)",
             itemID, quantity, price, totalTradesRecorded);
+        markDirty();
     }
     
     /**
      * Get guide price (recommended price based on median of recent trades).
      * More stable than average, resistant to outliers.
+     * Thread-safe: uses atomic get-and-sync pattern to prevent TOCTOU bugs.
      */
     public int getGuidePrice(String itemID) {
+        // Atomic get-and-lock pattern prevents TOCTOU race condition
         List<TradeRecord> history = tradeHistory.get(itemID);
-        if (history == null || history.isEmpty()) {
+        if (history == null) {
             return 0;
         }
         
         synchronized (history) {
+            // Re-check after acquiring lock (history could have been cleared)
+            if (history.isEmpty()) {
+                return 0;
+            }
+            
             List<Integer> prices = history.stream()
                 .map(TradeRecord::getPrice)
                 .sorted()
@@ -109,14 +131,18 @@ public class MarketAnalyticsService {
     /**
      * Get Volume-Weighted Average Price (VWAP).
      * Weights prices by trade volume - more accurate for high-volume items.
+     * Thread-safe: uses atomic get-and-sync pattern to prevent TOCTOU bugs.
      */
     public int getVWAP(String itemID) {
         List<TradeRecord> history = tradeHistory.get(itemID);
-        if (history == null || history.isEmpty()) {
+        if (history == null) {
             return 0;
         }
         
         synchronized (history) {
+            if (history.isEmpty()) {
+                return 0;
+            }
             long totalValue = 0;
             long totalVolume = 0;
             
@@ -132,14 +158,18 @@ public class MarketAnalyticsService {
     /**
      * Get simple average price (mean of recent trades).
      * Less accurate than VWAP or guide price, but fast to calculate.
+     * Thread-safe: uses atomic get-and-sync pattern to prevent TOCTOU bugs.
      */
     public int getAveragePrice(String itemID) {
         List<TradeRecord> history = tradeHistory.get(itemID);
-        if (history == null || history.isEmpty()) {
+        if (history == null) {
             return 0;
         }
         
         synchronized (history) {
+            if (history.isEmpty()) {
+                return 0;
+            }
             int sum = history.stream().mapToInt(TradeRecord::getPrice).sum();
             return sum / history.size();
         }
@@ -247,6 +277,57 @@ public class MarketAnalyticsService {
             getPriceVolatility(itemID)
         );
     }
+
+    /**
+     * Build a lightweight summary for UI consumption.
+     */
+    public MarketInsightsSummary buildInsightsSummary(int maxEntries) {
+        int limit = Math.max(1, maxEntries);
+        long now = System.currentTimeMillis();
+
+        if (tradeHistory.isEmpty()) {
+            return new MarketInsightsSummary(
+                now,
+                totalTradesRecorded,
+                totalVolumeTraded,
+                0,
+                Collections.emptyList(),
+                Collections.emptyList()
+            );
+        }
+
+        List<MarketInsightsSummary.ItemInsight> byVolume = new ArrayList<>();
+        for (String itemID : tradeHistory.keySet()) {
+            MarketSummary summary = getMarketSummary(itemID);
+            long lastTradeTimestamp = getLastTradeTimestamp(itemID);
+            MarketInsightsSummary.ItemInsight insight = new MarketInsightsSummary.ItemInsight(
+                itemID,
+                summary.getGuidePrice(),
+                summary.getAveragePrice(),
+                summary.getVWAP(),
+                summary.getHigh24h(),
+                summary.getLow24h(),
+                summary.get24hSpread(),
+                summary.getTradeVolume(),
+                summary.getTradeCount(),
+                lastTradeTimestamp
+            );
+            byVolume.add(insight);
+        }
+
+        List<MarketInsightsSummary.ItemInsight> bySpread = new ArrayList<>(byVolume);
+        byVolume.sort(Comparator.comparingInt(MarketInsightsSummary.ItemInsight::getTradeVolume).reversed());
+        bySpread.sort(Comparator.comparingInt(MarketInsightsSummary.ItemInsight::getSpread).reversed());
+
+        return new MarketInsightsSummary(
+            now,
+            totalTradesRecorded,
+            totalVolumeTraded,
+            tradeHistory.size(),
+            byVolume.stream().limit(limit).collect(Collectors.toList()),
+            bySpread.stream().limit(limit).collect(Collectors.toList())
+        );
+    }
     
     /**
      * Clean up old data (called periodically).
@@ -269,6 +350,7 @@ public class MarketAnalyticsService {
         
         if (removed > 0) {
             ModLogger.debug("Cleaned up %d expired 24h price ranges", removed);
+            markDirty();
         }
     }
     
@@ -284,6 +366,92 @@ public class MarketAnalyticsService {
     
     public int getTrackedItemCount() {
         return tradeHistory.size();
+    }
+
+    // ===== PERSISTENCE =====
+
+    public void addSaveData(SaveData save) {
+        save.addInt("maxTradesPerItem", maxTradesPerItem);
+        save.addLong("totalTradesRecorded", totalTradesRecorded);
+        save.addLong("totalVolumeTraded", totalVolumeTraded);
+
+        SaveData historyData = new SaveData("TRADE_HISTORY");
+        for (Map.Entry<String, List<TradeRecord>> entry : tradeHistory.entrySet()) {
+            SaveData itemSave = new SaveData("ITEM");
+            itemSave.addUnsafeString("itemID", entry.getKey());
+            List<TradeRecord> records = entry.getValue();
+            synchronized (records) {
+                for (TradeRecord record : records) {
+                    SaveData tradeSave = new SaveData("TRADE");
+                    tradeSave.addInt("price", record.getPrice());
+                    tradeSave.addInt("quantity", record.getQuantity());
+                    tradeSave.addLong("timestamp", record.getTimestamp());
+                    itemSave.addSaveData(tradeSave);
+                }
+            }
+            historyData.addSaveData(itemSave);
+        }
+        save.addSaveData(historyData);
+
+        SaveData rangeData = new SaveData("RANGES");
+        for (Map.Entry<String, PriceRange> entry : dailyRanges.entrySet()) {
+            PriceRange range = entry.getValue();
+            SaveData rangeSave = new SaveData("RANGE");
+            rangeSave.addUnsafeString("itemID", entry.getKey());
+            synchronized (range) {
+                rangeSave.addInt("high", range.getRawHigh());
+                rangeSave.addInt("low", range.getRawLow());
+                rangeSave.addLong("lastUpdate", range.getLastUpdate());
+            }
+            rangeData.addSaveData(rangeSave);
+        }
+        save.addSaveData(rangeData);
+    }
+
+    public void applyLoadData(LoadData load) {
+        if (load == null) {
+            return;
+        }
+
+        totalTradesRecorded = load.getLong("totalTradesRecorded", 0L);
+        totalVolumeTraded = load.getLong("totalVolumeTraded", 0L);
+
+        tradeHistory.clear();
+        LoadData historyData = load.getFirstLoadDataByName("TRADE_HISTORY");
+        if (historyData != null) {
+            for (LoadData itemData : historyData.getLoadDataByName("ITEM")) {
+                String itemID = itemData.getUnsafeString("itemID");
+                if (itemID == null || itemID.isEmpty()) {
+                    continue;
+                }
+                List<TradeRecord> records = new ArrayList<>();
+                for (LoadData tradeData : itemData.getLoadDataByName("TRADE")) {
+                    int price = tradeData.getInt("price", 0);
+                    int quantity = tradeData.getInt("quantity", 0);
+                    long timestamp = tradeData.getLong("timestamp", System.currentTimeMillis());
+                    records.add(new TradeRecord(price, quantity, timestamp));
+                }
+                tradeHistory.put(itemID, records);
+            }
+        }
+
+        dailyRanges.clear();
+        LoadData rangeData = load.getFirstLoadDataByName("RANGES");
+        if (rangeData != null) {
+            for (LoadData itemRange : rangeData.getLoadDataByName("RANGE")) {
+                String itemID = itemRange.getUnsafeString("itemID");
+                if (itemID == null || itemID.isEmpty()) {
+                    continue;
+                }
+                PriceRange range = new PriceRange();
+                range.load(
+                    itemRange.getInt("high", 0),
+                    itemRange.getInt("low", Integer.MAX_VALUE),
+                    itemRange.getLong("lastUpdate", 0L)
+                );
+                dailyRanges.put(itemID, range);
+            }
+        }
     }
     
     // ===== NESTED CLASSES =====
@@ -355,6 +523,20 @@ public class MarketAnalyticsService {
         public boolean isValid() {
             return high > 0 && low < Integer.MAX_VALUE;
         }
+
+        public synchronized int getRawHigh() {
+            return high;
+        }
+
+        public synchronized int getRawLow() {
+            return low;
+        }
+
+        public synchronized void load(int high, int low, long lastUpdate) {
+            this.high = high;
+            this.low = low;
+            this.lastUpdate = lastUpdate;
+        }
     }
     
     /**
@@ -407,6 +589,16 @@ public class MarketAnalyticsService {
         public String toString() {
             return String.format("Market[%s: guide=%d, vwap=%d, 24h=%d-%d, vol=%d, trades=%d]",
                 itemID, guidePrice, vwap, low24h, high24h, tradeVolume, tradeCount);
+        }
+    }
+
+    public long getLastTradeTimestamp(String itemID) {
+        List<TradeRecord> history = tradeHistory.get(itemID);
+        if (history == null || history.isEmpty()) {
+            return 0L;
+        }
+        synchronized (history) {
+            return history.get(history.size() - 1).getTimestamp();
         }
     }
 }

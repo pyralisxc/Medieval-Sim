@@ -132,7 +132,7 @@ public class PlotFlagObject extends GameObject {
     @Override
     public String getInteractTip(Level level, int x, int y, PlayerMob perspective, boolean debug) {
         // Get coin cost from config
-        int coinCost = ModConfig.PlotFlags.coinCost;
+        int coinCost = ModConfig.Settlements.plotFlagCoinCost;
         return Localization.translate("ui", "plotflaginteract", "coins", coinCost);
     }
 
@@ -158,7 +158,7 @@ public class PlotFlagObject extends GameObject {
         }
 
         // Get coin cost from config
-        int coinCost = ModConfig.PlotFlags.coinCost;
+        int coinCost = ModConfig.Settlements.plotFlagCoinCost;
 
         // Create recipe for coin payment
         Ingredient[] ingredients = new Ingredient[] {

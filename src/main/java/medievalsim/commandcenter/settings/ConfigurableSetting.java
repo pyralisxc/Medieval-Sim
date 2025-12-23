@@ -18,11 +18,12 @@ public class ConfigurableSetting {
     private final double maxValue;
     private final String defaultValue;
     private final boolean runtime;
-    
-    public ConfigurableSetting(LoadedMod mod, String sectionName, Field field, 
-                               String description, SettingType type, 
-                               double minValue, double maxValue, 
-                               String defaultValue, boolean runtime) {
+    private final boolean ownerOnly;
+
+    public ConfigurableSetting(LoadedMod mod, String sectionName, Field field,
+                               String description, SettingType type,
+                               double minValue, double maxValue,
+                               String defaultValue, boolean runtime, boolean ownerOnly) {
         this.mod = mod;
         this.sectionName = sectionName;
         this.field = field;
@@ -33,12 +34,11 @@ public class ConfigurableSetting {
         this.maxValue = maxValue;
         this.defaultValue = defaultValue;
         this.runtime = runtime;
-        
+        this.ownerOnly = ownerOnly;
+
         // Ensure field is accessible
         field.setAccessible(true);
-    }
-    
-    // ===== GETTERS =====
+    }    // ===== GETTERS =====
     
     public LoadedMod getMod() {
         return mod;
@@ -79,7 +79,11 @@ public class ConfigurableSetting {
     public boolean isRuntime() {
         return runtime;
     }
-    
+
+    public boolean isOwnerOnly() {
+        return ownerOnly;
+    }
+
     /**
      * Get a human-readable display name for this setting
      */

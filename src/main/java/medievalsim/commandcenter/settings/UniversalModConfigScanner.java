@@ -115,6 +115,12 @@ public class UniversalModConfigScanner {
                 continue; // Skip non-static nested classes
             }
 
+            // Skip sections marked as hidden (e.g., GrandExchange - managed in its own UI)
+            if (isSectionHidden(nestedClass)) {
+                ModLogger.debug("  Skipping hidden section: %s", nestedClass.getSimpleName());
+                continue;
+            }
+
             // Extract section metadata
             String sectionName = extractSectionName(nestedClass);
             String sectionDescription = extractSectionDescription(nestedClass);
@@ -130,6 +136,24 @@ public class UniversalModConfigScanner {
         }
 
         return sections;
+    }
+
+    /**
+     * Check if a section is marked as hidden from the UI
+     */
+    private static boolean isSectionHidden(Class<?> sectionClass) {
+        for (Annotation annotation : sectionClass.getAnnotations()) {
+            if (annotation.annotationType().getSimpleName().equals("ConfigSection")) {
+                try {
+                    Method hiddenMethod = annotation.annotationType().getMethod("hidden");
+                    return (Boolean) hiddenMethod.invoke(annotation);
+                } catch (Exception e) {
+                    // No hidden attribute or error - default to not hidden
+                    return false;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -209,13 +233,23 @@ public class UniversalModConfigScanner {
                     Method minMethod = annotation.annotationType().getMethod("min");
                     Method maxMethod = annotation.annotationType().getMethod("max");
                     Method runtimeMethod = annotation.annotationType().getMethod("runtime");
+                    
+                    // ownerOnly is optional - default to false if not present
+                    boolean ownerOnly = false;
+                    try {
+                        Method ownerOnlyMethod = annotation.annotationType().getMethod("ownerOnly");
+                        ownerOnly = (boolean) ownerOnlyMethod.invoke(annotation);
+                    } catch (NoSuchMethodException e) {
+                        // ownerOnly not present in this annotation - use default
+                    }
 
                     return new ConfigValueMetadata(
                         (String) defaultValueMethod.invoke(annotation),
                         (String) descriptionMethod.invoke(annotation),
                         (double) minMethod.invoke(annotation),
                         (double) maxMethod.invoke(annotation),
-                        (boolean) runtimeMethod.invoke(annotation)
+                        (boolean) runtimeMethod.invoke(annotation),
+                        ownerOnly
                     );
                 } catch (Exception e) {
                     ModLogger.warn("Failed to extract @ConfigValue metadata from field %s: %s",
@@ -230,7 +264,7 @@ public class UniversalModConfigScanner {
      * Create a ConfigurableSetting from field and metadata
      */
     private static ConfigurableSetting createSetting(LoadedMod mod, String sectionName,
-                                                     Field field, ConfigValueMetadata metadata) {
+                                                      Field field, ConfigValueMetadata metadata) {
         SettingType type = determineSettingType(field);
         if (type == null) {
             ModLogger.warn("Unsupported field type for %s: %s", field.getName(), field.getType());
@@ -246,11 +280,10 @@ public class UniversalModConfigScanner {
             metadata.min,
             metadata.max,
             metadata.defaultValue,
-            metadata.runtime
+            metadata.runtime,
+            metadata.ownerOnly
         );
-    }
-
-    /**
+    }    /**
      * Determine SettingType from field type
      */
     private static SettingType determineSettingType(Field field) {
@@ -283,13 +316,15 @@ public class UniversalModConfigScanner {
         final double min;
         final double max;
         final boolean runtime;
+        final boolean ownerOnly;
 
-        ConfigValueMetadata(String defaultValue, String description, double min, double max, boolean runtime) {
+        ConfigValueMetadata(String defaultValue, String description, double min, double max, boolean runtime, boolean ownerOnly) {
             this.defaultValue = defaultValue;
             this.description = description;
             this.min = min;
             this.max = max;
             this.runtime = runtime;
+            this.ownerOnly = ownerOnly;
         }
     }
 }

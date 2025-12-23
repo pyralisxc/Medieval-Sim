@@ -5,6 +5,7 @@ import necesse.engine.util.GameBlackboard;
 import necesse.entity.mobs.buffs.ActiveBuff;
 import necesse.entity.mobs.buffs.BuffEventSubscriber;
 import necesse.entity.mobs.buffs.staticBuffs.Buff;
+import necesse.gfx.GameColor;
 import necesse.gfx.gameTooltips.ListGameTooltips;
 
 /**
@@ -36,19 +37,19 @@ public class SettlementProtectionBuff extends Buff {
         
         if (settlementName != null && !settlementName.isEmpty()) {
             // Settlement title
-            tooltips.add("§eSettlement Protection: §f" + settlementName);
+            tooltips.add(GameColor.YELLOW.getColorCode() + "Settlement Protection: " + GameColor.WHITE.getColorCode() + settlementName);
             
             // Owner info
             if (ownerName != null && !ownerName.isEmpty()) {
-                tooltips.add("§7Owner: §f" + ownerName);
+                tooltips.add(GameColor.GRAY.getColorCode() + "Owner: " + GameColor.WHITE.getColorCode() + ownerName);
             }
             
             // Check if player has elevated access
             boolean isElevated = buff.getGndData().getBoolean("isElevated");
             
             if (isElevated) {
-                tooltips.add("§aFull Access (Owner/Team)");
-                tooltips.add("§7Can build, break, and interact");
+                tooltips.add(GameColor.GREEN.getColorCode() + "Full Access (Owner/Team)");
+                tooltips.add(GameColor.GRAY.getColorCode() + "Can build, break, and interact");
             } else {
                 // Read individual permissions from GND data
                 boolean canPlace = buff.getGndData().getBoolean("canPlace");
@@ -60,8 +61,8 @@ public class SettlementProtectionBuff extends Buff {
                 boolean canFurniture = buff.getGndData().getBoolean("canFurniture");
                 
                 // Build allowed/blocked lists
-                StringBuilder allowed = new StringBuilder("§aAllowed: §f");
-                StringBuilder blocked = new StringBuilder("§cBlocked: §f");
+                StringBuilder allowed = new StringBuilder(GameColor.GREEN.getColorCode() + "Allowed: " + GameColor.WHITE.getColorCode());
+                StringBuilder blocked = new StringBuilder(GameColor.RED.getColorCode() + "Blocked: " + GameColor.WHITE.getColorCode());
                 
                 boolean hasAny = false;
                 if (canPlace) { allowed.append("Place, "); hasAny = true; } else { blocked.append("Place, "); }
@@ -73,7 +74,7 @@ public class SettlementProtectionBuff extends Buff {
                 if (canFurniture) { allowed.append("Furniture, "); hasAny = true; } else { blocked.append("Furniture, "); }
                 
                 if (!hasAny) {
-                    tooltips.add("§cNo permissions in this settlement");
+                    tooltips.add(GameColor.RED.getColorCode() + "No permissions in this settlement");
                 } else {
                     String allowedStr = allowed.toString();
                     if (allowedStr.endsWith(", ")) allowedStr = allowedStr.substring(0, allowedStr.length() - 2);

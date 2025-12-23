@@ -16,6 +16,7 @@ import necesse.engine.network.PacketWriter;
 import necesse.engine.network.packet.PacketOpenContainer;
 import necesse.engine.network.server.ServerClient;
 import necesse.engine.registries.ContainerRegistry;
+import necesse.inventory.Inventory;
 import necesse.inventory.container.Container;
 import necesse.inventory.container.customAction.BooleanCustomAction;
 import necesse.inventory.container.customAction.EmptyCustomAction;
@@ -38,6 +39,7 @@ public class BankContainer extends Container {
     public int maxUpgradeLevel = ModConfig.Banking.maxUpgrades;
     public long clientCoinCount = 0;
     public long lastSyncedCoinCount = 0;
+    private Runnable coinCountUpdateCallback;
 
     public EmptyCustomAction purchaseUpgrade;
     public StringCustomAction validatePin;
@@ -61,6 +63,7 @@ public class BankContainer extends Container {
         this.isPinValidated = reader.getNextBoolean();
         boolean pinSet = reader.getNextBoolean();
         this.clientCoinCount = reader.getNextLong();
+        Inventory snapshotInventory = Inventory.getInventory(reader);
 
         if (client.isServer()) {
             BankingService service = new BankingService(client.getServerClient());
@@ -77,6 +80,9 @@ public class BankContainer extends Container {
         } else {
             this.bankingService = null;
             this.bank = new PlayerBank(ownerAuth, currentUpgradeLevel);
+            if (snapshotInventory != null) {
+                this.bank.getInventory().override(snapshotInventory, false, false);
+            }
         }
         if (!client.isServer()) {
             this.bank.setPinSet(pinSet);
@@ -168,6 +174,7 @@ public class BankContainer extends Container {
                 if (!client.isServer()) {
                     clientCoinCount = coinCount;
                     ModLogger.debug("Client: Updated coin count to %d", coinCount);
+                    notifyCoinCountUpdated();
                 }
             }
         });
@@ -223,6 +230,16 @@ public class BankContainer extends Container {
                 }
             }
         });
+    }
+
+    public void setCoinCountUpdateCallback(Runnable callback) {
+        this.coinCountUpdateCallback = callback;
+    }
+
+    private void notifyCoinCountUpdated() {
+        if (coinCountUpdateCallback != null) {
+            coinCountUpdateCallback.run();
+        }
     }
 
     private void setupQuickTransfer() {

@@ -22,6 +22,7 @@ import medievalsim.util.ModLogger;
 import necesse.engine.Settings;
 import necesse.engine.localization.message.StaticMessage;
 import necesse.engine.network.client.Client;
+import necesse.gfx.GameColor;
 import necesse.gfx.forms.Form;
 import necesse.gfx.forms.components.FormButton;
 import necesse.gfx.forms.components.FormComponent;
@@ -535,7 +536,7 @@ public class ConsoleCommandsTab {
 
         } catch (Exception e) {
             ModLogger.error("Error building command: " + e.getMessage());
-            client.chat.addMessage("§c[Command Center] Error: " + e.getMessage());
+            client.chat.addMessage(GameColor.RED.getColorCode() + "[Command Center] Error: " + e.getMessage());
         }
     }
 

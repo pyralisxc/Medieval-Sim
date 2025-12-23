@@ -14,6 +14,7 @@ import necesse.engine.util.GameBlackboard;
 import necesse.entity.mobs.buffs.ActiveBuff;
 import necesse.entity.mobs.buffs.BuffEventSubscriber;
 import necesse.entity.mobs.buffs.staticBuffs.Buff;
+import necesse.gfx.GameColor;
 import necesse.gfx.gameTexture.GameTexture;
 import necesse.gfx.gameTooltips.ListGameTooltips;
 
@@ -39,15 +40,15 @@ extends Buff {
         // Get zone name from buff data
         String zoneName = buff.getGndData().getString("zoneName");
         if (zoneName != null && !zoneName.isEmpty()) {
-            tooltips.add("§ePvP Zone: §f" + zoneName);
+            tooltips.add(GameColor.YELLOW.getColorCode() + "PvP Zone: " + GameColor.WHITE.getColorCode() + zoneName);
         } else {
-            tooltips.add("§ePvP Zone");
+            tooltips.add(GameColor.YELLOW.getColorCode() + "PvP Zone");
         }
         
         // Get damage multiplier and format percentage
         float damageMultiplier = buff.getGndData().getFloat("damageMultiplier", 1.0f);
         String damagePercent = medievalsim.zones.domain.PvPZone.formatDamagePercent(damageMultiplier);
-        tooltips.add("§cPvP Damage: §f" + damagePercent);
+        tooltips.add(GameColor.RED.getColorCode() + "PvP Damage: " + GameColor.WHITE.getColorCode() + damagePercent);
         
         return tooltips;
     }

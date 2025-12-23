@@ -5,7 +5,7 @@
  * It provides utility methods for checking if a tile is within a protected settlement
  * and whether a player has permission to perform actions within that settlement.
  *
- * Used by ZoneProtectionValidator to integrate settlement protection into the
+ * Used by ProtectionFacade to integrate settlement protection into the
  * existing zone protection system.
  */
 package medievalsim.zones.settlement;

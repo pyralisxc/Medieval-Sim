@@ -176,6 +176,7 @@ public class YourMod {
 | `double` / `Double` | Text input | Treated as float for UI |
 | `boolean` / `Boolean` | Checkbox | Simple on/off toggle |
 | `String` | Text input | Max 100 characters |
+| `enum` | Dropdown | Formatted display names (e.g., WORLD_BOSS → "World Boss") |
 
 ---
 

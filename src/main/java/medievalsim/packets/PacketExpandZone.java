@@ -3,6 +3,7 @@ import java.awt.Rectangle;
 import medievalsim.util.ModLogger;
 import medievalsim.zones.domain.AdminZone;
 import medievalsim.zones.domain.AdminZonesLevelData;
+import medievalsim.zones.domain.ZoneType;
 
 import necesse.engine.network.NetworkPacket;
 import necesse.engine.network.Packet;
@@ -14,14 +15,14 @@ import necesse.engine.network.server.ServerClient;
 public class PacketExpandZone
 extends Packet {
     public int zoneID;
-    public boolean isProtectedZone;
+    public ZoneType zoneType;
     public Rectangle expandArea;
 
     public PacketExpandZone(byte[] data) {
         super(data);
         PacketReader reader = new PacketReader((Packet)this);
         this.zoneID = reader.getNextInt();
-        this.isProtectedZone = reader.getNextBoolean();
+        this.zoneType = ZoneType.fromId(reader.getNextInt());
         int x = reader.getNextInt();
         int y = reader.getNextInt();
         int width = reader.getNextInt();
@@ -29,17 +30,26 @@ extends Packet {
         this.expandArea = new Rectangle(x, y, width, height);
     }
 
-    public PacketExpandZone(int zoneID, boolean isProtectedZone, Rectangle expandArea) {
+    public PacketExpandZone(int zoneID, ZoneType zoneType, Rectangle expandArea) {
         this.zoneID = zoneID;
-        this.isProtectedZone = isProtectedZone;
+        this.zoneType = zoneType;
         this.expandArea = expandArea;
         PacketWriter writer = new PacketWriter((Packet)this);
         writer.putNextInt(zoneID);
-        writer.putNextBoolean(isProtectedZone);
+        writer.putNextInt(zoneType.getId());
         writer.putNextInt(expandArea.x);
         writer.putNextInt(expandArea.y);
         writer.putNextInt(expandArea.width);
         writer.putNextInt(expandArea.height);
+    }
+
+    /**
+     * Legacy constructor for backward compatibility.
+     * @deprecated Use {@link #PacketExpandZone(int, ZoneType, Rectangle)} instead
+     */
+    @Deprecated
+    public PacketExpandZone(int zoneID, boolean isProtectedZone, Rectangle expandArea) {
+        this(zoneID, isProtectedZone ? ZoneType.PROTECTED : ZoneType.PVP, expandArea);
     }
 
     @Override
@@ -48,7 +58,7 @@ extends Packet {
             // Validate using ZoneAPI
             medievalsim.util.ZoneAPI.ZoneContext ctx = medievalsim.util.ZoneAPI.forClient(client)
                 .withPacketName("PacketExpandZone")
-                .requireAnyZone(this.zoneID, !this.isProtectedZone)
+                .requireZoneByType(this.zoneID, this.zoneType)
                 .build();
             if (!ctx.isValid()) return;
 
@@ -70,7 +80,7 @@ extends Packet {
             if (changed) {
                 AdminZonesLevelData localZoneData = AdminZonesLevelData.getZoneData(ctx.getLevel(), false);
                 if (localZoneData != null) {
-                    localZoneData.resolveAfterZoneChange(zone, ctx.getLevel(), server, this.isProtectedZone, oldEdgesSnapshot);
+                    localZoneData.resolveAfterZoneChange(zone, ctx.getLevel(), server, this.zoneType, oldEdgesSnapshot);
                 }
                 ModLogger.info("Expanded zone " + this.zoneID + " (" + zone.name + ") by " + client.getName());
             }

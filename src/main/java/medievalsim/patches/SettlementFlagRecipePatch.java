@@ -24,7 +24,7 @@ public class SettlementFlagRecipePatch {
         @Advice.Return(readOnly = false) CanCraft canCraft
     ) {
         // Only block if plot flags are enabled
-        if (!ModConfig.PlotFlags.enabled) {
+        if (!ModConfig.Settlements.plotFlagsEnabled) {
             return;
         }
         

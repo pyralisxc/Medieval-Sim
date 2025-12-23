@@ -8,10 +8,10 @@ import necesse.inventory.InventoryItem;
 import necesse.inventory.item.toolItem.ToolDamageItem;
 import necesse.level.maps.Level;
 import net.bytebuddy.asm.Advice;
-import medievalsim.util.ZoneProtectionValidator;
+import medievalsim.zones.protection.ProtectionFacade;
 
 /**
- * Patches ToolDamageItem.canDamageTile() to check ProtectedZones.
+ * Patches ToolDamageItem.canDamageTile() to check settlement and zone protection.
  * This is the CORE breaking protection mechanism in Necesse.
  * 
  * ARCHITECTURE:
@@ -21,8 +21,9 @@ import medievalsim.util.ZoneProtectionValidator;
  * - This was the missing link - we were patching placement but not breaking
  * 
  * DESIGN:
- * - Return false to prevent breaking if zone permissions deny it
- * - Shows appropriate message to player via ZoneProtectionValidator
+ * - Return false to prevent breaking if settlement/zone permissions deny it
+ * - Settlement protection takes precedence over zone protection
+ * - Shows appropriate message to player via ProtectionFacade
  * - Only enforces on server-side (client follows server's response)
  */
 @ModMethodPatch(target = ToolDamageItem.class, name = "canDamageTile", arguments = {Level.class, int.class, int.class, int.class, ItemAttackerMob.class, InventoryItem.class})
@@ -72,15 +73,16 @@ public class ToolDamageItemCanDamageTilePatch {
             return;
         }
         
-        // Check zone permissions for breaking
+        // Check protection using unified facade (settlement + zone, with settlement precedence)
         // Note: tileX and tileY are already tile coordinates, not position coordinates
-        ZoneProtectionValidator.ValidationResult validation = 
-            ZoneProtectionValidator.validateBreak(level, tileX, tileY, client);
+        // layerID: -1 for tiles, 0+ for objects
+        boolean isObject = layerID >= 0;
+        ProtectionFacade.ProtectionResult protection = 
+            ProtectionFacade.canBreak(client, level, tileX, tileY, isObject);
         
-        if (!validation.isAllowed()) {
+        if (!protection.isAllowed()) {
             // Send message to player explaining why breaking is blocked
-            String message = necesse.engine.localization.Localization.translate("ui", validation.getReason());
-            client.sendChatMessage(message);
+            client.sendChatMessage(protection.getMessage());
             // Block the damage
             returnValue = false;
         }

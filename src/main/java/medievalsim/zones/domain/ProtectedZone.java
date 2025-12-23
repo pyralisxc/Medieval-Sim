@@ -39,6 +39,9 @@ extends AdminZone {
 
     // Movement restrictions
     private boolean disableBrooms = false;         // Prevent broom riding for non-elevated players
+    
+    // Boss summon restrictions
+    private boolean allowBossSummons = false;      // Allow boss summon items to be used in this zone
 
     public ProtectedZone() {
     }
@@ -140,40 +143,36 @@ extends AdminZone {
             return true;
         }
 
-        // Determine permission based on GameObject type (order matters!)
-        boolean hasPermission = false;
-
-        // 1. Doors (most specific check first)
-        if (gameObject.isDoor) {
-            hasPermission = canInteractDoors;
-        }
-        // 2. Crafting stations (check BEFORE InventoryObject - CraftingStationObject extends InventoryObject)
-        else if (gameObject instanceof necesse.level.gameObject.container.CraftingStationObject ||
-                 gameObject instanceof necesse.level.gameObject.container.FueledCraftingStationObject) {
-            hasPermission = canInteractStations;
-        }
-        // 3. Containers/Chests (after crafting stations)
-        else if (gameObject instanceof necesse.level.gameObject.container.InventoryObject) {
-            hasPermission = canInteractContainers;
-        }
-        // 4. Signs
-        else if (gameObject instanceof necesse.level.gameObject.SignObject) {
-            hasPermission = canInteractSigns;
-        }
-        // 5. Switches/Levers (but not doors - already checked above)
-        else if (gameObject.isSwitch || gameObject.isPressurePlate) {
-            hasPermission = canInteractSwitches;
-        }
-        // 6. Furniture (beds, chairs, decorative objects)
-        else if (gameObject instanceof necesse.level.gameObject.furniture.FurnitureObject) {
-            hasPermission = canInteractFurniture;
-        }
-        // Unknown type - deny by default in protected zones
-        else {
-            // Log unknown object types for debugging
-            ModLogger.debug("Unknown GameObject type in protected zone: %s (ID: %s)",
-                gameObject.getClass().getSimpleName(), gameObject.getStringID());
-            return false;
+        // Use GameObjectClassifier for consistent type detection
+        medievalsim.util.GameObjectClassifier.InteractionType type = 
+            medievalsim.util.GameObjectClassifier.classify(gameObject);
+        
+        // Map InteractionType to zone permissions
+        boolean hasPermission;
+        switch (type) {
+            case DOOR:
+                hasPermission = canInteractDoors;
+                break;
+            case CRAFTING_STATION:
+                hasPermission = canInteractStations;
+                break;
+            case CONTAINER:
+                hasPermission = canInteractContainers;
+                break;
+            case SIGN:
+                hasPermission = canInteractSigns;
+                break;
+            case SWITCH:
+                hasPermission = canInteractSwitches;
+                break;
+            case FURNITURE:
+                hasPermission = canInteractFurniture;
+                break;
+            case UNKNOWN:
+            default:
+                // Unknown types denied by default (already logged by GameObjectClassifier)
+                hasPermission = false;
+                break;
         }
 
         // Allow/deny based on the determined permission
@@ -298,6 +297,33 @@ extends AdminZone {
     
     public void setDisableBrooms(boolean value) {
         this.disableBrooms = value;
+    }
+    
+    public boolean getAllowBossSummons() {
+        return allowBossSummons;
+    }
+    
+    public void setAllowBossSummons(boolean value) {
+        this.allowBossSummons = value;
+    }
+    
+    /**
+     * Check if boss summons should be allowed for the given client.
+     * Respects both global config and zone-specific settings.
+     */
+    public boolean canSummonBoss(ServerClient client, Level level) {
+        // Global setting takes precedence - if disabled globally, no zone can override
+        if (!medievalsim.config.ModConfig.BossSummons.allowBossSummonsGlobally) {
+            return false;
+        }
+        
+        // If zone explicitly allows boss summons, permit it
+        if (this.allowBossSummons) {
+            return true;
+        }
+        
+        // Zone doesn't allow boss summons - check if user has elevated access
+        return hasElevatedAccess(client, level);
     }
     
     // Get owner name (for UI display) - no server required (client-side safe)
@@ -517,6 +543,7 @@ extends AdminZone {
         save.addBoolean("canInteractSwitches", this.canInteractSwitches);
         save.addBoolean("canInteractFurniture", this.canInteractFurniture);
         save.addBoolean("disableBrooms", this.disableBrooms);
+        save.addBoolean("allowBossSummons", this.allowBossSummons);
     }
 
     @Override
@@ -545,6 +572,7 @@ extends AdminZone {
         this.canInteractSwitches = save.getBoolean("canInteractSwitches", false);
         this.canInteractFurniture = save.getBoolean("canInteractFurniture", false);
         this.disableBrooms = save.getBoolean("disableBrooms", false);
+        this.allowBossSummons = save.getBoolean("allowBossSummons", medievalsim.config.ModConfig.BossSummons.allowInProtectedZonesByDefault);
     }
 
     @Override
@@ -570,6 +598,7 @@ extends AdminZone {
         writer.putNextBoolean(this.canInteractSwitches);
         writer.putNextBoolean(this.canInteractFurniture);
         writer.putNextBoolean(this.disableBrooms);
+        writer.putNextBoolean(this.allowBossSummons);
     }
 
     @Override
@@ -596,6 +625,7 @@ extends AdminZone {
         this.canInteractSwitches = reader.getNextBoolean();
         this.canInteractFurniture = reader.getNextBoolean();
         this.disableBrooms = reader.getNextBoolean();
+        this.allowBossSummons = reader.getNextBoolean();
     }
 }
 

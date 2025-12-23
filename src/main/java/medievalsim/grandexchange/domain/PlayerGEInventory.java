@@ -1,6 +1,7 @@
 package medievalsim.grandexchange.domain;
 
 import medievalsim.config.ModConfig;
+import medievalsim.grandexchange.model.event.SellOfferSaleEvent;
 import medievalsim.util.ModLogger;
 import necesse.engine.save.LoadData;
 import necesse.engine.save.SaveData;
@@ -8,7 +9,10 @@ import necesse.engine.save.levelData.InventorySave;
 import necesse.inventory.Inventory;
 import necesse.inventory.InventoryItem;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 
 /**
@@ -18,12 +22,16 @@ import java.util.List;
  * - Sell inventory: 10 slots for creating sell offers
  * - Buy orders: 3 slots for creating buy orders
  * - Collection box: Unlimited item list for purchased/returned items
- * - Sale history: Last 20 sale notifications
+ * - Sale history: Last 50 sale notifications
  * - Settings: Auto-bank toggle, notification preferences
  * 
  * Pattern: Similar to PlayerBank but with multiple storage types.
  */
 public class PlayerGEInventory {
+
+    private static final int MAX_PURCHASE_HISTORY_RECORDS = 50;
+    private static final int MAX_SALE_HISTORY_RECORDS = 50;
+    private static final int MAX_PENDING_SALE_EVENTS = 6;
 
     private final long ownerAuth;
     
@@ -37,11 +45,17 @@ public class PlayerGEInventory {
     // ===== COLLECTION & NOTIFICATIONS =====
     private final List<CollectionItem> collectionBox;       // Unlimited item storage (not inventory slots)
     private final List<SaleNotification> saleHistory;       // Last N sale notifications
+    private final Deque<SellOfferSaleEvent> pendingSaleEvents; // Buffered sale pulses for reconnects
+    private final Object collectionLock = new Object();
+    private final Deque<PersonalTradeRecord> purchaseHistory; // Chronological personal buy history
+    private final Object recentPurchaseLock = new Object();
     
     // ===== SETTINGS =====
     private boolean autoSendToBank;            // Auto-send purchases to bank (default true)
     private boolean notifyPartialSales;        // Notify on every partial sale (default true)
     private boolean playSoundOnSale;           // Play sound when sale completes (default true)
+    private boolean collectionDepositToBankPreferred; // Preferred destination when collecting items
+    private int collectionPageIndex;           // Last viewed collection page (pagination state)
     
     // ===== ESCROW =====
     private int coinsInEscrow;                 // Total coins locked in active buy orders
@@ -56,6 +70,7 @@ public class PlayerGEInventory {
     private int totalBuyOrdersCompleted;
     private int totalItemsPurchased;
     private int totalItemsSold;
+    private long lastHistoryViewedTimestamp;                // Server-tracked history acknowledgement
 
     /**
      * Create new GE data for player.
@@ -76,11 +91,15 @@ public class PlayerGEInventory {
         // Collection & notifications
         this.collectionBox = new ArrayList<>();
         this.saleHistory = new ArrayList<>();
+        this.pendingSaleEvents = new ArrayDeque<>(MAX_PENDING_SALE_EVENTS + 2);
+        this.purchaseHistory = new ArrayDeque<>(MAX_PURCHASE_HISTORY_RECORDS + 2);
         
         // Settings (defaults)
         this.autoSendToBank = true;
         this.notifyPartialSales = true;
         this.playSoundOnSale = true;
+        this.collectionDepositToBankPreferred = ModConfig.GrandExchange.getDefaultCollectionDepositPreference();
+        this.collectionPageIndex = 0;
         
         // Escrow
         this.coinsInEscrow = 0;
@@ -95,6 +114,7 @@ public class PlayerGEInventory {
         this.totalBuyOrdersCompleted = 0;
         this.totalItemsPurchased = 0;
         this.totalItemsSold = 0;
+        this.lastHistoryViewedTimestamp = 0L;
 
         ModLogger.debug("Created GE data for player auth=%d: %d sell slots, %d buy order slots", 
             ownerAuth, sellSlotCount, buySlotCount);
@@ -222,11 +242,15 @@ public class PlayerGEInventory {
     
     // Collection box accessors
     public List<CollectionItem> getCollectionBox() {
-        return collectionBox;
+        synchronized (collectionLock) {
+            return new ArrayList<>(collectionBox);
+        }
     }
     
     public int getCollectionBoxSize() {
-        return collectionBox.size();
+        synchronized (collectionLock) {
+            return collectionBox.size();
+        }
     }
     
     // Sale history accessors
@@ -260,6 +284,27 @@ public class PlayerGEInventory {
     public void setPlaySoundOnSale(boolean value) {
         this.playSoundOnSale = value;
         updateAccessTime();
+    }
+
+    public boolean isCollectionDepositToBankPreferred() {
+        return collectionDepositToBankPreferred;
+    }
+
+    public void setCollectionDepositToBankPreferred(boolean value) {
+        this.collectionDepositToBankPreferred = value;
+        updateAccessTime();
+    }
+
+    public int getCollectionPageIndex() {
+        return Math.max(0, collectionPageIndex);
+    }
+
+    public void setCollectionPageIndex(int pageIndex) {
+        int normalized = Math.max(0, pageIndex);
+        if (this.collectionPageIndex != normalized) {
+            this.collectionPageIndex = normalized;
+            updateAccessTime();
+        }
     }
     
     // Escrow accessors
@@ -349,8 +394,8 @@ public class PlayerGEInventory {
 
     public int getAvailableSellSlotCount() {
         int count = 0;
-        for (int i = 0; i < sellInventory.getSize(); i++) {
-            if (!hasActiveOffer(i)) {
+        for (int i = 0; i < sellOffers.length; i++) {
+            if (isSlotReusableForNewOffer(i)) {
                 count++;
             }
         }
@@ -358,20 +403,37 @@ public class PlayerGEInventory {
     }
 
     public boolean canCreateSellOffer() {
+        if (findAvailableSellSlot() < 0) {
+            return false;
+        }
         return getActiveOfferCount() < ModConfig.GrandExchange.maxActiveOffersPerPlayer;
     }
 
     /**
-     * Find first available sell slot (no active offer).
+     * Find first available sell slot (no active or draft offer occupying it).
      * @return Slot index, or -1 if all slots occupied
      */
     public int findAvailableSellSlot() {
-        for (int i = 0; i < sellInventory.getSize(); i++) {
-            if (!hasActiveOffer(i)) {
+        for (int i = 0; i < sellOffers.length; i++) {
+            if (isSlotReusableForNewOffer(i)) {
                 return i;
             }
         }
         return -1;
+    }
+
+    private boolean isSlotReusableForNewOffer(int slot) {
+        if (!isValidSellSlot(slot)) {
+            return false;
+        }
+        GEOffer offer = sellOffers[slot];
+        if (offer == null) {
+            return true;
+        }
+        GEOffer.OfferState state = offer.getState();
+        return state == GEOffer.OfferState.COMPLETED
+            || state == GEOffer.OfferState.CANCELLED
+            || state == GEOffer.OfferState.EXPIRED;
     }
     
     // ===== BUY ORDER MANAGEMENT =====
@@ -411,39 +473,41 @@ public class PlayerGEInventory {
      * Attempts to merge with existing items of same type.
      */
     public void addToCollectionBox(String itemStringID, int quantity, String source) {
-        if (quantity <= 0) {
+        if (itemStringID == null || quantity <= 0) {
             return;
         }
-        
-        // Try to merge with existing item
-        for (CollectionItem existing : collectionBox) {
-            if (existing.getItemStringID().equals(itemStringID)) {
-                existing.addQuantity(quantity);
-                ModLogger.debug("Merged %d x %s into collection box (player auth=%d), new total=%d",
-                    quantity, itemStringID, ownerAuth, existing.getQuantity());
-                updateAccessTime();
-                return;
+
+        synchronized (collectionLock) {
+            for (CollectionItem existing : collectionBox) {
+                if (existing.getItemStringID().equals(itemStringID)) {
+                    existing.addQuantity(quantity);
+                    ModLogger.debug("Merged %d x %s into collection box (player auth=%d), new total=%d",
+                        quantity, itemStringID, ownerAuth, existing.getQuantity());
+                    updateAccessTime();
+                    return;
+                }
             }
+
+            CollectionItem newItem = new CollectionItem(itemStringID, quantity, source);
+            collectionBox.add(newItem);
+            ModLogger.debug("Added %d x %s to collection box (player auth=%d, source=%s)",
+                quantity, itemStringID, ownerAuth, source);
+            updateAccessTime();
         }
-        
-        // Add new item
-        CollectionItem newItem = new CollectionItem(itemStringID, quantity, source);
-        collectionBox.add(newItem);
-        ModLogger.debug("Added %d x %s to collection box (player auth=%d, source=%s)",
-            quantity, itemStringID, ownerAuth, source);
-        updateAccessTime();
     }
     
     /**
      * Remove item from collection box by index.
      */
     public CollectionItem removeFromCollectionBox(int index) {
-        if (index < 0 || index >= collectionBox.size()) {
-            return null;
+        synchronized (collectionLock) {
+            if (index < 0 || index >= collectionBox.size()) {
+                return null;
+            }
+            CollectionItem item = collectionBox.remove(index);
+            updateAccessTime();
+            return item;
         }
-        CollectionItem item = collectionBox.remove(index);
-        updateAccessTime();
-        return item;
     }
 
     /**
@@ -453,20 +517,34 @@ public class PlayerGEInventory {
         if (item == null) {
             return;
         }
-        if (index < 0 || index > collectionBox.size()) {
-            collectionBox.add(item);
-        } else {
-            collectionBox.add(index, item);
+        synchronized (collectionLock) {
+            if (index < 0 || index > collectionBox.size()) {
+                collectionBox.add(item);
+            } else {
+                collectionBox.add(index, item);
+            }
+            updateAccessTime();
         }
-        updateAccessTime();
     }
     
     /**
      * Clear entire collection box.
      */
     public void clearCollectionBox() {
-        collectionBox.clear();
-        updateAccessTime();
+        synchronized (collectionLock) {
+            collectionBox.clear();
+            updateAccessTime();
+        }
+    }
+
+    public void replaceCollectionBox(List<CollectionItem> snapshot) {
+        synchronized (collectionLock) {
+            collectionBox.clear();
+            if (snapshot != null && !snapshot.isEmpty()) {
+                collectionBox.addAll(snapshot);
+            }
+            updateAccessTime();
+        }
     }
     
     // ===== SALE HISTORY MANAGEMENT =====
@@ -479,8 +557,7 @@ public class PlayerGEInventory {
         saleHistory.add(0, notification);  // Add to front (most recent first)
         
         // Trim old notifications
-        int maxHistory = 20;  // Could be configurable
-        while (saleHistory.size() > maxHistory) {
+        while (saleHistory.size() > MAX_SALE_HISTORY_RECORDS) {
             saleHistory.remove(saleHistory.size() - 1);
         }
         
@@ -488,12 +565,75 @@ public class PlayerGEInventory {
         ModLogger.debug("Added sale notification for player auth=%d: %s", 
             ownerAuth, notification.formatUIMessage());
     }
+
+    public void queuePendingSaleEvent(SellOfferSaleEvent saleEvent) {
+        if (saleEvent == null) {
+            return;
+        }
+        synchronized (pendingSaleEvents) {
+            pendingSaleEvents.addLast(saleEvent);
+            while (pendingSaleEvents.size() > MAX_PENDING_SALE_EVENTS) {
+                pendingSaleEvents.removeFirst();
+            }
+        }
+    }
+
+    public List<SellOfferSaleEvent> drainPendingSaleEvents() {
+        synchronized (pendingSaleEvents) {
+            if (pendingSaleEvents.isEmpty()) {
+                return Collections.emptyList();
+            }
+            List<SellOfferSaleEvent> snapshot = new ArrayList<>(pendingSaleEvents);
+            pendingSaleEvents.clear();
+            return snapshot;
+        }
+    }
+
+    public long getLatestHistoryTimestamp() {
+        if (saleHistory.isEmpty()) {
+            return 0L;
+        }
+        return saleHistory.get(0).getTimestamp();
+    }
+
+    public long getLastHistoryViewedTimestamp() {
+        return lastHistoryViewedTimestamp;
+    }
+
+    public void markHistoryViewed(long timestamp) {
+        long normalized = Math.max(0L, timestamp);
+        if (normalized > lastHistoryViewedTimestamp) {
+            lastHistoryViewedTimestamp = normalized;
+            updateAccessTime();
+        }
+    }
+
+    public void markHistoryViewedUpToLatest() {
+        markHistoryViewed(getLatestHistoryTimestamp());
+    }
     
+    public int getUnseenHistoryCount() {
+        if (saleHistory.isEmpty()) {
+            return 0;
+        }
+        long baseline = lastHistoryViewedTimestamp;
+        int count = 0;
+        for (SaleNotification notification : saleHistory) {
+            if (notification.getTimestamp() > baseline) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        return count;
+    }
+
     /**
      * Clear sale history.
      */
     public void clearSaleHistory() {
         saleHistory.clear();
+        lastHistoryViewedTimestamp = 0L;
         updateAccessTime();
     }
 
@@ -558,6 +698,52 @@ public class PlayerGEInventory {
         updateAccessTime();
     }
 
+    public void recordPersonalPurchase(String itemStringID, int quantity, int pricePerItem) {
+        if (itemStringID == null || itemStringID.isEmpty() || pricePerItem <= 0) {
+            return;
+        }
+        synchronized (recentPurchaseLock) {
+            purchaseHistory.addFirst(new PersonalTradeRecord(itemStringID, pricePerItem,
+                Math.max(1, quantity), System.currentTimeMillis()));
+            while (purchaseHistory.size() > MAX_PURCHASE_HISTORY_RECORDS) {
+                purchaseHistory.removeLast();
+            }
+        }
+    }
+
+    public PersonalTradeRecord getLastPurchaseRecord(String itemStringID) {
+        if (itemStringID == null) {
+            return null;
+        }
+        synchronized (recentPurchaseLock) {
+            if (purchaseHistory.isEmpty()) {
+                return null;
+            }
+            for (PersonalTradeRecord record : purchaseHistory) {
+                if (itemStringID.equals(record.getItemStringID())) {
+                    return record;
+                }
+            }
+            return null;
+        }
+    }
+
+    public List<PersonalTradeRecord> getRecentPurchases(int limit) {
+        int resolvedLimit = Math.max(1, limit);
+        List<PersonalTradeRecord> snapshot;
+        synchronized (recentPurchaseLock) {
+            snapshot = new ArrayList<>(purchaseHistory);
+        }
+        if (snapshot.isEmpty()) {
+            return Collections.emptyList();
+        }
+        snapshot.sort((a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
+        if (snapshot.size() > resolvedLimit) {
+            return new ArrayList<>(snapshot.subList(0, resolvedLimit));
+        }
+        return snapshot;
+    }
+
     public int getTotalSellOffersCreated() {
         return totalSellOffersCreated;
     }
@@ -597,113 +783,6 @@ public class PlayerGEInventory {
     public void updateAccessTime() {
         lastAccessTime = System.currentTimeMillis();
     }
-    
-    // ===== LEGACY COMPATIBILITY =====
-    
-    /**
-     * @deprecated Use getSellInventory() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `getSellInventory()` instead. This compatibility wrapper is scheduled
-     * for removal in a future release — update call sites to `getSellInventory()`.
-     */
-    public Inventory getInventory() {
-        return sellInventory;
-    }
-    
-    /**
-     * @deprecated Use getSellSlotCount() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `getSellSlotCount()` instead. This compatibility wrapper is scheduled
-     * for removal in a future release — update call sites to `getSellSlotCount()`.
-     */
-    public int getSlotCount() {
-        return sellInventory.getSize();
-    }
-    
-    /**
-     * @deprecated Use isValidSellSlot() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `isValidSellSlot(int)` instead. This wrapper will be removed in a
-     * future release — update call sites accordingly.
-     */
-    public boolean isValidSlot(int slot) {
-        return isValidSellSlot(slot);
-    }
-    
-    /**
-     * @deprecated Use recordSellOfferCreated() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `recordSellOfferCreated()` instead. This compatibility method is
-     * scheduled for removal — migrate to the newer method.
-     */
-    public void recordOfferCreated() {
-        recordSellOfferCreated();
-    }
-    
-    /**
-     * @deprecated Use recordSellOfferCancelled() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `recordSellOfferCancelled()` instead. This compatibility wrapper will
-     * be removed in a future release.
-     */
-    public void recordOfferCancelled() {
-        recordSellOfferCancelled();
-    }
-    
-    /**
-     * @deprecated Use recordSellOfferCompleted() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `recordSellOfferCompleted()` instead. This wrapper remains for
-     * backward compatibility and will be removed later.
-     */
-    public void recordOfferCompleted() {
-        recordSellOfferCompleted();
-    }
-    
-    /**
-     * @deprecated Use getTotalSellOffersCreated() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `getTotalSellOffersCreated()` instead. Remove usage in future.
-     */
-    public int getTotalOffersCreated() {
-        return totalSellOffersCreated;
-    }
-    
-    /**
-     * @deprecated Use getTotalSellOffersCancelled() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `getTotalSellOffersCancelled()` instead. This will be removed.
-     */
-    public int getTotalOffersCancelled() {
-        return totalSellOffersCancelled;
-    }
-    
-    /**
-     * @deprecated Use getTotalSellOffersCompleted() instead
-     */
-    @Deprecated(since = "1.0", forRemoval = true)
-    /**
-     * @deprecated Use `getTotalSellOffersCompleted()` instead. Update call sites.
-     */
-    public int getTotalOffersCompleted() {
-        return totalSellOffersCompleted;
-    }
 
     // ===== PERSISTENCE =====
 
@@ -739,7 +818,11 @@ public class PlayerGEInventory {
         
         // Save collection box
         SaveData collectionData = new SaveData("COLLECTION_BOX");
-        for (CollectionItem item : collectionBox) {
+        List<CollectionItem> collectionSnapshot;
+        synchronized (collectionLock) {
+            collectionSnapshot = new ArrayList<>(collectionBox);
+        }
+        for (CollectionItem item : collectionSnapshot) {
             collectionData.addSaveData(item.getSaveData());
         }
         save.addSaveData(collectionData);
@@ -750,11 +833,43 @@ public class PlayerGEInventory {
             historyData.addSaveData(notification.getSaveData());
         }
         save.addSaveData(historyData);
+
+        // Save pending sale events (short buffer for reconnect)
+        SaveData pendingEventsData = new SaveData("PENDING_SALE_EVENTS");
+        synchronized (pendingSaleEvents) {
+            for (SellOfferSaleEvent event : pendingSaleEvents) {
+                SaveData eventData = new SaveData("SALE_EVENT");
+                eventData.addInt("slotIndex", event.slotIndex());
+                eventData.addUnsafeString("itemStringID", event.itemStringID());
+                eventData.addInt("quantitySold", event.quantitySold());
+                eventData.addInt("quantityRemaining", event.quantityRemaining());
+                eventData.addInt("pricePerItem", event.pricePerItem());
+                eventData.addLong("timestamp", event.timestamp());
+                pendingEventsData.addSaveData(eventData);
+            }
+        }
+        save.addSaveData(pendingEventsData);
+
+        // Save recent purchases
+        SaveData purchaseData = new SaveData("RECENT_PURCHASES");
+        synchronized (recentPurchaseLock) {
+            for (PersonalTradeRecord record : purchaseHistory) {
+                SaveData recordData = new SaveData("PURCHASE");
+                recordData.addUnsafeString("itemStringID", record.getItemStringID());
+                recordData.addInt("pricePerItem", record.getPricePerItem());
+                recordData.addInt("quantity", record.getQuantity());
+                recordData.addLong("timestamp", record.getTimestamp());
+                purchaseData.addSaveData(recordData);
+            }
+        }
+        save.addSaveData(purchaseData);
         
         // Save settings
         save.addBoolean("autoSendToBank", autoSendToBank);
         save.addBoolean("notifyPartialSales", notifyPartialSales);
         save.addBoolean("playSoundOnSale", playSoundOnSale);
+        save.addBoolean("collectionDepositToBankPreferred", collectionDepositToBankPreferred);
+        save.addInt("collectionPageIndex", collectionPageIndex);
         
         // Save escrow
         save.addInt("coinsInEscrow", coinsInEscrow);
@@ -769,9 +884,10 @@ public class PlayerGEInventory {
         save.addInt("totalBuyOrdersCompleted", totalBuyOrdersCompleted);
         save.addInt("totalItemsPurchased", totalItemsPurchased);
         save.addInt("totalItemsSold", totalItemsSold);
+        save.addLong("lastHistoryViewedTimestamp", lastHistoryViewedTimestamp);
 
         ModLogger.debug("Saved GE data for auth=%d: %d sell slots, %d buy orders, %d collection items, %d notifications",
-            ownerAuth, sellInventory.getSize(), buyOrders.length, collectionBox.size(), saleHistory.size());
+            ownerAuth, sellInventory.getSize(), buyOrders.length, getCollectionBoxSize(), saleHistory.size());
     }
 
     /**
@@ -798,13 +914,15 @@ public class PlayerGEInventory {
         }
         
         // Load collection box
-        collectionBox.clear();
-        LoadData collectionData = save.getFirstLoadDataByName("COLLECTION_BOX");
-        if (collectionData != null) {
-            for (LoadData itemData : collectionData.getLoadDataByName("COLLECTION_ITEM")) {
-                CollectionItem item = CollectionItem.fromSaveData(itemData);
-                if (item.isValid()) {
-                    collectionBox.add(item);
+        synchronized (collectionLock) {
+            collectionBox.clear();
+            LoadData collectionData = save.getFirstLoadDataByName("COLLECTION_BOX");
+            if (collectionData != null) {
+                for (LoadData itemData : collectionData.getLoadDataByName("COLLECTION_ITEM")) {
+                    CollectionItem item = CollectionItem.fromSaveData(itemData);
+                    if (item.isValid()) {
+                        collectionBox.add(item);
+                    }
                 }
             }
         }
@@ -817,11 +935,65 @@ public class PlayerGEInventory {
                 saleHistory.add(SaleNotification.fromSaveData(notifData));
             }
         }
+
+        synchronized (pendingSaleEvents) {
+            pendingSaleEvents.clear();
+            LoadData pendingEventsData = save.getFirstLoadDataByName("PENDING_SALE_EVENTS");
+            if (pendingEventsData != null) {
+                for (LoadData eventData : pendingEventsData.getLoadDataByName("SALE_EVENT")) {
+                    int slotIndex = eventData.getInt("slotIndex", -1);
+                    if (slotIndex < 0) {
+                        continue;
+                    }
+                    String itemStringID = eventData.getUnsafeString("itemStringID");
+                    if (itemStringID == null) {
+                        itemStringID = "";
+                    }
+                    int quantitySold = eventData.getInt("quantitySold", 0);
+                    int quantityRemaining = eventData.getInt("quantityRemaining", 0);
+                    int pricePerItem = eventData.getInt("pricePerItem", 0);
+                    long timestamp = eventData.getLong("timestamp", System.currentTimeMillis());
+                    pendingSaleEvents.addLast(new SellOfferSaleEvent(slotIndex, itemStringID,
+                        quantitySold, quantityRemaining, pricePerItem, timestamp));
+                    while (pendingSaleEvents.size() > MAX_PENDING_SALE_EVENTS) {
+                        pendingSaleEvents.removeFirst();
+                    }
+                }
+            }
+        }
+
+        // Load recent purchases
+        synchronized (recentPurchaseLock) {
+            purchaseHistory.clear();
+            LoadData purchaseData = save.getFirstLoadDataByName("RECENT_PURCHASES");
+            if (purchaseData != null) {
+                for (LoadData recordData : purchaseData.getLoadDataByName("PURCHASE")) {
+                    String itemID = recordData.getUnsafeString("itemStringID");
+                    if (itemID == null || itemID.isEmpty()) {
+                        continue;
+                    }
+                    int price = recordData.getInt("pricePerItem", 0);
+                    int quantity = recordData.getInt("quantity", 0);
+                    long timestamp = recordData.getLong("timestamp", System.currentTimeMillis());
+                    purchaseHistory.addLast(new PersonalTradeRecord(itemID, price, quantity, timestamp));
+                    while (purchaseHistory.size() > MAX_PURCHASE_HISTORY_RECORDS) {
+                        purchaseHistory.removeFirst();
+                    }
+                }
+            }
+        }
+
+        this.lastHistoryViewedTimestamp = save.getLong("lastHistoryViewedTimestamp", getLatestHistoryTimestamp());
         
         // Load settings
         this.autoSendToBank = save.getBoolean("autoSendToBank", true);
         this.notifyPartialSales = save.getBoolean("notifyPartialSales", true);
         this.playSoundOnSale = save.getBoolean("playSoundOnSale", true);
+        this.collectionDepositToBankPreferred = save.getBoolean(
+            "collectionDepositToBankPreferred",
+            this.autoSendToBank
+        );
+        this.collectionPageIndex = save.getInt("collectionPageIndex", 0);
         
         // Load escrow
         this.coinsInEscrow = save.getInt("coinsInEscrow", 0);
@@ -838,7 +1010,7 @@ public class PlayerGEInventory {
         this.totalItemsSold = save.getInt("totalItemsSold", 0);
 
         ModLogger.debug("Loaded GE data for auth=%d: %d sell slots, %d buy orders, %d collection items, %d notifications",
-            ownerAuth, sellInventory.getSize(), getActiveBuyOrderCount(), collectionBox.size(), saleHistory.size());
+            ownerAuth, sellInventory.getSize(), getActiveBuyOrderCount(), getCollectionBoxSize(), saleHistory.size());
     }
 
     /**
@@ -856,5 +1028,37 @@ public class PlayerGEInventory {
             }
         }
         return mappings;
+    }
+
+    // ===== INNER CLASSES =====
+
+    public static final class PersonalTradeRecord {
+        private final String itemStringID;
+        private final int pricePerItem;
+        private final int quantity;
+        private final long timestamp;
+
+        public PersonalTradeRecord(String itemStringID, int pricePerItem, int quantity, long timestamp) {
+            this.itemStringID = itemStringID;
+            this.pricePerItem = pricePerItem;
+            this.quantity = quantity;
+            this.timestamp = timestamp;
+        }
+
+        public String getItemStringID() {
+            return itemStringID;
+        }
+
+        public int getPricePerItem() {
+            return pricePerItem;
+        }
+
+        public int getQuantity() {
+            return quantity;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
     }
 }
